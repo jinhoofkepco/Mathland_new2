@@ -1,0 +1,71 @@
+name: Web dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "packages/contracts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/scan_client_secrets.sh"
+      - ".github/workflows/web.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "packages/contracts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/scan_client_secrets.sh"
+      - ".github/workflows/web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "mathland-pages-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test shared contracts
+        run: npm run test:contracts -- --run
+      - name: Test dashboard
+        run: npm run test:web -- --run
+      - name: Build credential-free Pages demo
+        env:
+          VITE_MATHLAND_CLOUD_MODE: fake
+        run: npm run build:web
+      - name: Scan browser bundle for secrets and development hosts
+        run: bash scripts/scan_client_secrets.sh web/dist
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy dashboard to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
