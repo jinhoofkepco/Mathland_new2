@@ -6,6 +6,8 @@ func run(tree: SceneTree) -> void:
 	await _test_pointer_down_release_and_cancel(tree)
 	await _test_reduced_motion_keeps_non_motion_feedback(tree)
 	await _test_keyboard_acceptance(tree)
+	await _test_keyboard_focus_loss_cancels_and_recovers(tree)
+	await _test_viewport_dispatch_targets_offset_button(tree)
 
 func _test_pointer_down_release_and_cancel(tree: SceneTree) -> void:
 	var button: Control = TactileButtonScene.instantiate()
@@ -60,6 +62,8 @@ func _test_reduced_motion_keeps_non_motion_feedback(tree: SceneTree) -> void:
 	var button: Control = TactileButtonScene.instantiate()
 	button.size = Vector2(240, 64)
 	button.reduced_motion = true
+	var haptics: Array[int] = []
+	button.set_haptic_driver(func(duration_ms: int): haptics.append(duration_ms))
 	tree.root.add_child(button)
 	await tree.process_frame
 	var original_shadow: Color = button.get_node("Shadow").modulate
@@ -67,7 +71,12 @@ func _test_reduced_motion_keeps_non_motion_feedback(tree: SceneTree) -> void:
 	assert_eq(button.get_node("Visual").scale, Vector2.ONE)
 	assert_eq(button.get_node("Visual").position, Vector2.ZERO)
 	assert_ne(button.get_node("Shadow").modulate, original_shadow)
+	assert_eq(haptics, [15], "reduced motion must not disable haptic feedback")
 	button._gui_input(_mouse_button(Vector2(10, 10), false))
+	button.haptics_enabled = false
+	button._gui_input(_mouse_button(Vector2(10, 10), true))
+	button._gui_input(_mouse_button(Vector2(10, 10), false))
+	assert_eq(haptics, [15], "haptics must have an independent opt-out")
 	button.queue_free()
 	await tree.process_frame
 
@@ -82,6 +91,50 @@ func _test_keyboard_acceptance(tree: SceneTree) -> void:
 	button.accepted.connect(func(): counts.accepted += 1)
 	button._gui_input(_key_event(true))
 	button._gui_input(_key_event(false))
+	assert_eq(counts.accepted, 1)
+	button.queue_free()
+	await tree.process_frame
+
+func _test_keyboard_focus_loss_cancels_and_recovers(tree: SceneTree) -> void:
+	var button: Control = TactileButtonScene.instantiate()
+	button.size = Vector2(240, 64)
+	var next_control := Control.new()
+	next_control.focus_mode = Control.FOCUS_ALL
+	next_control.position = Vector2(0, 100)
+	next_control.size = Vector2(100, 48)
+	tree.root.add_child(button)
+	tree.root.add_child(next_control)
+	await tree.process_frame
+	var counts := {"accepted": 0, "cancelled": 0}
+	button.accepted.connect(func(): counts.accepted += 1)
+	button.cancelled.connect(func(): counts.cancelled += 1)
+	button.grab_focus()
+	button._gui_input(_key_event(true))
+	next_control.grab_focus()
+	await tree.process_frame
+	assert_eq(counts.cancelled, 1, "focus loss must cancel an active keyboard press")
+	assert_eq(button._active_pointer, button.NO_POINTER)
+	button.grab_focus()
+	button._gui_input(_key_event(true))
+	button._gui_input(_key_event(false))
+	assert_eq(counts.accepted, 1, "button must recover after focus-loss cancellation")
+	button.queue_free()
+	next_control.queue_free()
+	await tree.process_frame
+
+func _test_viewport_dispatch_targets_offset_button(tree: SceneTree) -> void:
+	var button: Control = TactileButtonScene.instantiate()
+	button.position = Vector2(120, 90)
+	button.size = Vector2(240, 64)
+	tree.root.add_child(button)
+	await tree.process_frame
+	var counts := {"presses": 0, "accepted": 0}
+	button.press_started.connect(func(): counts.presses += 1)
+	button.accepted.connect(func(): counts.accepted += 1)
+	tree.root.push_input(_mouse_button(Vector2(140, 110), true), true)
+	tree.root.push_input(_mouse_button(Vector2(140, 110), false), true)
+	await tree.process_frame
+	assert_eq(counts.presses, 1, "viewport dispatch did not target the offset button")
 	assert_eq(counts.accepted, 1)
 	button.queue_free()
 	await tree.process_frame

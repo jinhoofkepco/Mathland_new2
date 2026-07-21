@@ -11,6 +11,7 @@ const MOUSE_POINTER := -1
 const KEYBOARD_POINTER := -2
 
 @export var reduced_motion := false
+@export var haptics_enabled := true
 @export var label_key := "button.continue"
 @export var icon_name := "arrow_right"
 
@@ -27,6 +28,7 @@ var _enabled := true
 var _restore_tween: Tween
 var _normal_shadow_position := Vector2.ZERO
 var _normal_shadow_modulate := Color.WHITE
+var _haptic_driver: Callable
 
 func _ready() -> void:
 	custom_minimum_size = custom_minimum_size.max(Vector2(48, 48))
@@ -38,13 +40,16 @@ func _ready() -> void:
 	_apply_accessibility()
 	resized.connect(_update_pivot)
 	focus_entered.connect(_show_focus_ring)
-	focus_exited.connect(_hide_focus_ring)
+	focus_exited.connect(_on_focus_exited)
 
 func configure_accessibility(new_label_key: String, new_icon_name: String) -> void:
 	label_key = new_label_key if not new_label_key.strip_edges().is_empty() else "button.continue"
 	icon_name = new_icon_name
 	if is_node_ready():
 		_apply_accessibility()
+
+func set_haptic_driver(driver: Callable) -> void:
+	_haptic_driver = driver
 
 func set_enabled(enabled: bool) -> void:
 	_enabled = enabled
@@ -96,8 +101,7 @@ func _begin_press(pointer: int, local_position: Vector2) -> void:
 	_active_pointer = pointer
 	_pointer_inside = true
 	_set_pressed_visual(true)
-	if not reduced_motion:
-		Input.vibrate_handheld(15)
+	_request_haptic(15)
 	sfx_requested.emit(&"button_down")
 	press_started.emit()
 
@@ -187,6 +191,19 @@ func _show_focus_ring() -> void:
 
 func _hide_focus_ring() -> void:
 	_focus_ring.visible = false
+
+func _on_focus_exited() -> void:
+	_hide_focus_ring()
+	if _active_pointer == KEYBOARD_POINTER:
+		_cancel_press()
+
+func _request_haptic(duration_ms: int) -> void:
+	if not haptics_enabled:
+		return
+	if _haptic_driver.is_valid():
+		_haptic_driver.call(duration_ms)
+		return
+	Input.vibrate_handheld(duration_ms)
 
 func _icon_glyph(name: String) -> String:
 	match name:
