@@ -156,6 +156,20 @@ test("rejects host development artifacts from packaged assets", () => {
   }
 });
 
+test("rejects environment and signing-key names used as path components", () => {
+  const forbidden = [
+    "/assets/runtime/private/.env.local/secret.txt",
+    "/assets/runtime/private/release.jks/secret.txt",
+  ];
+  for (const path of forbidden) {
+    const result = runInspection({
+      files: `/lib/arm64-v8a/libgodot_android.so\n${path}`,
+    });
+    assert.equal(result.status, 1, `accepted ${path}`);
+    assert.match(result.stderr, /host development artifact/);
+  }
+});
+
 test("rejects missing privacy and SDK declarations", () => {
   const backup = runInspection({ manifest: validManifest.replace('android:allowBackup="false"', "") });
   assert.equal(backup.status, 1);

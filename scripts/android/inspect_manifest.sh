@@ -111,7 +111,7 @@ if rg --quiet --pcre2 '^lib/(?!arm64-v8a(?:/|$))[^/]+/' <<<"$MATHLAND_NORMALIZED
   echo "APK policy failed: non-ARM64 native library present" >&2
   exit 1
 fi
-if rg --quiet --pcre2 '(?:^|/)(?:\.git|\.github|node_modules|tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|dist)(?:/|$)|^assets/(?:[^/]+/)*android(?:/|$)|(?:^|/)(?:package(?:-lock)?\.json|\.env(?:\.[^/]*)?|\.DS_Store|[^/]*\.(?:keystore|jks|p12))$' <<<"$MATHLAND_NORMALIZED_FILES"; then
+if rg --quiet --pcre2 '(?:^|/)(?:\.git|\.github|node_modules|tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|dist)(?:/|$)|^assets/(?:[^/]+/)*android(?:/|$)|(?:^|/)(?:package(?:-lock)?\.json|\.env(?:\.[^/]*)?|\.DS_Store|[^/]*\.(?:keystore|jks|p12))(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: host development artifact present" >&2
   exit 1
 fi
