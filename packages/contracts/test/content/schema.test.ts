@@ -108,6 +108,16 @@ describe("content package schemas", () => {
       expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(false);
     },
   );
+
+  it("rejects U+0000 in authored string values and parameter keys", () => {
+    const valueDraft = makeValidDraft();
+    valueDraft.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyDraft = structuredClone(makeValidDraft());
+    keyDraft.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(ActivityPackageDraftV1Schema.safeParse(valueDraft).success).toBe(false);
+    expect(ActivityPackageDraftV1Schema.safeParse(keyDraft).success).toBe(false);
+  });
 });
 
 describe("checked-in JSON Schemas", () => {
@@ -193,6 +203,17 @@ describe("checked-in JSON Schemas", () => {
 
     expect(validate(validPackage), validationErrors(validate)).toBe(true);
     expect(validate(invalidPackage), validationErrors(validate)).toBe(false);
+  });
+
+  it("rejects U+0000 values and parameter keys through a Draft 2020-12 validator", async () => {
+    const validate = await compileCheckedInActivitySchema();
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(validate(valuePackage), validationErrors(validate)).toBe(false);
+    expect(validate(keyPackage), validationErrors(validate)).toBe(false);
   });
 
   it.each([

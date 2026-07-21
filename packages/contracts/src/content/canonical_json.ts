@@ -26,6 +26,7 @@ export class CanonicalJsonError extends TypeError {
 
 export type ContentJsonParseErrorCode =
   | "INVALID_JSON"
+  | "INVALID_UNICODE"
   | "DUPLICATE_KEY"
   | "SOURCE_TOO_LARGE"
   | "NESTING_TOO_DEEP";
@@ -211,11 +212,14 @@ class StrictJsonScanner {
           this.fail("INVALID_JSON", path, start, "Malformed JSON string");
         }
       }
+      if (codePoint === 0) {
+        this.fail("INVALID_UNICODE", path, this.index, "U+0000 is not accepted in content JSON");
+      }
       if (codePoint < 0x20) {
         this.fail("INVALID_JSON", path, this.index, "Unescaped control character in string");
       }
       if (codePoint === 0xfffd) {
-        this.fail("INVALID_JSON", path, this.index, "Unicode replacement character is not accepted");
+        this.fail("INVALID_UNICODE", path, this.index, "Unicode replacement character is not accepted");
       }
       if (codePoint >= 0xd800 && codePoint <= 0xdbff) {
         const lowSurrogate = this.source.charCodeAt(this.index + 1);
@@ -240,8 +244,11 @@ class StrictJsonScanner {
             this.fail("INVALID_JSON", path, this.index, "Malformed Unicode escape");
           }
           const codeUnit = Number.parseInt(hexadecimal, 16);
+          if (codeUnit === 0) {
+            this.fail("INVALID_UNICODE", path, this.index, "U+0000 is not accepted in content JSON");
+          }
           if (codeUnit === 0xfffd) {
-            this.fail("INVALID_JSON", path, this.index, "Unicode replacement character is not accepted");
+            this.fail("INVALID_UNICODE", path, this.index, "Unicode replacement character is not accepted");
           }
           if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
             if (this.source.slice(this.index + 5, this.index + 7) !== "\\u") {
@@ -477,6 +484,13 @@ function validateObjectProperties(value: Record<string, unknown>, path: JsonPath
 function assertWellFormedUnicode(value: string, path: JsonPath): void {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
+    if (codeUnit === 0) {
+      throw new CanonicalJsonError(
+        "INVALID_UNICODE",
+        path,
+        "Canonical JSON rejects U+0000",
+      );
+    }
     if (codeUnit === 0xfffd) {
       throw new CanonicalJsonError(
         "INVALID_UNICODE",
