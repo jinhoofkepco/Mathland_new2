@@ -1,5 +1,17 @@
 import type { LearningEventV1 } from "../../../packages/contracts/src/events/learning_event_v1.ts";
+import type {
+  ContentDraft,
+  ContentPublicationHistoryItem,
+  SaveDraftInput,
+} from "../../../packages/contracts/src/cloud/wire.ts";
 import { SupabaseAuthVerifier } from "./auth.ts";
+import type {
+  CommitPublicationInput,
+  ContentStudioRepository,
+  DraftSource,
+  RollbackSource,
+  StudioRole,
+} from "./studio.ts";
 
 export type CreateChallengeInput = {
   profileId: string;
@@ -113,6 +125,54 @@ class ServiceRpcClient {
   }
 }
 
+class CallerRestClient {
+  constructor(
+    private readonly supabaseUrl: string,
+    private readonly publishableKey: string,
+    private readonly fetcher: typeof fetch = fetch,
+  ) {}
+
+  async request<T>(
+    path: string,
+    accessToken: string,
+    init: RequestInit,
+  ): Promise<T> {
+    let response: Response;
+    try {
+      const headers = new Headers(init.headers);
+      headers.set("apikey", this.publishableKey);
+      headers.set("authorization", `Bearer ${accessToken}`);
+      headers.set("accept", "application/json");
+      if (init.body !== undefined) headers.set("content-type", "application/json");
+      response = await this.fetcher(`${this.supabaseUrl}/rest/v1/${path}`, { ...init, headers });
+    } catch {
+      throw new SupabaseRpcError("rpc_unavailable", 503);
+    }
+    if (!response.ok) {
+      let errorCode = "rpc_error";
+      try {
+        const payload = await response.json() as RpcErrorBody;
+        if (typeof payload.code === "string") errorCode = payload.code;
+      } catch {
+        // Upstream details never cross the Edge boundary.
+      }
+      throw new SupabaseRpcError(errorCode, response.status);
+    }
+    try {
+      return await response.json() as T;
+    } catch {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+  }
+
+  call<T>(name: string, accessToken: string, body: Record<string, unknown>): Promise<T> {
+    return this.request<T>(`rpc/${name}`, accessToken, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+}
+
 type PairingClaimRow = {
   outcome?: unknown;
   device_id?: unknown;
@@ -127,9 +187,81 @@ type IngestRpcResult = {
   server_cursor?: unknown;
 };
 
+type DraftSourceRow = {
+  id?: unknown;
+  activity_id?: unknown;
+  revision?: unknown;
+  package?: unknown;
+};
+
+type DraftWireRow = {
+  id?: unknown;
+  activityId?: unknown;
+  title?: unknown;
+  revision?: unknown;
+  updatedAt?: unknown;
+  package?: unknown;
+};
+
+type RollbackSourceRow = {
+  publication_id?: unknown;
+  activity_id?: unknown;
+  content_version?: unknown;
+  checksum?: unknown;
+  package?: unknown;
+  current_draft_id?: unknown;
+  current_draft_revision?: unknown;
+};
+
+type PublicationHistoryRow = {
+  publication_id?: unknown;
+  activity_id?: unknown;
+  content_version?: unknown;
+  checksum?: unknown;
+  status?: unknown;
+  actor_id?: unknown;
+  published_at?: unknown;
+  effective_at?: unknown;
+  source_revision?: unknown;
+  reason?: unknown;
+  validation_valid?: unknown;
+  rollback_of_id?: unknown;
+};
+
+const DRAFT_SELECT = "id,activityId:activity_id,title,revision,updatedAt:updated_at,package";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function draftWire(row: DraftWireRow): ContentDraft {
+  if (
+    typeof row.id !== "string" || typeof row.activityId !== "string" ||
+    typeof row.title !== "string" || typeof row.revision !== "number" ||
+    typeof row.updatedAt !== "string" || !isRecord(row.package)
+  ) {
+    throw new SupabaseRpcError("rpc_invalid_response", 503);
+  }
+  return {
+    id: row.id,
+    activityId: row.activityId,
+    title: row.title,
+    revision: row.revision,
+    updatedAt: row.updatedAt,
+    package: row.package as ContentDraft["package"],
+  };
+}
+
 export class SupabaseFunctionRepository
-  implements CreatePairingRepository, PairDeviceRepository, IngestionRepository {
-  constructor(private readonly rpc: ServiceRpcClient) {}
+  implements
+    CreatePairingRepository,
+    PairDeviceRepository,
+    IngestionRepository,
+    ContentStudioRepository {
+  constructor(
+    private readonly rpc: ServiceRpcClient,
+    private readonly caller: CallerRestClient,
+  ) {}
 
   async createChallenge(input: CreateChallengeInput): Promise<string> {
     const result = await this.rpc.call<unknown>("create_pairing_challenge_for_service", {
@@ -203,6 +335,164 @@ export class SupabaseFunctionRepository
       serverCursor: result.server_cursor,
     };
   }
+
+  async hasRole(accessToken: string, role: StudioRole): Promise<boolean> {
+    const result = await this.caller.call<unknown>("has_role", accessToken, {
+      required_role: role,
+    });
+    if (typeof result !== "boolean") throw new SupabaseRpcError("rpc_invalid_response", 503);
+    return result;
+  }
+
+  async getDraft(draftIdOrActivityId: string): Promise<DraftSource | undefined> {
+    const result = await this.rpc.call<DraftSourceRow[]>("get_content_draft_for_validation", {
+      target_draft_id: draftIdOrActivityId,
+    });
+    if (!Array.isArray(result) || result.length > 1) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    const row = result[0];
+    if (row === undefined) return undefined;
+    if (
+      typeof row.id !== "string" || typeof row.activity_id !== "string" ||
+      typeof row.revision !== "number" || !isRecord(row.package)
+    ) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    return {
+      id: row.id,
+      activityId: row.activity_id,
+      revision: row.revision,
+      package: row.package as unknown as DraftSource["package"],
+    };
+  }
+
+  async saveDraft(accessToken: string, input: SaveDraftInput): Promise<ContentDraft> {
+    const title = input.package.localizations["ko-KR"].title;
+    const query = new URLSearchParams({ select: DRAFT_SELECT });
+    let rows: DraftWireRow[];
+    if (input.draftId === undefined) {
+      rows = await this.caller.request<DraftWireRow[]>(
+        `content_drafts?${query}`,
+        accessToken,
+        {
+          method: "POST",
+          headers: { prefer: "return=representation" },
+          body: JSON.stringify({
+            activity_id: input.package.activity_id,
+            title,
+            package: input.package,
+          }),
+        },
+      );
+    } else {
+      query.set("id", `eq.${input.draftId}`);
+      query.set("revision", `eq.${input.expectedRevision}`);
+      rows = await this.caller.request<DraftWireRow[]>(
+        `content_drafts?${query}`,
+        accessToken,
+        {
+          method: "PATCH",
+          headers: { prefer: "return=representation" },
+          body: JSON.stringify({ title, package: input.package }),
+        },
+      );
+      if (Array.isArray(rows) && rows.length === 0) {
+        throw new SupabaseRpcError("draft_revision_conflict", 409);
+      }
+    }
+    if (!Array.isArray(rows) || rows.length !== 1) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    return draftWire(rows[0]);
+  }
+
+  async commitPublication(input: CommitPublicationInput): Promise<string> {
+    const result = await this.rpc.call<unknown>("commit_validated_content_publication", {
+      target_draft_id: input.draftId,
+      expected_revision: input.expectedRevision,
+      published_package: input.publishedPackage,
+      canonical_checksum: input.checksum,
+      validation_report: input.validationReport,
+      actor_user_id: input.actorUserId,
+      target_effective_at: input.effectiveAt.toISOString(),
+      publication_request_id: input.requestId,
+      publication_reason: input.reason,
+      rollback_publication_id: input.rollbackPublicationId,
+    });
+    if (typeof result !== "string") throw new SupabaseRpcError("rpc_invalid_response", 503);
+    return result;
+  }
+
+  async getRollbackSource(publicationId: string): Promise<RollbackSource | undefined> {
+    const result = await this.rpc.call<RollbackSourceRow[]>(
+      "get_content_publication_for_rollback",
+      { target_publication_id: publicationId },
+    );
+    if (!Array.isArray(result) || result.length > 1) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    const row = result[0];
+    if (row === undefined) return undefined;
+    if (
+      typeof row.publication_id !== "string" || typeof row.activity_id !== "string" ||
+      typeof row.content_version !== "string" || typeof row.checksum !== "string" ||
+      !isRecord(row.package) || typeof row.current_draft_id !== "string" ||
+      typeof row.current_draft_revision !== "number"
+    ) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    return {
+      publicationId: row.publication_id,
+      activityId: row.activity_id,
+      contentVersion: row.content_version,
+      checksum: row.checksum,
+      package: row.package as unknown as RollbackSource["package"],
+      draftId: row.current_draft_id,
+      draftRevision: row.current_draft_revision,
+    };
+  }
+
+  async listPublicationHistory(
+    accessToken: string,
+    activityId?: string,
+  ): Promise<ContentPublicationHistoryItem[]> {
+    const rows = await this.caller.call<PublicationHistoryRow[]>(
+      "get_content_publication_history",
+      accessToken,
+      { target_activity_id: activityId ?? null },
+    );
+    if (!Array.isArray(rows)) throw new SupabaseRpcError("rpc_invalid_response", 503);
+    return rows.map((row) => {
+      if (
+        typeof row.publication_id !== "string" || typeof row.activity_id !== "string" ||
+        typeof row.content_version !== "string" || typeof row.checksum !== "string" ||
+        (row.status !== "pending" && row.status !== "active" && row.status !== "retired") ||
+        (row.actor_id !== null && typeof row.actor_id !== "string") ||
+        typeof row.published_at !== "string" || typeof row.effective_at !== "string" ||
+        typeof row.source_revision !== "number" ||
+        (row.reason !== null && typeof row.reason !== "string") ||
+        typeof row.validation_valid !== "boolean" ||
+        (row.rollback_of_id !== null && typeof row.rollback_of_id !== "string")
+      ) {
+        throw new SupabaseRpcError("rpc_invalid_response", 503);
+      }
+      return {
+        id: row.publication_id,
+        activityId: row.activity_id,
+        contentVersion: row.content_version,
+        checksum: row.checksum,
+        status: row.status,
+        publishedAt: row.published_at,
+        effectiveAt: row.effective_at,
+        publishedBy: row.actor_id,
+        sourceRevision: row.source_revision,
+        rollbackOfId: row.rollback_of_id,
+        reason: row.reason,
+        validationValid: row.validation_valid,
+      };
+    });
+  }
 }
 
 function requiredEnvironment(name: string): string {
@@ -243,10 +533,11 @@ export function createSupabaseFunctionRuntime(): SupabaseFunctionRuntime {
   const pairingSecret = requiredEnvironment("PAIRING_CODE_HMAC_SECRET");
   if (pairingSecret.length < 32) throw new Error("pairing HMAC secret is too short");
   const rpc = new ServiceRpcClient(supabaseUrl, serviceRoleKey);
+  const caller = new CallerRestClient(supabaseUrl, publishableKey);
   return {
     allowedOrigins: allowedOriginsFromEnvironment(),
     auth: new SupabaseAuthVerifier(supabaseUrl, publishableKey),
     pairingSecret,
-    repository: new SupabaseFunctionRepository(rpc),
+    repository: new SupabaseFunctionRepository(rpc, caller),
   };
 }

@@ -13,8 +13,9 @@
   "lock": false,
   "minimumDependencyAge": 0,
   "nodeModulesDir": "none",
+  "unstable": ["sloppy-imports"],
   "tasks": {
-    "check:functions": "deno check supabase/functions/create-pairing-code/index.ts supabase/functions/pair-device/index.ts supabase/functions/ingest-events/index.ts",
-    "test:functions": "deno test --allow-env supabase/functions/tests"
+    "check:functions": "deno check --sloppy-imports supabase/functions/create-pairing-code/index.ts supabase/functions/pair-device/index.ts supabase/functions/ingest-events/index.ts supabase/functions/save-draft/index.ts supabase/functions/validate-draft/index.ts supabase/functions/publish-draft/index.ts supabase/functions/content-history/index.ts supabase/functions/rollback-publication/index.ts",
+    "test:functions": "deno test --sloppy-imports --allow-env supabase/functions/tests"
   }
 }

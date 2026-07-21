@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  CloudUuidSchema,
+  PublicationReasonSchema,
+  SaveDraftInputSchema,
+} from "../../../packages/contracts/src/cloud/wire.ts";
+import {
   type LearningEventV1,
   LearningEventV1Schema,
 } from "../../../packages/contracts/src/events/learning_event_v1.ts";
@@ -15,6 +20,31 @@ export const PairDeviceRequestSchema = z.strictObject({
   code: z.string().regex(/^\d{6}$/),
   device_id: nonemptyBoundedText(128),
   display_name: nonemptyBoundedText(80).optional(),
+});
+
+export { SaveDraftInputSchema };
+
+export const ValidateDraftRequestSchema = z.strictObject({
+  draftId: CloudUuidSchema,
+  // Deliberately unknown: validation must report malformed package fields instead of
+  // rejecting them at the transport boundary.
+  package: z.unknown().optional(),
+});
+
+export const PublishDraftRequestSchema = z.strictObject({
+  draftId: CloudUuidSchema,
+  expectedRevision: z.number().int().positive(),
+  effectiveAt: z.iso.datetime({ offset: true }).optional(),
+  reason: PublicationReasonSchema.optional(),
+});
+
+export const ContentHistoryRequestSchema = z.strictObject({
+  activityId: z.string().min(1).max(128).optional(),
+});
+
+export const RollbackPublicationRequestSchema = z.strictObject({
+  publicationId: CloudUuidSchema,
+  reason: PublicationReasonSchema,
 });
 
 export type IngestResponse = {

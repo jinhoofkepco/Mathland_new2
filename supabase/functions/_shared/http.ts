@@ -102,6 +102,17 @@ export function successResponse(
   return new Response(JSON.stringify({ ...data, request_id: requestId }), { status, headers });
 }
 
+/** Returns an exact public wire value while keeping correlation metadata in headers. */
+export function wireResponse(
+  status: number,
+  data: unknown,
+  baseHeaders: Headers,
+): Response {
+  const headers = new Headers(baseHeaders);
+  headers.set("content-type", "application/json; charset=utf-8");
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
 export function errorResponse(
   requestId: string,
   status: number,

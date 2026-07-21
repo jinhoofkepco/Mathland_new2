@@ -37,3 +37,18 @@ verify_jwt = false
 
 [functions.ingest-events]
 verify_jwt = false
+
+[functions.save-draft]
+verify_jwt = false
+
+[functions.validate-draft]
+verify_jwt = false
+
+[functions.publish-draft]
+verify_jwt = false
+
+[functions.content-history]
+verify_jwt = false
+
+[functions.rollback-publication]
+verify_jwt = false
