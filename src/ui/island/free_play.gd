@@ -37,7 +37,8 @@ func _ready() -> void:
 		column.add_child(description)
 		var activity_id := StringName(activity.get("activity_id", ""))
 		var icon_id := AssetCatalogScript.activity_icon_id(activity_id)
-		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, title_key, String(icon_id), Vector2(0, 54), 17)
+		var icon_name := String(icon_id) if not icon_id.is_empty() else "arrow_right"
+		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, title_key, icon_name, Vector2(0, 54), 17)
 		column.add_child(button)
 		_connect_tactile(button, _open_activity.bind(index))
 

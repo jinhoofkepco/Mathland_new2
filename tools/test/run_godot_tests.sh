@@ -11,11 +11,28 @@ case "$suite" in
 esac
 
 godot_bin=${GODOT_BIN:-godot}
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+import_log=$(mktemp "${TMPDIR:-/tmp}/mathland-godot-import.XXXXXX")
 output_log=$(mktemp "${TMPDIR:-/tmp}/mathland-godot-tests.XXXXXX")
-trap 'rm -f "$output_log"' EXIT
+trap 'rm -f "$import_log" "$output_log"' EXIT
 
 set +e
-"$godot_bin" --headless --path . --script res://tests/run_all.gd -- --suite "$suite" 2>&1 | tee "$output_log"
+"$godot_bin" --headless --editor --path "$repo_root" --quit 2>&1 | tee "$import_log"
+import_status=${PIPESTATUS[0]}
+set -e
+
+if [[ $import_status -ne 0 ]]; then
+	echo "Godot headless import failed with status $import_status" >&2
+	exit "$import_status"
+fi
+
+if grep -Eq 'SCRIPT ERROR:|^ERROR:|Failed to import|Import process failed' "$import_log"; then
+	echo "Godot emitted an import error" >&2
+	exit 1
+fi
+
+set +e
+"$godot_bin" --headless --path "$repo_root" --script res://tests/run_all.gd -- --suite "$suite" 2>&1 | tee "$output_log"
 godot_status=${PIPESTATUS[0]}
 set -e
 

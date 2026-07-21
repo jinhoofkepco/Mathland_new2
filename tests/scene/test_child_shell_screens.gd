@@ -65,6 +65,11 @@ class FakeContentRepository extends RefCounted:
 			"title_key": "activity.foundation_ten_rods.title",
 			"description_key": "activity.foundation_ten_rods.description",
 			"content_version": "test-1",
+		}, {
+			"activity_id": "future_unmapped_activity",
+			"title_key": "activity.foundation_ten_rods.title",
+			"description_key": "activity.foundation_ten_rods.description",
+			"content_version": "test-1",
 		}]
 
 class FakeAudioService extends RefCounted:
@@ -286,6 +291,14 @@ func _test_free_play_release_activity_icon(tree: SceneTree, services: Dictionary
 			assert_eq(icon.texture.resource_path, "res://assets/ui/icons/activities/foundations_base_ten.svg")
 		assert_false(button.get_node("Visual/Content/TextLabel").text.strip_edges().is_empty())
 		assert_false(button.accessibility_name.strip_edges().is_empty())
+	var fallback_button: Control = screen.find_child("ActivityButton_1", true, false)
+	assert_not_null(fallback_button)
+	if fallback_button != null:
+		var fallback_texture: TextureRect = fallback_button.get_node("Visual/Content/IconTexture")
+		var fallback_glyph: Label = fallback_button.get_node("Visual/Content/IconLabel")
+		assert_false(fallback_texture.visible)
+		assert_true(fallback_glyph.visible)
+		assert_eq(fallback_glyph.text, "›", "unmapped activities must preserve arrow_right")
 	viewport.queue_free()
 	await tree.process_frame
 

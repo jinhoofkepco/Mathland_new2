@@ -29,6 +29,11 @@ async function runtimeFiles(relativePath: string): Promise<string[]> {
 }
 
 describe("runtime release asset integration", () => {
+  it("marks the provenance tree as invisible to Godot import and export", async () => {
+    const marker = await readFile(path.join(ROOT, "assets/source/.gdignore"), "utf8");
+    expect(marker).toContain("Provenance-only");
+  });
+
   it("maps manifest IDs to their exact reviewed release paths", async () => {
     const manifest = JSON.parse(
       await readFile(path.join(ROOT, "assets/asset-manifest.json"), "utf8"),
@@ -65,6 +70,7 @@ describe("runtime release asset integration", () => {
       `&"foundation_ten_rods": &"ui.activity.foundations_base_ten"`,
     );
     expect(freePlay).toContain("AssetCatalogScript.activity_icon_id(activity_id)");
+    expect(freePlay).toContain('if not icon_id.is_empty() else "arrow_right"');
   });
 
   it("wires the reviewed releases into island, collection, and controls", async () => {
