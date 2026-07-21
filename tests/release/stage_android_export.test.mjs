@@ -31,6 +31,7 @@ function makeSource(root, includeHostArtifacts) {
   write(root, "addons/mathland_secure_credentials/bin/debug/plugin.aar", "aar");
   write(root, "content/packages/addition_ones/1.0.0.json", "playable content");
   if (!includeHostArtifacts) return;
+  write(root, "content/packages/addition_ones/reviewer-notes.txt", "must stay on host");
   write(root, "package.json", "host package");
   write(root, "package-lock.json", "host lock");
   write(root, "node_modules/example/index.js", "dependency");

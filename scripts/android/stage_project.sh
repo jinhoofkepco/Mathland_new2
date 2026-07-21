@@ -17,7 +17,9 @@ fi
 
 rsync -a \
   --include='/content/packages/' \
-  --include='/content/packages/***' \
+  --include='/content/packages/*/' \
+  --include='/content/packages/*/*.json' \
+  --exclude='/content/packages/***' \
   --exclude='.git' \
   --exclude='.github/' \
   --exclude='.godot/' \
