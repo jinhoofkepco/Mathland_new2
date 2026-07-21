@@ -8,6 +8,9 @@ const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 const ProgressReducerScript = preload("res://src/progress/progress_reducer.gd")
 
 const SNAPSHOT_FILE := "snapshot.json"
+const SNAPSHOT_CORRUPT_SUFFIX := ".corrupt"
+const SNAPSHOT_CORRUPT_TEMP_SUFFIX := ".corrupt.tmp"
+const SNAPSHOT_CORRUPT_BACKUP_SUFFIX := ".corrupt.bak"
 const MAX_SAFE_INTEGER := 9007199254740991
 const SNAPSHOT_KEYS := [
 	"schema_version",
@@ -24,26 +27,32 @@ const SNAPSHOT_KEYS := [
 const ACTIVITY_KEYS := ["attempts", "correct", "repeated_errors"]
 const RUN_TOTAL_KEYS := ["completed", "health_depleted"]
 
-var _injected_store: AtomicJsonStoreScript
+var _store_provider: Variant
+var _store_profiles_by_path := {}
+var _store_profiles_by_instance := {}
 var _store: AtomicJsonStoreScript
 var _journal: Variant
 var _profile_id := ""
 var _state: Dictionary = {}
 var _loaded := false
 
-func _init(store: AtomicJsonStoreScript = null) -> void:
-	_injected_store = store
-	_store = store
+func _init(store_provider: Variant = null) -> void:
+	_store_provider = store_provider
 
 func load_profile(profile_id: String, journal: Variant) -> Dictionary:
+	_clear_loaded_state()
 	if profile_id.is_empty() or journal == null or not journal.has_method("replay"):
 		return {"ok": false, "error": "invalid_request"}
-	var target_store: AtomicJsonStoreScript = _injected_store
-	if target_store == null:
-		target_store = AtomicJsonStoreScript.new("user://profiles/%s" % profile_id)
+	var resolved_store := _store_for_profile(profile_id)
+	if not resolved_store.get("ok", false):
+		return resolved_store
+	var target_store: AtomicJsonStoreScript = resolved_store.store
 
+	var recovered_quarantine := _recover_interrupted_snapshot_quarantine(target_store)
+	if not recovered_quarantine.get("ok", false):
+		return recovered_quarantine
 	var candidate := ProgressReducerScript.initial_state(profile_id)
-	var quarantined_snapshot := false
+	var quarantined_snapshot: bool = recovered_quarantine.get("recovered", false)
 	var loaded_snapshot: Dictionary = target_store.load(SNAPSHOT_FILE)
 	if loaded_snapshot.get("ok", false):
 		if _is_valid_snapshot(loaded_snapshot.get("value", null), profile_id):
@@ -105,6 +114,42 @@ func load_profile(profile_id: String, journal: Variant) -> Dictionary:
 		"quarantined_snapshot": quarantined_snapshot,
 		"quarantined_tail": replayed.get("quarantined_tail", false),
 	}
+
+func _clear_loaded_state() -> void:
+	_store = null
+	_journal = null
+	_profile_id = ""
+	_state = {}
+	_loaded = false
+
+func _store_for_profile(profile_id: String) -> Dictionary:
+	var target_store: AtomicJsonStoreScript
+	if _store_provider == null:
+		target_store = AtomicJsonStoreScript.new("user://profiles/%s" % profile_id)
+	elif _store_provider is AtomicJsonStoreScript:
+		target_store = _store_provider
+	else:
+		if not _store_provider is Object or not _store_provider.has_method("create_store"):
+			return {"ok": false, "error": "invalid_store_factory"}
+		var created_store: Variant = _store_provider.call("create_store", profile_id)
+		if not created_store is AtomicJsonStoreScript:
+			return {"ok": false, "error": "invalid_store_factory"}
+		target_store = created_store
+	return _bind_store_to_profile(target_store, profile_id)
+
+func _bind_store_to_profile(store: AtomicJsonStoreScript, profile_id: String) -> Dictionary:
+	var snapshot_path := ProjectSettings.globalize_path(store._path_for(SNAPSHOT_FILE)).simplify_path()
+	var instance_id := store.get_instance_id()
+	var path_profile: String = _store_profiles_by_path.get(snapshot_path, "")
+	var instance_profile: String = _store_profiles_by_instance.get(instance_id, "")
+	if (
+		(not path_profile.is_empty() and path_profile != profile_id)
+		or (not instance_profile.is_empty() and instance_profile != profile_id)
+	):
+		return {"ok": false, "error": "store_profile_mismatch"}
+	_store_profiles_by_path[snapshot_path] = profile_id
+	_store_profiles_by_instance[instance_id] = profile_id
+	return {"ok": true, "store": store}
 
 func commit(event: Dictionary) -> Error:
 	if not _loaded:
@@ -249,19 +294,78 @@ func _normalized_snapshot(value: Dictionary) -> Dictionary:
 
 func _quarantine_snapshot(store: AtomicJsonStoreScript) -> Dictionary:
 	var snapshot_path: String = store._path_for(SNAPSHOT_FILE)
-	var quarantine_path := "%s.corrupt" % snapshot_path
-	if not FileAccess.file_exists(snapshot_path):
-		return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
-	if FileAccess.file_exists(quarantine_path):
-		var remove_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(quarantine_path))
-		if remove_error != OK:
-			return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
-	var quarantine_error := DirAccess.rename_absolute(
-		ProjectSettings.globalize_path(snapshot_path), ProjectSettings.globalize_path(quarantine_path)
-	)
-	if quarantine_error != OK:
-		return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
+	var quarantine_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_SUFFIX]
+	var temporary_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_TEMP_SUFFIX]
+	var backup_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_BACKUP_SUFFIX]
+	if (
+		not _snapshot_file_exists(snapshot_path)
+		or _snapshot_file_exists(temporary_path)
+		or _snapshot_file_exists(backup_path)
+	):
+		return _quarantine_failure(quarantine_path)
+	if _rename_snapshot_path(snapshot_path, temporary_path) != OK:
+		return _quarantine_failure(quarantine_path)
+	if _promote_snapshot_quarantine(temporary_path, quarantine_path, backup_path) != OK:
+		return _quarantine_failure(quarantine_path)
 	return {"ok": true, "quarantine_path": quarantine_path}
+
+func _recover_interrupted_snapshot_quarantine(store: AtomicJsonStoreScript) -> Dictionary:
+	var snapshot_path: String = store._path_for(SNAPSHOT_FILE)
+	var quarantine_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_SUFFIX]
+	var temporary_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_TEMP_SUFFIX]
+	var backup_path := "%s%s" % [snapshot_path, SNAPSHOT_CORRUPT_BACKUP_SUFFIX]
+	var has_quarantine := _snapshot_file_exists(quarantine_path)
+	var has_temporary := _snapshot_file_exists(temporary_path)
+	var has_backup := _snapshot_file_exists(backup_path)
+	if has_backup:
+		if has_quarantine:
+			if has_temporary or _remove_snapshot_path(backup_path) != OK:
+				return _quarantine_failure(quarantine_path)
+			return {"ok": true, "recovered": true, "quarantine_path": quarantine_path}
+		if has_temporary:
+			if _rename_snapshot_path(temporary_path, quarantine_path) != OK:
+				if _rename_snapshot_path(backup_path, quarantine_path) != OK:
+					return _quarantine_failure(quarantine_path)
+				return _quarantine_failure(quarantine_path)
+			if _remove_snapshot_path(backup_path) != OK:
+				return _quarantine_failure(quarantine_path)
+			return {"ok": true, "recovered": true, "quarantine_path": quarantine_path}
+		if _rename_snapshot_path(backup_path, quarantine_path) != OK:
+			return _quarantine_failure(quarantine_path)
+		return {"ok": true, "recovered": true, "quarantine_path": quarantine_path}
+	if has_temporary:
+		if _promote_snapshot_quarantine(temporary_path, quarantine_path, backup_path) != OK:
+			return _quarantine_failure(quarantine_path)
+		return {"ok": true, "recovered": true, "quarantine_path": quarantine_path}
+	return {"ok": true, "recovered": false, "quarantine_path": quarantine_path}
+
+func _promote_snapshot_quarantine(temporary_path: String, quarantine_path: String, backup_path: String) -> Error:
+	if _snapshot_file_exists(backup_path):
+		return FAILED
+	if _snapshot_file_exists(quarantine_path):
+		if _rename_snapshot_path(quarantine_path, backup_path) != OK:
+			return FAILED
+	if _rename_snapshot_path(temporary_path, quarantine_path) != OK:
+		if _snapshot_file_exists(backup_path) and _rename_snapshot_path(backup_path, quarantine_path) != OK:
+			return FAILED
+		return FAILED
+	if _snapshot_file_exists(backup_path) and _remove_snapshot_path(backup_path) != OK:
+		return FAILED
+	return OK
+
+func _quarantine_failure(quarantine_path: String) -> Dictionary:
+	return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
+
+func _snapshot_file_exists(path: String) -> bool:
+	return FileAccess.file_exists(path)
+
+func _rename_snapshot_path(from_path: String, to_path: String) -> Error:
+	return DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path)
+	)
+
+func _remove_snapshot_path(path: String) -> Error:
+	return DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 func _has_exact_keys(value: Dictionary, expected_keys: Array) -> bool:
 	if value.size() != expected_keys.size():

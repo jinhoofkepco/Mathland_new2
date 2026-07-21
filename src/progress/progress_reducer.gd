@@ -41,7 +41,7 @@ static func apply(state: Dictionary, event: Variant) -> Dictionary:
 	if event_value.profile_id != state.profile_id:
 		return unchanged
 	var event_sequence := int(event_value.sequence)
-	if event_sequence <= int(state.last_sequence):
+	if event_sequence != int(state.last_sequence) + 1:
 		return unchanged
 
 	var next := state.duplicate(true)

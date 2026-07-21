@@ -17,6 +17,7 @@ func run(_tree: SceneTree) -> void:
 	_test_repeated_error_key_is_stable_after_json_round_trip()
 	_test_completion_reason_is_authoritative()
 	_test_malformed_state_is_not_advanced()
+	_test_sequence_gaps_are_ignored_copies()
 
 func _test_initial_schema_is_exact_and_isolated() -> void:
 	var state := ProgressReducer.initial_state(PROFILE_ID)
@@ -163,6 +164,19 @@ func _test_malformed_state_is_not_advanced() -> void:
 		ProgressReducer.apply(malformed_nested, _collection_event(1, "island_garden")),
 		malformed_nested,
 	)
+
+func _test_sequence_gaps_are_ignored_copies() -> void:
+	var initial := ProgressReducer.initial_state(PROFILE_ID)
+	var initial_gap := ProgressReducer.apply(initial, _answer_event(2, true, 2, 71))
+	assert_eq(initial_gap, initial, "an initial sequence gap must not advance progress")
+	initial_gap.inventory["stars"] = 1
+	assert_false(initial.inventory.has("stars"), "initial-gap result must be a deep copy")
+
+	var midstream := ProgressReducer.apply(initial, _answer_event(1, true, 2, 72))
+	var midstream_gap := ProgressReducer.apply(midstream, _answer_event(3, true, 2, 73))
+	assert_eq(midstream_gap, midstream, "a midstream sequence gap must not advance progress")
+	midstream_gap.activity_progress[ACTIVITY_ID].attempts = 99
+	assert_eq(midstream.activity_progress[ACTIVITY_ID].attempts, 1, "midstream-gap result must be a deep copy")
 
 func _answer_event(sequence: int, correctness: bool, apples: int, seed: int) -> Dictionary:
 	return LearningEventV1.create(

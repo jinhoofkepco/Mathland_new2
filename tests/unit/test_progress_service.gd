@@ -24,6 +24,61 @@ class ToggleSaveStore extends AtomicJsonStore:
 			return ERR_CANT_CREATE
 		return super(path, value)
 
+class ProfileStoreFactory extends RefCounted:
+	var base_path: String
+	var stores := {}
+
+	func _init(value: String) -> void:
+		base_path = value
+
+	func create_store(profile_id: String) -> AtomicJsonStore:
+		if not stores.has(profile_id):
+			stores[profile_id] = AtomicJsonStore.new("%s/%s" % [base_path, profile_id])
+		return stores[profile_id]
+
+class SharedStoreFactory extends RefCounted:
+	var store: AtomicJsonStore
+
+	func _init(base_path: String) -> void:
+		store = AtomicJsonStore.new(base_path)
+
+	func create_store(_profile_id: String) -> AtomicJsonStore:
+		return store
+
+class SamePathStoreFactory extends RefCounted:
+	var base_path: String
+
+	func _init(value: String) -> void:
+		base_path = value
+
+	func create_store(profile_id: String) -> AtomicJsonStore:
+		if profile_id == "profile-a":
+			return AtomicJsonStore.new(base_path)
+		return AtomicJsonStore.new(
+			"%s/alias/../%s" % [base_path.get_base_dir(), base_path.get_file()]
+		)
+
+class FaultInjectingProgressService extends ProgressService:
+	var failure_point := ""
+
+	func _rename_snapshot_path(from_path: String, to_path: String) -> Error:
+		if failure_point == "quarantine_stage" and to_path.ends_with(".corrupt.tmp"):
+			return ERR_CANT_CREATE
+		if failure_point == "quarantine_rotation" and to_path.ends_with(".corrupt.bak"):
+			return ERR_CANT_CREATE
+		if failure_point in ["quarantine_promotion", "quarantine_restoration"] and from_path.ends_with(".corrupt.tmp") and to_path.ends_with(".corrupt"):
+			return ERR_CANT_CREATE
+		if failure_point == "quarantine_restoration" and from_path.ends_with(".corrupt.bak") and to_path.ends_with(".corrupt"):
+			return ERR_CANT_CREATE
+		return DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path)
+		)
+
+	func _remove_snapshot_path(path: String) -> Error:
+		if failure_point == "quarantine_cleanup" and path.ends_with(".corrupt.bak"):
+			return ERR_CANT_CREATE
+		return DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
 func run(_tree: SceneTree) -> void:
 	_cleanup()
 	_test_corrupt_snapshot_is_quarantined_and_journal_replayed()
@@ -39,6 +94,20 @@ func run(_tree: SceneTree) -> void:
 	_test_save_failure_rolls_back_without_signal()
 	_cleanup()
 	_test_successful_commit_persists_then_signals_and_snapshot_is_a_copy()
+	_cleanup()
+	_test_profile_store_factory_isolates_a_b_a_switches()
+	_cleanup()
+	_test_failed_profile_switch_clears_loaded_state()
+	_cleanup()
+	_test_factory_store_collisions_are_rejected_before_io()
+	_cleanup()
+	_test_direct_store_is_bound_to_one_profile()
+	_cleanup()
+	_test_default_store_uses_profile_directory()
+	_cleanup()
+	_test_snapshot_ahead_is_rejected_without_exposing_state()
+	_cleanup()
+	_test_semantic_quarantine_failures_preserve_both_artifacts_and_retry()
 	_cleanup()
 
 func _test_corrupt_snapshot_is_quarantined_and_journal_replayed() -> void:
@@ -253,9 +322,182 @@ func _test_successful_commit_persists_then_signals_and_snapshot_is_a_copy() -> v
 	assert_eq(service.snapshot().apples, 2, "signal payload must not alias service state")
 	service.free()
 
+func _test_profile_store_factory_isolates_a_b_a_switches() -> void:
+	var factory := ProfileStoreFactory.new("%s/profiles" % BASE_PATH)
+	var service := ProgressService.new(factory)
+	var journal_a := _journal_for("profile-a", "profile-a-events.jsonl")
+	assert_true(service.load_profile("profile-a", journal_a).ok)
+	var event_a: Dictionary = journal_a.append(_answer_payload(true, 2, 81)).event
+	assert_eq(service.commit(event_a), OK)
+
+	var journal_b := _journal_for("profile-b", "profile-b-events.jsonl")
+	assert_true(service.load_profile("profile-b", journal_b).ok)
+	var event_b: Dictionary = journal_b.append(_answer_payload(true, 3, 82)).event
+	assert_eq(service.commit(event_b), OK)
+
+	var persisted_a: Dictionary = factory.stores["profile-a"].load(SNAPSHOT_FILE)
+	var persisted_b: Dictionary = factory.stores["profile-b"].load(SNAPSHOT_FILE)
+	assert_true(persisted_a.ok and persisted_b.ok)
+	if persisted_a.get("ok", false) and persisted_b.get("ok", false):
+		assert_eq(persisted_a.value.profile_id, "profile-a")
+		assert_eq(persisted_a.value.apples, 2)
+		assert_eq(persisted_b.value.profile_id, "profile-b")
+		assert_eq(persisted_b.value.apples, 3)
+
+	var reloaded_a := service.load_profile("profile-a", journal_a)
+	assert_true(reloaded_a.ok)
+	assert_eq(service.snapshot().profile_id, "profile-a")
+	assert_eq(service.snapshot().apples, 2)
+	assert_false(FileAccess.file_exists("%s.corrupt" % _profile_snapshot_path("profile-a")))
+	assert_false(FileAccess.file_exists("%s.corrupt" % _profile_snapshot_path("profile-b")))
+	service.free()
+
+func _test_failed_profile_switch_clears_loaded_state() -> void:
+	var factory := ProfileStoreFactory.new("%s/profiles" % BASE_PATH)
+	var service := ProgressService.new(factory)
+	var journal_a := _journal_for("profile-a", "failed-switch-a-events.jsonl")
+	assert_true(service.load_profile("profile-a", journal_a).ok)
+	var event_a: Dictionary = journal_a.append(_answer_payload(true, 2, 83)).event
+	assert_eq(service.commit(event_a), OK)
+
+	var failing_journal := StubJournal.new()
+	failing_journal.replay_result = {"ok": false, "error": "journal_read_failed"}
+	var failed := service.load_profile("profile-b", failing_journal)
+	assert_false(failed.ok)
+	assert_eq(failed.error, "journal_read_failed")
+	assert_eq(service.snapshot(), {}, "a failed switch must not expose profile A state")
+	assert_eq(service.commit(event_a), ERR_UNCONFIGURED)
+	assert_true(factory.stores["profile-a"].load(SNAPSHOT_FILE).get("ok", false))
+	assert_false(factory.stores["profile-b"].load(SNAPSHOT_FILE).get("ok", false))
+	service.free()
+
+func _test_factory_store_collisions_are_rejected_before_io() -> void:
+	var cases := [
+		{"name": "same-instance", "factory": SharedStoreFactory.new("%s/collision-same-instance" % BASE_PATH)},
+		{"name": "same-path", "factory": SamePathStoreFactory.new("%s/collision-same-path" % BASE_PATH)},
+	]
+	for case in cases:
+		var snapshot_path := "%s/collision-%s/%s" % [BASE_PATH, case.name, SNAPSHOT_FILE]
+		var service := ProgressService.new(case.factory)
+		var journal_a := _journal_for("profile-a", "collision-%s-a-events.jsonl" % case.name)
+		assert_true(service.load_profile("profile-a", journal_a).ok)
+		var event_a: Dictionary = journal_a.append(_answer_payload(true, 2, 85)).event
+		assert_eq(service.commit(event_a), OK)
+		var profile_a_bytes := _read_bytes(snapshot_path)
+
+		var journal_b := _journal_for("profile-b", "collision-%s-b-events.jsonl" % case.name)
+		var rejected := service.load_profile("profile-b", journal_b)
+		assert_false(rejected.ok, "%s factory reused profile A storage" % case.name)
+		assert_eq(rejected.get("error", ""), "store_profile_mismatch")
+		assert_eq(service.snapshot(), {})
+		assert_eq(_read_bytes(snapshot_path), profile_a_bytes, "%s touched profile A bytes" % case.name)
+		assert_false(FileAccess.file_exists("%s.corrupt" % snapshot_path))
+		service.free()
+		_remove_snapshot_artifacts(snapshot_path)
+
+func _test_direct_store_is_bound_to_one_profile() -> void:
+	var snapshot_path := "%s/collision-direct/%s" % [BASE_PATH, SNAPSHOT_FILE]
+	var store := AtomicJsonStore.new("%s/collision-direct" % BASE_PATH)
+	var service := ProgressService.new(store)
+	var journal_a := _journal_for("profile-a", "collision-direct-a-events.jsonl")
+	assert_true(service.load_profile("profile-a", journal_a).ok)
+	var event_a: Dictionary = journal_a.append(_answer_payload(true, 2, 86)).event
+	assert_eq(service.commit(event_a), OK)
+	var profile_a_bytes := _read_bytes(snapshot_path)
+
+	var rejected := service.load_profile(
+		"profile-b", _journal_for("profile-b", "collision-direct-b-events.jsonl")
+	)
+	assert_false(rejected.ok)
+	assert_eq(rejected.get("error", ""), "store_profile_mismatch")
+	assert_eq(service.snapshot(), {})
+	assert_eq(_read_bytes(snapshot_path), profile_a_bytes)
+	assert_false(FileAccess.file_exists("%s.corrupt" % snapshot_path))
+	service.free()
+	_remove_snapshot_artifacts(snapshot_path)
+
+func _test_default_store_uses_profile_directory() -> void:
+	var profile_id := "test-progress-default-profile"
+	var snapshot_path := "user://profiles/%s/%s" % [profile_id, SNAPSHOT_FILE]
+	_remove_snapshot_artifacts(snapshot_path)
+	var service := ProgressService.new()
+	var journal := _journal_for(profile_id, "default-store-events.jsonl")
+	assert_true(service.load_profile(profile_id, journal).ok)
+	var event: Dictionary = journal.append(_answer_payload(true, 2, 87)).event
+	assert_eq(service.commit(event), OK)
+	var persisted := AtomicJsonStore.new("user://profiles/%s" % profile_id).load(SNAPSHOT_FILE)
+	assert_true(persisted.ok)
+	if persisted.get("ok", false):
+		assert_eq(persisted.value.profile_id, profile_id)
+	service.free()
+	_remove_snapshot_artifacts(snapshot_path)
+
+func _test_snapshot_ahead_is_rejected_without_exposing_state() -> void:
+	var store := AtomicJsonStore.new(BASE_PATH)
+	var checkpoint := ProgressReducer.apply(
+		ProgressReducer.initial_state(PROFILE_ID), _event(1, _answer_payload(true, 2, 84))
+	)
+	assert_eq(store.save(SNAPSHOT_FILE, checkpoint), OK)
+	var service := ProgressService.new(store)
+	var result := service.load_profile(PROFILE_ID, _journal("snapshot-ahead-events.jsonl"))
+	assert_false(result.ok)
+	assert_eq(result.error, "snapshot_ahead")
+	assert_eq(service.snapshot(), {})
+	assert_true(store.load(SNAPSHOT_FILE).get("ok", false), "a valid ahead snapshot must remain intact")
+	assert_false(FileAccess.file_exists("%s.corrupt" % _snapshot_path()))
+	service.free()
+
+func _test_semantic_quarantine_failures_preserve_both_artifacts_and_retry() -> void:
+	var expected_locations := {
+		"quarantine_stage": {"new": [""], "old": [".corrupt"]},
+		"quarantine_rotation": {"new": [".corrupt.tmp"], "old": [".corrupt"]},
+		"quarantine_promotion": {"new": [".corrupt.tmp"], "old": [".corrupt"]},
+		"quarantine_restoration": {"new": [".corrupt.tmp"], "old": [".corrupt.bak"]},
+		"quarantine_cleanup": {"new": [".corrupt"], "old": [".corrupt.bak"]},
+	}
+	for failure_point in expected_locations:
+		var store := AtomicJsonStore.new(BASE_PATH)
+		var invalid_snapshot := ProgressReducer.initial_state(PROFILE_ID)
+		invalid_snapshot.apples = -1
+		assert_eq(store.save(SNAPSHOT_FILE, invalid_snapshot), OK)
+		var new_bytes := _read_bytes(_snapshot_path())
+		var old_bytes := ("old-corrupt-%s" % failure_point).to_utf8_buffer()
+		_write_bytes("%s.corrupt" % _snapshot_path(), old_bytes)
+		var journal := _journal("%s-events.jsonl" % failure_point)
+		var service := FaultInjectingProgressService.new(store)
+		service.failure_point = failure_point
+
+		var failed := service.load_profile(PROFILE_ID, journal)
+		assert_false(failed.ok, "%s unexpectedly quarantined" % failure_point)
+		assert_eq(failed.get("error", ""), "quarantine_failed")
+		assert_eq(service.snapshot(), {}, "%s exposed stale state" % failure_point)
+		assert_eq(
+			_paths_containing(_snapshot_path(), new_bytes),
+			expected_locations[failure_point].new,
+			"%s lost or duplicated the invalid snapshot" % failure_point,
+		)
+		assert_eq(
+			_paths_containing(_snapshot_path(), old_bytes),
+			expected_locations[failure_point].old,
+			"%s lost or duplicated the prior corrupt artifact" % failure_point,
+		)
+
+		service.failure_point = ""
+		var recovered := service.load_profile(PROFILE_ID, journal)
+		assert_true(recovered.ok, "%s did not recover on retry" % failure_point)
+		assert_eq(_paths_containing(_snapshot_path(), new_bytes), [".corrupt"])
+		assert_eq(_paths_containing(_snapshot_path(), old_bytes), [])
+		assert_false(FileAccess.file_exists("%s.corrupt.tmp" % _snapshot_path()))
+		assert_false(FileAccess.file_exists("%s.corrupt.bak" % _snapshot_path()))
+		service.free()
+		_cleanup_snapshot_files()
+
 func _journal(name: String) -> EventJournal:
+	return _journal_for(PROFILE_ID, name)
+
+func _journal_for(profile_id: String, name: String) -> EventJournal:
 	var journal := EventJournal.new()
-	var configured := journal.configure(PROFILE_ID, DEVICE_ID, "%s/%s" % [BASE_PATH, name])
+	var configured := journal.configure(profile_id, DEVICE_ID, "%s/%s" % [BASE_PATH, name])
 	assert_true(configured.ok, "journal configuration failed: %s" % configured)
 	return journal
 
@@ -299,21 +541,58 @@ func _run_completed_payload(reason: String, final_health: int, apples: int) -> D
 func _snapshot_path() -> String:
 	return "%s/%s" % [BASE_PATH, SNAPSHOT_FILE]
 
+func _profile_snapshot_path(profile_id: String) -> String:
+	return "%s/profiles/%s/%s" % [BASE_PATH, profile_id, SNAPSHOT_FILE]
+
 func _write_text(path: String, content: String) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(content)
 	file.close()
 
+func _write_bytes(path: String, bytes: PackedByteArray) -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_buffer(bytes)
+	file.close()
+
+func _read_bytes(path: String) -> PackedByteArray:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return PackedByteArray()
+	var bytes := file.get_buffer(file.get_length())
+	file.close()
+	return bytes
+
+func _paths_containing(base_path: String, expected: PackedByteArray) -> Array:
+	var result := []
+	for suffix in ["", ".corrupt", ".corrupt.tmp", ".corrupt.bak"]:
+		var path := "%s%s" % [base_path, suffix]
+		if FileAccess.file_exists(path) and _read_bytes(path) == expected:
+			result.append(suffix)
+	return result
+
 func _cleanup_snapshot_files() -> void:
-	for suffix in ["", ".tmp", ".bak", ".corrupt"]:
-		var path := "%s%s" % [_snapshot_path(), suffix]
+	_remove_snapshot_artifacts(_snapshot_path())
+
+func _remove_snapshot_artifacts(snapshot_path: String) -> void:
+	for suffix in ["", ".tmp", ".bak", ".corrupt", ".corrupt.tmp", ".corrupt.bak"]:
+		var path := "%s%s" % [snapshot_path, suffix]
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 func _cleanup() -> void:
 	_cleanup_snapshot_files()
-	for journal_name in ["corrupt-events.jsonl", "later-events.jsonl", "semantic-events.jsonl", "commit-guard.jsonl", "save-failure.jsonl", "successful-commit.jsonl"]:
+	for profile_id in ["profile-a", "profile-b"]:
+		for suffix in ["", ".tmp", ".bak", ".corrupt", ".corrupt.tmp", ".corrupt.bak"]:
+			var snapshot_path := "%s%s" % [_profile_snapshot_path(profile_id), suffix]
+			if FileAccess.file_exists(snapshot_path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(snapshot_path))
+	_remove_snapshot_artifacts("%s/collision-same-instance/%s" % [BASE_PATH, SNAPSHOT_FILE])
+	_remove_snapshot_artifacts("%s/collision-same-path/%s" % [BASE_PATH, SNAPSHOT_FILE])
+	_remove_snapshot_artifacts("%s/collision-direct/%s" % [BASE_PATH, SNAPSHOT_FILE])
+	_remove_snapshot_artifacts("user://profiles/test-progress-default-profile/%s" % SNAPSHOT_FILE)
+	for journal_name in ["corrupt-events.jsonl", "later-events.jsonl", "semantic-events.jsonl", "commit-guard.jsonl", "save-failure.jsonl", "successful-commit.jsonl", "profile-a-events.jsonl", "profile-b-events.jsonl", "failed-switch-a-events.jsonl", "snapshot-ahead-events.jsonl", "default-store-events.jsonl", "collision-same-instance-a-events.jsonl", "collision-same-instance-b-events.jsonl", "collision-same-path-a-events.jsonl", "collision-same-path-b-events.jsonl", "collision-direct-a-events.jsonl", "collision-direct-b-events.jsonl", "quarantine_stage-events.jsonl", "quarantine_rotation-events.jsonl", "quarantine_promotion-events.jsonl", "quarantine_restoration-events.jsonl", "quarantine_cleanup-events.jsonl"]:
 		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".recovery.tmp", ".recovery.bak"]:
 			var path := "%s/%s%s" % [BASE_PATH, journal_name, suffix]
 			if FileAccess.file_exists(path):
