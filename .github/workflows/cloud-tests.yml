@@ -1,0 +1,63 @@
+name: Cloud functions and database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - "deno.json"
+      - "scripts/test_sql.sh"
+      - "scripts/test_sql_concurrency.sh"
+      - "scripts/test_supabase_config.sh"
+      - ".github/workflows/cloud-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - "deno.json"
+      - "scripts/test_sql.sh"
+      - "scripts/test_sql_concurrency.sh"
+      - "scripts/test_supabase_config.sh"
+      - ".github/workflows/cloud-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "mathland-cloud-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  edge-functions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.3
+      - name: Check formatting
+        run: deno fmt --check deno.json supabase/functions
+      - name: Lint functions
+        run: deno lint supabase/functions
+      - name: Type-check function entry points
+        run: deno task check:functions
+      - name: Test function contracts and handlers
+        run: deno task test:functions
+      - name: Validate local Supabase policy
+        run: bash scripts/test_supabase_config.sh
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.109.1
+      - name: Run migrations, pgTAP, and concurrency checks
+        run: bash scripts/test_sql.sh
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
