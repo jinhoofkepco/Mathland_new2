@@ -11,6 +11,7 @@ func configure(profile_id: String, device_id: String, path: String) -> Dictionar
 	_profile_id = profile_id
 	_device_id = device_id
 	_path = path
+	_next_sequence = 1
 	var replayed := replay()
 	if not replayed.get("ok", false): return replayed
 	for event in replayed.events: _next_sequence = maxi(_next_sequence, event.sequence + 1)
@@ -42,20 +43,23 @@ func replay() -> Dictionary:
 	var read_error := file.get_error()
 	file.close()
 	if read_error != OK: return {"ok": false, "error": "journal_read_failed"}
+	if content.is_empty(): return {"ok": true, "events": [], "quarantined_tail": false}
 	var complete := content.ends_with("\n")
-	var lines := content.split("\n", false)
+	var lines := content.split("\n", true)
+	var record_count := lines.size() - 1 if complete else lines.size()
 	var events: Array[Dictionary] = []
-	for index in lines.size():
+	for index in record_count:
 		var json := JSON.new()
 		var parsed: Variant = json.data if json.parse(lines[index]) == OK else null
 		var errors := LearningEventV1Script.validate(parsed)
 		if not errors.is_empty():
-			if index == lines.size() - 1 and not complete:
+			if index == record_count - 1 and not complete:
 				return _quarantine_tail(events, lines[index])
 			return {"ok": false, "error": "invalid_record", "line": index + 1}
 		var event: Dictionary = parsed
 		event.sequence = int(event.sequence)
 		if event.sequence != events.size() + 1: return {"ok": false, "error": "invalid_sequence", "line": index + 1}
+		if event.profile_id != _profile_id or event.device_id != _device_id: return {"ok": false, "error": "scope_mismatch", "line": index + 1}
 		events.append(event)
 	return {"ok": true, "events": events, "quarantined_tail": false}
 
@@ -63,8 +67,9 @@ func unacknowledged(after_sequence: int, limit: int = 100) -> Array[Dictionary]:
 	var replayed := replay()
 	if not replayed.get("ok", false): return []
 	var result: Array[Dictionary] = []
+	var capped_limit := clampi(limit, 0, 100)
 	for event in replayed.events:
-		if event.sequence > after_sequence and result.size() < mini(limit, 100): result.append(event)
+		if event.sequence > after_sequence and result.size() < capped_limit: result.append(event)
 	return result
 
 func _quarantine_tail(events: Array[Dictionary], tail: String) -> Dictionary:
