@@ -54,6 +54,16 @@ func current_params() -> Dictionary:
 func depth() -> int:
 	return _stack.size()
 
+func dispose() -> void:
+	if is_instance_valid(_current_node):
+		if _current_node.get_parent() != null:
+			_current_node.get_parent().remove_child(_current_node)
+		_current_node.queue_free()
+	_scenes.clear()
+	_stack.clear()
+	_current_node = null
+	_host = null
+
 func _transition(route: StringName, params: Dictionary, mode: StringName) -> Dictionary:
 	if mode not in [&"push", &"replace"]:
 		return {"ok": false, "error": "invalid_navigation"}

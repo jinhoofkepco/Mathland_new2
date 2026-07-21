@@ -1,0 +1,286 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.title"
+msgstr "Math Exploration Island"
+
+msgid "ui.back"
+msgstr "Back"
+
+msgid "ui.close"
+msgstr "Close"
+
+msgid "ui.save"
+msgstr "Save"
+
+msgid "ui.start"
+msgstr "Start"
+
+msgid "ui.continue"
+msgstr "Continue"
+
+msgid "ui.empty"
+msgstr "Nothing here yet"
+
+msgid "profile.select.title"
+msgstr "Who is exploring?"
+
+msgid "profile.select.subtitle"
+msgstr "Choose your explorer and enter the PIN"
+
+msgid "profile.create"
+msgstr "Create explorer"
+
+msgid "profile.unlock"
+msgstr "Go to the island"
+
+msgid "profile.pin.placeholder"
+msgstr "Four digits"
+
+msgid "profile.empty"
+msgstr "Create the first explorer"
+
+msgid "profile.create.title"
+msgstr "New explorer"
+
+msgid "profile.nickname"
+msgstr "Nickname"
+
+msgid "profile.avatar"
+msgstr "Moa buddy"
+
+msgid "profile.pin"
+msgstr "Guardian PIN"
+
+msgid "profile.error.invalid_nickname"
+msgstr "Use a nickname from 1 to 16 characters"
+
+msgid "profile.error.duplicate_nickname"
+msgstr "That nickname is already in use"
+
+msgid "profile.error.invalid_avatar"
+msgstr "Choose a Moa buddy"
+
+msgid "profile.error.invalid_pin"
+msgstr "Enter exactly four digits"
+
+msgid "profile.error.invalid_pin_attempt"
+msgstr "That PIN does not match"
+
+msgid "profile.error.pin_locked"
+msgstr "Please wait and try again"
+
+msgid "profile.error.save_failed"
+msgstr "Could not save. Please try again"
+
+msgid "avatar.moa_mint"
+msgstr "Mint Moa"
+
+msgid "avatar.moa_sky"
+msgstr "Sky Moa"
+
+msgid "avatar.moa_coral"
+msgstr "Coral Moa"
+
+msgid "island.title"
+msgstr "Moa's Exploration Island"
+
+msgid "island.subtitle"
+msgstr "Which math treasure shall we find today?"
+
+msgid "island.apples"
+msgstr "Apples %d"
+
+msgid "island.pending_review"
+msgstr "Review %d"
+
+msgid "sync.online"
+msgstr "Connected to guardian"
+
+msgid "sync.offline"
+msgstr "Offline · safely saved on this device"
+
+msgid "sync.queued"
+msgstr "%d records waiting"
+
+msgid "island.today_objectives"
+msgstr "Today's three quests"
+
+msgid "island.continue"
+msgstr "Continue exploring"
+
+msgid "island.daily_path"
+msgstr "Daily Path"
+
+msgid "island.free_play"
+msgstr "Free Play"
+
+msgid "island.inventory"
+msgstr "Inventory"
+
+msgid "island.collection"
+msgstr "Collection"
+
+msgid "island.settings"
+msgstr "Settings"
+
+msgid "objective.complete_three"
+msgstr "Solve 3 questions"
+
+msgid "objective.correct_five"
+msgstr "Get 5 answers right"
+
+msgid "objective.protect_hearts"
+msgstr "Finish a run with hearts left"
+
+msgid "objective.practice_foundations"
+msgstr "Explore number sense once"
+
+msgid "objective.review_two"
+msgstr "Review 2 questions"
+
+msgid "objective.earn_ten_apples"
+msgstr "Earn 10 apples"
+
+msgid "daily.title"
+msgstr "Today's Path"
+
+msgid "daily.subtitle"
+msgstr "Find three treasures in order"
+
+msgid "daily.first"
+msgstr "Start the first quest"
+
+msgid "free_play.title"
+msgstr "Free Play"
+
+msgid "free_play.subtitle"
+msgstr "Pick any math activity"
+
+msgid "free_play.empty"
+msgstr "New activities are being prepared"
+
+msgid "activity.foundation_ten_rods.title"
+msgstr "Count with ten rods"
+
+msgid "activity.foundation_ten_rods.description"
+msgstr "Build numbers by touching rods and ones"
+
+msgid "inventory.title"
+msgstr "Exploration Inventory"
+
+msgid "inventory.subtitle"
+msgstr "See the tools and rewards you have found"
+
+msgid "inventory.empty"
+msgstr "Your first treasure is waiting"
+
+msgid "inventory.shell"
+msgstr "Shimmering shell"
+
+msgid "inventory.compass"
+msgstr "Explorer compass"
+
+msgid "collection.title"
+msgstr "Math Treasure Collection"
+
+msgid "collection.subtitle"
+msgstr "Scenes you discover are saved here"
+
+msgid "collection.empty"
+msgstr "Your first discovery will appear here"
+
+msgid "collection.first_map"
+msgstr "First island map"
+
+msgid "settings.title"
+msgstr "Explorer Settings"
+
+msgid "settings.subtitle"
+msgstr "Changes apply to this explorer immediately"
+
+msgid "settings.learning"
+msgstr "Learning aids"
+
+msgid "settings.adaptive"
+msgstr "Adaptive difficulty"
+
+msgid "settings.timing_aids"
+msgstr "Timing hints"
+
+msgid "settings.timers"
+msgstr "Allow timers"
+
+msgid "settings.presentation"
+msgstr "Screen and effects"
+
+msgid "settings.reduced_motion"
+msgstr "Reduce motion"
+
+msgid "settings.effect_quality"
+msgstr "Effect quality"
+
+msgid "settings.quality.low"
+msgstr "Light"
+
+msgid "settings.quality.medium"
+msgstr "Medium"
+
+msgid "settings.quality.high"
+msgstr "Rich"
+
+msgid "settings.audio"
+msgstr "Sound"
+
+msgid "settings.master"
+msgstr "Master"
+
+msgid "settings.music"
+msgstr "Music"
+
+msgid "settings.sfx"
+msgstr "Sound effects"
+
+msgid "settings.voice"
+msgstr "Voice"
+
+msgid "settings.voice_enabled"
+msgstr "Enable question voice button"
+
+msgid "effect.correct.caption"
+msgstr "Correct!"
+
+msgid "effect.wrong.caption"
+msgstr "Try again"
+
+msgid "effect.combo_1.caption"
+msgstr "Combo!"
+
+msgid "effect.combo_2.caption"
+msgstr "Super combo!"
+
+msgid "effect.boss.caption"
+msgstr "Boss question"
+
+msgid "effect.health_loss.caption"
+msgstr "A heart was lost"
+
+msgid "effect.target_reached.caption"
+msgstr "Goal reached!"
+
+msgid "effect.level_up.caption"
+msgstr "Level up!"
+
+msgid "effect.health_depleted.caption"
+msgstr "See you next adventure"
+
+msgid "effect.reward.caption"
+msgstr "Reward found!"
+
+msgid "effect.collection.caption"
+msgstr "Collection found!"
+
+msgid "effect.coupon.caption"
+msgstr "Coupon found!"

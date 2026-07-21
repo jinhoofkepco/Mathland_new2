@@ -41,6 +41,8 @@ func run(_tree: SceneTree) -> void:
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_invalid_profile_inputs_are_rejected()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
+	_test_normalized_duplicate_nicknames_and_public_list()
+	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_persisted_invalid_nicknames_and_integers_are_rejected()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_persisted_unknown_fields_are_stripped_and_index_shape_is_validated()
@@ -79,6 +81,21 @@ func _test_invalid_profile_inputs_are_rejected() -> void:
 	assert_eq(service.create_profile("12345678901234567", "moa_sky", "1234").error, "invalid_nickname")
 	assert_eq(service.create_profile("한글😀", "not_an_avatar", "1234").error, "invalid_avatar")
 	assert_eq(service.create_profile("모아", "moa_coral", "12가4").error, "invalid_pin")
+	service.free()
+
+func _test_normalized_duplicate_nicknames_and_public_list() -> void:
+	var service := ProfileService.new(AtomicJsonStore.new(BASE_PATH))
+	var first := service.create_profile("  모아  ", "moa_mint", "1234")
+	assert_true(first.ok)
+	assert_eq(service.create_profile("모아", "moa_sky", "5678").error, "duplicate_nickname")
+	assert_true(service.create_profile("모아A", "moa_sky", "5678").ok)
+	var listed := service.list_profiles()
+	assert_eq(listed.size(), 2)
+	assert_eq(listed[0].nickname, "모아")
+	listed[0].nickname = "mutated"
+	listed[0].settings.reduced_motion = true
+	assert_eq(service.get_profile(first.profile.profile_id).nickname, "모아")
+	assert_false(service.get_profile(first.profile.profile_id).settings.reduced_motion)
 	service.free()
 
 func _test_persisted_invalid_nicknames_and_integers_are_rejected() -> void:

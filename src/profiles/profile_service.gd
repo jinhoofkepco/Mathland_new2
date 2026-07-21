@@ -22,6 +22,9 @@ func create_profile(nickname: Variant, avatar_id: Variant, pin: Variant) -> Dict
 	var normalized_nickname := ProfileRecordScript.normalize_nickname(nickname)
 	if normalized_nickname.is_empty():
 		return {"ok": false, "error": "invalid_nickname"}
+	for profile in _profiles:
+		if profile.nickname == normalized_nickname:
+			return {"ok": false, "error": "duplicate_nickname"}
 	if not ProfileRecordScript.is_valid_avatar(avatar_id):
 		return {"ok": false, "error": "invalid_avatar"}
 	if not PinVerifierScript.is_valid(pin):
@@ -91,6 +94,12 @@ func update_settings(profile_id: Variant, patch: Variant) -> Error:
 func selected_profile() -> Dictionary:
 	var index := _profile_index(_selected_profile_id)
 	return _public_profile(_profiles[index]) if index >= 0 else {}
+
+func list_profiles() -> Array[Dictionary]:
+	var public_profiles: Array[Dictionary] = []
+	for profile in _profiles:
+		public_profiles.append(_public_profile(profile))
+	return public_profiles
 
 func get_profile(profile_id: Variant) -> Dictionary:
 	if not profile_id is String:
