@@ -158,6 +158,11 @@ func _test_viewport_dispatch_targets_offset_button(tree: SceneTree) -> void:
 	await tree.process_frame
 	assert_eq(counts.presses, 1, "viewport dispatch did not target the offset button")
 	assert_eq(counts.accepted, 1)
+	tree.root.push_input(_touch(Vector2(140, 110), true, 0), true)
+	tree.root.push_input(_touch(Vector2(140, 110), false, 0), true)
+	await tree.process_frame
+	assert_eq(counts.presses, 2, "viewport touch dispatch did not target the offset button")
+	assert_eq(counts.accepted, 2, "viewport touch release did not accept the offset button")
 	button.queue_free()
 	await tree.process_frame
 
