@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,7 +10,42 @@ import {
   parseJsonStrict,
 } from "../../src/index.js";
 
+interface NumberVector {
+  bits: string;
+  canonical: string;
+}
+
+const NUMBER_VECTORS = JSON.parse(
+  readFileSync(
+    new URL("../../../../tests/fixtures/contracts/ecmascript_number_vectors.json", import.meta.url),
+    "utf8",
+  ),
+) as NumberVector[];
+
+function numberFromBits(bits: string): number {
+  const bytes = new ArrayBuffer(8);
+  const view = new DataView(bytes);
+  view.setBigUint64(0, BigInt(`0x${bits}`));
+  return view.getFloat64(0);
+}
+
 describe("canonical JSON", () => {
+  it("uses the exact ECMAScript shortest representation for IEEE-754 doubles", () => {
+    const value = numberFromBits("3b1d8e556da8dd77");
+
+    expect(canonicalJson({ n: value })).toBe('{"n":6.1120356918828906e-24}');
+    expect(contentChecksum({ n: value })).toBe(
+      "sha256:499f3763d3ce3f8b86565421bd9d3c1948bac88f3332d4ebb7439fb8bd14de2b",
+    );
+  });
+
+  it("matches the ECMAScript representation across a deterministic IEEE-754 corpus", () => {
+    expect(NUMBER_VECTORS).toHaveLength(128);
+    for (const vector of NUMBER_VECTORS) {
+      expect(canonicalJson(numberFromBits(vector.bits)), vector.bits).toBe(vector.canonical);
+    }
+  });
+
   it("sorts object keys recursively, preserves arrays, and omits only requested top-level keys", () => {
     const a = {
       schema_version: 1,
@@ -89,6 +126,17 @@ describe("canonical JSON", () => {
     );
     expect(canonicalJson({ value: "😀" })).toBe('{"value":"😀"}');
   });
+
+  it("rejects U+FFFD in string values and object keys", () => {
+    const replacement = "\ufffd";
+
+    expect(() => canonicalJson({ value: replacement })).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE", path: ["value"] }),
+    );
+    expect(() => canonicalJson({ [replacement]: 1 })).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE", path: [replacement] }),
+    );
+  });
 });
 
 describe("strict raw JSON boundary", () => {
@@ -142,5 +190,13 @@ describe("strict raw JSON boundary", () => {
       );
     }
     expect(parseJsonStrict('"\\ud83d\\ude00"')).toBe("😀");
+  });
+
+  it("rejects escaped and literal U+FFFD before JSON decoding", () => {
+    for (const source of ['"\ufffd"', '"\\ufffd"', '{"\ufffd":1}', '{"\\ufffd":1}']) {
+      expect(() => parseJsonStrict(source)).toThrowError(
+        expect.objectContaining({ code: "INVALID_JSON" }),
+      );
+    }
   });
 });

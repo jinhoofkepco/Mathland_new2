@@ -9,6 +9,7 @@ export type CanonicalJsonErrorCode =
   | "ACCESSOR_PROPERTY"
   | "SYMBOL_KEY"
   | "LONE_SURROGATE"
+  | "INVALID_UNICODE"
   | "CYCLE";
 
 export class CanonicalJsonError extends TypeError {
@@ -50,7 +51,6 @@ export interface CanonicalJsonOptions {
 
 const MAX_JSON_SOURCE_LENGTH = 2_000_000;
 const MAX_JSON_NESTING = 64;
-const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/;
 
 /**
  * Parses untrusted JSON while key spelling information still exists.
@@ -214,6 +214,9 @@ class StrictJsonScanner {
       if (codePoint < 0x20) {
         this.fail("INVALID_JSON", path, this.index, "Unescaped control character in string");
       }
+      if (codePoint === 0xfffd) {
+        this.fail("INVALID_JSON", path, this.index, "Unicode replacement character is not accepted");
+      }
       if (codePoint >= 0xd800 && codePoint <= 0xdbff) {
         const lowSurrogate = this.source.charCodeAt(this.index + 1);
         if (!(lowSurrogate >= 0xdc00 && lowSurrogate <= 0xdfff)) {
@@ -237,6 +240,9 @@ class StrictJsonScanner {
             this.fail("INVALID_JSON", path, this.index, "Malformed Unicode escape");
           }
           const codeUnit = Number.parseInt(hexadecimal, 16);
+          if (codeUnit === 0xfffd) {
+            this.fail("INVALID_JSON", path, this.index, "Unicode replacement character is not accepted");
+          }
           if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
             if (this.source.slice(this.index + 5, this.index + 7) !== "\\u") {
               this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
@@ -269,11 +275,46 @@ class StrictJsonScanner {
   }
 
   private scanNumber(path: (string | number)[]): void {
-    const match = JSON_NUMBER.exec(this.source.slice(this.index));
-    if (match === null) {
+    let cursor = this.index;
+    if (this.source[cursor] === "-") {
+      cursor += 1;
+    }
+
+    if (this.source[cursor] === "0") {
+      cursor += 1;
+    } else if (isNonZeroDigit(this.source[cursor])) {
+      cursor += 1;
+      while (isDigit(this.source[cursor])) {
+        cursor += 1;
+      }
+    } else {
       this.fail("INVALID_JSON", path, this.index, "Malformed JSON number");
     }
-    this.index += match[0].length;
+
+    if (this.source[cursor] === ".") {
+      cursor += 1;
+      if (!isDigit(this.source[cursor])) {
+        this.fail("INVALID_JSON", path, cursor, "Malformed JSON number fraction");
+      }
+      while (isDigit(this.source[cursor])) {
+        cursor += 1;
+      }
+    }
+
+    if (this.source[cursor] === "e" || this.source[cursor] === "E") {
+      cursor += 1;
+      if (this.source[cursor] === "+" || this.source[cursor] === "-") {
+        cursor += 1;
+      }
+      if (!isDigit(this.source[cursor])) {
+        this.fail("INVALID_JSON", path, cursor, "Malformed JSON number exponent");
+      }
+      while (isDigit(this.source[cursor])) {
+        cursor += 1;
+      }
+    }
+
+    this.index = cursor;
   }
 
   private consumeLiteral(literal: string): boolean {
@@ -293,6 +334,14 @@ class StrictJsonScanner {
   private fail(code: ContentJsonParseErrorCode, path: JsonPath, index: number, message: string): never {
     throw new ContentJsonParseError(code, path, index, message);
   }
+}
+
+function isDigit(character: string | undefined): boolean {
+  return character !== undefined && character >= "0" && character <= "9";
+}
+
+function isNonZeroDigit(character: string | undefined): boolean {
+  return character !== undefined && character >= "1" && character <= "9";
 }
 
 export function canonicalJson(value: unknown, options: CanonicalJsonOptions = {}): string {
@@ -428,6 +477,13 @@ function validateObjectProperties(value: Record<string, unknown>, path: JsonPath
 function assertWellFormedUnicode(value: string, path: JsonPath): void {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
+    if (codeUnit === 0xfffd) {
+      throw new CanonicalJsonError(
+        "INVALID_UNICODE",
+        path,
+        "Canonical JSON rejects the Unicode replacement character",
+      );
+    }
     if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
       const lowCodeUnit = value.charCodeAt(index + 1);
       if (!(lowCodeUnit >= 0xdc00 && lowCodeUnit <= 0xdfff)) {

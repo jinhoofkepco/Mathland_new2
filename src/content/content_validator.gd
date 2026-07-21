@@ -3,8 +3,12 @@ extends RefCounted
 
 const Contract = preload("res://src/content/generated/content_contract_v1.gd")
 const ValidationResult = preload("res://src/content/content_validation_result.gd")
+const BIG_INTEGER_BASE := 1000000000
+const DOUBLE_HIDDEN_BIT := 4503599627370496
+const UINT32_SCALE := 4294967296
+const DECIMAL_SEED_MIN := 10000000000000000
+const DECIMAL_SEED_MAX := 99999999999999999
 
-var _number_pattern := RegEx.create_from_string("^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
 var _safe_tuning_key_pattern := RegEx.create_from_string("^[a-z][a-z0-9_]{0,63}$")
 var _timestamp_pattern := RegEx.create_from_string(
 	"^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
@@ -517,7 +521,10 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 				state["ok"] = false
 				return ""
 			return str(int(number))
-		return _encode_ecmascript_number(number)
+		var encoded_number := _encode_ecmascript_number(number)
+		if encoded_number.is_empty():
+			state["ok"] = false
+		return encoded_number
 	if value is Array:
 		var items: Array[String] = []
 		var array: Array = value
@@ -547,70 +554,243 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 	return ""
 
 func _encode_ecmascript_number(number: float) -> String:
-	var encoded := JSON.stringify(number, "", true, true).to_lower()
 	if number == 0.0:
 		return "0"
-	if "e" in encoded:
-		var normalized := _normalize_scientific_exponent(encoded)
-		var exponent := int(normalized.get_slice("e", 1))
-		if exponent >= -6 and exponent < 21:
-			return _scientific_to_decimal(normalized)
-		return normalized
-	if abs(number) >= 0.000001:
-		return encoded
+	var negative := number < 0.0
+	var magnitude: float = absf(number)
+	var seed := _exact_decimal_seed(magnitude)
+	if seed.is_empty():
+		return ""
+	var seed_digits: String = seed["digits"]
+	var scientific_exponent: int = seed["exponent"]
 
-	var sign := ""
-	var unsigned := encoded
-	if unsigned.begins_with("-"):
-		sign = "-"
-		unsigned = unsigned.substr(1)
-	var decimal_index := unsigned.find(".")
-	if decimal_index < 0:
-		decimal_index = unsigned.length()
-	var digits := unsigned.replace(".", "")
-	var first_nonzero := 0
-	while first_nonzero < digits.length() and digits[first_nonzero] == "0":
-		first_nonzero += 1
-	if first_nonzero == digits.length():
-		return "0"
-	var exponent := decimal_index - first_nonzero - 1
-	var significant := digits.substr(first_nonzero).rstrip("0")
-	var mantissa := significant[0]
-	if significant.length() > 1:
-		mantissa += ".%s" % significant.substr(1)
-	return "%s%se%d" % [sign, mantissa, exponent]
+	for significant_length in range(1, 18):
+		var prefix := seed_digits.substr(0, significant_length).to_int()
+		var decimal_power := scientific_exponent - significant_length + 1
+		var candidates: Array[Dictionary] = []
+		var seen := {}
+		for adjustment in range(-2, 3):
+			var significand := prefix + adjustment
+			if significand <= 0 or seen.has(significand):
+				continue
+			seen[significand] = true
+			var candidate_text := _format_decimal_candidate(significand, decimal_power)
+			if _decimal_rounds_to_double(significand, decimal_power, magnitude):
+				candidates.append({"significand": significand, "text": candidate_text})
+		if candidates.is_empty():
+			continue
+		var closest := _closest_decimal_candidate(magnitude, candidates, decimal_power)
+		return ("-" if negative else "") + String(closest["text"])
+	return ""
 
-func _scientific_to_decimal(encoded: String) -> String:
-	var parts := encoded.split("e", true, 1)
-	if parts.size() != 2:
-		return encoded
-	var mantissa := String(parts[0])
-	var sign := ""
-	if mantissa.begins_with("-"):
-		sign = "-"
-		mantissa = mantissa.substr(1)
-	var decimal_index := mantissa.find(".")
-	if decimal_index < 0:
-		decimal_index = mantissa.length()
-	var digits := mantissa.replace(".", "")
-	var decimal_position := decimal_index + int(parts[1])
-	if decimal_position <= 0:
-		return "%s0.%s%s" % [sign, "0".repeat(-decimal_position), digits]
-	if decimal_position >= digits.length():
-		return "%s%s%s" % [sign, digits, "0".repeat(decimal_position - digits.length())]
-	return "%s%s.%s" % [
-		sign,
-		digits.substr(0, decimal_position),
-		digits.substr(decimal_position),
-	]
+# Computes the first 17 decimal digits from the binary rational itself. The
+# logarithm is only a starting estimate; exact comparisons correct the exponent
+# and binary-search the prefix without relying on Godot's decimal renderer.
+func _exact_decimal_seed(number: float) -> Dictionary:
+	var components := _positive_double_components(number)
+	var binary_significand: int = components["mantissa"]
+	var binary_exponent: int = components["binary_exponent"]
+	var scientific_exponent := floori(log(number) / log(10.0))
+	while _compare_decimal_to_binary(
+		1,
+		scientific_exponent,
+		binary_significand,
+		binary_exponent
+	) > 0:
+		scientific_exponent -= 1
+	while _compare_decimal_to_binary(
+		1,
+		scientific_exponent + 1,
+		binary_significand,
+		binary_exponent
+	) <= 0:
+		scientific_exponent += 1
 
-func _normalize_scientific_exponent(encoded: String) -> String:
-	var parts := encoded.split("e", false, 1)
-	if parts.size() != 2:
-		return encoded
-	var exponent := int(parts[1])
-	var exponent_text := "+%d" % exponent if exponent >= 0 else str(exponent)
-	return "%se%s" % [parts[0].rstrip("0").rstrip("."), exponent_text]
+	var decimal_power := scientific_exponent - 16
+	var lower := DECIMAL_SEED_MIN
+	var upper := DECIMAL_SEED_MAX
+	var prefix := lower
+	while lower <= upper:
+		@warning_ignore("integer_division")
+		var midpoint: int = lower + (upper - lower) / 2
+		var comparison := _compare_decimal_to_binary(
+			midpoint,
+			decimal_power,
+			binary_significand,
+			binary_exponent
+		)
+		if comparison <= 0:
+			prefix = midpoint
+			lower = midpoint + 1
+		else:
+			upper = midpoint - 1
+	return {"digits": str(prefix), "exponent": scientific_exponent}
+
+func _format_decimal_candidate(significand_value: int, decimal_power_value: int) -> String:
+	var significand := significand_value
+	var decimal_power := decimal_power_value
+	while significand % 10 == 0:
+		@warning_ignore("integer_division")
+		significand /= 10
+		decimal_power += 1
+	var digits := str(significand)
+	var scientific_exponent := decimal_power + digits.length() - 1
+	if scientific_exponent >= -6 and scientific_exponent < 21:
+		var decimal_position := digits.length() + decimal_power
+		if decimal_position <= 0:
+			return "0.%s%s" % ["0".repeat(-decimal_position), digits]
+		if decimal_position >= digits.length():
+			return "%s%s" % [digits, "0".repeat(decimal_position - digits.length())]
+		return "%s.%s" % [
+			digits.substr(0, decimal_position),
+			digits.substr(decimal_position),
+		]
+	var mantissa := digits[0]
+	if digits.length() > 1:
+		mantissa += ".%s" % digits.substr(1)
+	var exponent_text := "+%d" % scientific_exponent if scientific_exponent >= 0 else str(scientific_exponent)
+	return "%se%s" % [mantissa, exponent_text]
+
+func _closest_decimal_candidate(
+	number: float,
+	candidates: Array[Dictionary],
+	decimal_power: int
+) -> Dictionary:
+	var closest: Dictionary = candidates[0]
+	for index in range(1, candidates.size()):
+		var candidate: Dictionary = candidates[index]
+		var closest_significand: int = closest["significand"]
+		var candidate_significand: int = candidate["significand"]
+		var midpoint_comparison := _compare_twice_double_to_decimal_sum(
+			number,
+			closest_significand + candidate_significand,
+			decimal_power
+		)
+		if midpoint_comparison > 0:
+			closest = candidate
+		elif midpoint_comparison == 0 and candidate_significand % 2 == 0:
+			closest = candidate
+	return closest
+
+func _decimal_rounds_to_double(
+	decimal_significand: int,
+	decimal_power: int,
+	number: float
+) -> bool:
+	var components := _positive_double_components(number)
+	var mantissa: int = components["mantissa"]
+	var binary_exponent: int = components["binary_exponent"]
+	var exponent_bits: int = components["exponent_bits"]
+	var lower_significand := 2 * mantissa - 1
+	var lower_exponent := binary_exponent - 1
+	if mantissa == DOUBLE_HIDDEN_BIT and exponent_bits > 1:
+		lower_significand = 4 * mantissa - 1
+		lower_exponent = binary_exponent - 2
+	var upper_significand := 2 * mantissa + 1
+	var upper_exponent := binary_exponent - 1
+	var lower_comparison := _compare_decimal_to_binary(
+		decimal_significand,
+		decimal_power,
+		lower_significand,
+		lower_exponent
+	)
+	var upper_comparison := _compare_decimal_to_binary(
+		decimal_significand,
+		decimal_power,
+		upper_significand,
+		upper_exponent
+	)
+	var includes_ties := mantissa % 2 == 0
+	return (
+		(lower_comparison > 0 or (lower_comparison == 0 and includes_ties))
+		and (upper_comparison < 0 or (upper_comparison == 0 and includes_ties))
+	)
+
+func _compare_decimal_to_binary(
+	decimal_significand: int,
+	decimal_power: int,
+	binary_significand: int,
+	binary_exponent: int
+) -> int:
+	var left := _big_integer_from_int(decimal_significand)
+	var right := _big_integer_from_int(binary_significand)
+	var common_two_power := mini(decimal_power, binary_exponent)
+	var common_five_power := mini(decimal_power, 0)
+	_big_integer_multiply_power(left, 2, decimal_power - common_two_power)
+	_big_integer_multiply_power(right, 2, binary_exponent - common_two_power)
+	_big_integer_multiply_power(left, 5, decimal_power - common_five_power)
+	_big_integer_multiply_power(right, 5, -common_five_power)
+	return _big_integer_compare(left, right)
+
+func _compare_twice_double_to_decimal_sum(
+	number: float,
+	decimal_significand_sum: int,
+	decimal_power: int
+) -> int:
+	var components := _positive_double_components(number)
+	var left := _big_integer_from_int(components["mantissa"])
+	var right := _big_integer_from_int(decimal_significand_sum)
+	var left_two_power: int = int(components["binary_exponent"]) + 1
+	var right_two_power := decimal_power
+	var left_five_power := 0
+	var right_five_power := decimal_power
+	var common_two_power := mini(left_two_power, right_two_power)
+	var common_five_power := mini(left_five_power, right_five_power)
+	_big_integer_multiply_power(left, 2, left_two_power - common_two_power)
+	_big_integer_multiply_power(right, 2, right_two_power - common_two_power)
+	_big_integer_multiply_power(left, 5, left_five_power - common_five_power)
+	_big_integer_multiply_power(right, 5, right_five_power - common_five_power)
+	return _big_integer_compare(left, right)
+
+func _positive_double_components(number: float) -> Dictionary:
+	var bytes := PackedByteArray()
+	bytes.resize(8)
+	bytes.encode_double(0, number)
+	var low_word := bytes.decode_u32(0)
+	var high_word := bytes.decode_u32(4)
+	var exponent_bits := (high_word >> 20) & 0x7FF
+	var fraction := (high_word & 0xFFFFF) * UINT32_SCALE + low_word
+	if exponent_bits == 0:
+		return {
+			"mantissa": fraction,
+			"binary_exponent": -1074,
+			"exponent_bits": exponent_bits,
+		}
+	return {
+		"mantissa": DOUBLE_HIDDEN_BIT + fraction,
+		"binary_exponent": exponent_bits - 1023 - 52,
+		"exponent_bits": exponent_bits,
+	}
+
+func _big_integer_from_int(source_value: int) -> Array[int]:
+	var value := source_value
+	var limbs: Array[int] = []
+	while value > 0:
+		limbs.append(value % BIG_INTEGER_BASE)
+		@warning_ignore("integer_division")
+		value /= BIG_INTEGER_BASE
+	if limbs.is_empty():
+		limbs.append(0)
+	return limbs
+
+func _big_integer_multiply_power(value: Array[int], factor: int, power: int) -> void:
+	for _iteration in power:
+		var carry := 0
+		for index in value.size():
+			var product := value[index] * factor + carry
+			value[index] = product % BIG_INTEGER_BASE
+			@warning_ignore("integer_division")
+			carry = product / BIG_INTEGER_BASE
+		if carry > 0:
+			value.append(carry)
+
+func _big_integer_compare(left: Array[int], right: Array[int]) -> int:
+	if left.size() != right.size():
+		return -1 if left.size() < right.size() else 1
+	for reverse_index in range(left.size() - 1, -1, -1):
+		if left[reverse_index] != right[reverse_index]:
+			return -1 if left[reverse_index] < right[reverse_index] else 1
+	return 0
 
 func _sha256(source: String) -> String:
 	var context := HashingContext.new()
@@ -636,7 +816,7 @@ func _scan_value(state: Dictionary, path: Array, depth: int) -> bool:
 	if character == "[":
 		return _scan_array(state, path, depth)
 	if character == "\"":
-		return bool(_scan_string(state, path)["ok"])
+		return bool(_scan_string(state, path, false)["ok"])
 	if character == "-" or (character >= "0" and character <= "9"):
 		return _scan_number(state, path)
 	for literal in ["true", "false", "null"]:
@@ -659,7 +839,7 @@ func _scan_object(state: Dictionary, path: Array, depth: int) -> bool:
 		if int(state["index"]) >= source.length() or source[int(state["index"])] != "\"":
 			_add_issue(state["issues"], "INVALID_JSON", path, "Expected a quoted object key")
 			return false
-		var key_result := _scan_string(state, path)
+		var key_result := _scan_string(state, path, true)
 		if not bool(key_result["ok"]):
 			return false
 		var key: String = key_result["value"]
@@ -714,15 +894,21 @@ func _scan_array(state: Dictionary, path: Array, depth: int) -> bool:
 	_add_issue(state["issues"], "INVALID_JSON", path, "Unterminated array")
 	return false
 
-func _scan_string(state: Dictionary, path: Array) -> Dictionary:
+func _scan_string(state: Dictionary, path: Array, decode_value: bool) -> Dictionary:
 	var source: String = state["source"]
+	var start: int = state["index"]
 	var index: int = state["index"] + 1
-	var decoded_parts := PackedStringArray()
 	while index < source.length():
 		var character := source[index]
 		if character == "\"":
 			state["index"] = index + 1
-			return {"ok": true, "value": "".join(decoded_parts)}
+			if not decode_value:
+				return {"ok": true, "value": ""}
+			var decoded: Variant = JSON.parse_string(source.substr(start, index - start + 1))
+			if not decoded is String:
+				_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON string")
+				return {"ok": false, "value": ""}
+			return {"ok": true, "value": decoded}
 		if character.unicode_at(0) < 0x20:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Unescaped control character in string")
 			return {"ok": false, "value": ""}
@@ -730,25 +916,13 @@ func _scan_string(state: Dictionary, path: Array) -> Dictionary:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON string")
 			return {"ok": false, "value": ""}
 		if character != "\\":
-			decoded_parts.append(character)
 			index += 1
 			continue
 		index += 1
 		if index >= source.length():
 			break
 		var escape := source[index]
-		var decoded_escape := ""
-		match escape:
-			"\"": decoded_escape = "\""
-			"\\": decoded_escape = "\\"
-			"/": decoded_escape = "/"
-			"b": decoded_escape = "\b"
-			"f": decoded_escape = "\f"
-			"n": decoded_escape = "\n"
-			"r": decoded_escape = "\r"
-			"t": decoded_escape = "\t"
-		if not decoded_escape.is_empty():
-			decoded_parts.append(decoded_escape)
+		if escape in ["\"", "\\", "/", "b", "f", "n", "r", "t"]:
 			index += 1
 			continue
 		if escape != "u" or index + 4 >= source.length():
@@ -780,18 +954,43 @@ func _scan_string(state: Dictionary, path: Array) -> Dictionary:
 		if codepoint == 0xFFFD:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON escape")
 			return {"ok": false, "value": ""}
-		decoded_parts.append(String.chr(codepoint))
 	_add_issue(state["issues"], "INVALID_JSON", path, "Unterminated string")
 	return {"ok": false, "value": ""}
 
 func _scan_number(state: Dictionary, path: Array) -> bool:
 	var source: String = state["source"]
 	var index: int = state["index"]
-	var match_result := _number_pattern.search(source.substr(index))
-	if match_result == null:
+	if source[index] == "-":
+		index += 1
+	if index >= source.length():
 		_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON number")
 		return false
-	state["index"] = index + match_result.get_string().length()
+	if source[index] == "0":
+		index += 1
+	elif source[index] >= "1" and source[index] <= "9":
+		index += 1
+		while index < source.length() and source[index] >= "0" and source[index] <= "9":
+			index += 1
+	else:
+		_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON number")
+		return false
+	if index < source.length() and source[index] == ".":
+		index += 1
+		if index >= source.length() or source[index] < "0" or source[index] > "9":
+			_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON number fraction")
+			return false
+		while index < source.length() and source[index] >= "0" and source[index] <= "9":
+			index += 1
+	if index < source.length() and source[index] in ["e", "E"]:
+		index += 1
+		if index < source.length() and source[index] in ["+", "-"]:
+			index += 1
+		if index >= source.length() or source[index] < "0" or source[index] > "9":
+			_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON number exponent")
+			return false
+		while index < source.length() and source[index] >= "0" and source[index] <= "9":
+			index += 1
+	state["index"] = index
 	return true
 
 func _skip_whitespace(state: Dictionary) -> void:

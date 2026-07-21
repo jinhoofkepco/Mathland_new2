@@ -2,6 +2,7 @@ extends "res://tests/support/test_case.gd"
 
 const ContentContractV1 = preload("res://src/content/generated/content_contract_v1.gd")
 const ContentValidatorScript = preload("res://src/content/content_validator.gd")
+const NUMBER_VECTOR_PATH := "res://tests/fixtures/contracts/ecmascript_number_vectors.json"
 
 const EXPECTED_ACTIVITY_IDS := [
 	"addition_ones",
@@ -48,8 +49,11 @@ func run(_tree: SceneTree) -> void:
 	assert_true("checksum" in ContentContractV1.REQUIRED_PACKAGE_KEYS)
 	assert_true("packages" in ContentContractV1.REQUIRED_MANIFEST_KEYS)
 	_test_canonical_json_and_checksum_match_typescript()
+	_test_ecmascript_number_to_string_regression()
+	_test_ecmascript_number_property_corpus()
 	_test_strict_json_boundary_rejects_duplicate_and_unsafe_numbers()
 	_test_utf16_source_length_nesting_and_long_string_scanner()
+	_test_large_json_scan_has_linear_runtime()
 	_test_lone_surrogates_fail_closed()
 	_test_object_keys_sort_by_utf16_code_units()
 
@@ -87,6 +91,38 @@ func _test_canonical_json_and_checksum_match_typescript() -> void:
 	)
 	assert_eq(validator.canonical_json({"n": 9007199254740992.0}), "")
 
+func _test_ecmascript_number_to_string_regression() -> void:
+	var validator := ContentValidatorScript.new()
+	var number := _float_from_hex_bits("3b1d8e556da8dd77")
+	assert_eq(
+		validator.canonical_json({"n": number}),
+		'{"n":6.1120356918828906e-24}'
+	)
+	assert_eq(
+		validator.content_checksum({"n": number}),
+		"sha256:499f3763d3ce3f8b86565421bd9d3c1948bac88f3332d4ebb7439fb8bd14de2b"
+	)
+
+func _test_ecmascript_number_property_corpus() -> void:
+	var validator := ContentValidatorScript.new()
+	var vectors: Variant = JSON.parse_string(FileAccess.get_file_as_string(NUMBER_VECTOR_PATH))
+	assert_true(vectors is Array)
+	assert_eq(vectors.size(), 128)
+	for vector_value in vectors:
+		var vector: Dictionary = vector_value
+		assert_eq(
+			validator.canonical_json(_float_from_hex_bits(vector["bits"])),
+			vector["canonical"],
+			"IEEE-754 bits %s" % vector["bits"]
+		)
+
+func _float_from_hex_bits(bits: String) -> float:
+	var bytes := PackedByteArray()
+	bytes.resize(8)
+	bytes.encode_u32(0, bits.substr(8, 8).hex_to_int())
+	bytes.encode_u32(4, bits.substr(0, 8).hex_to_int())
+	return bytes.decode_double(0)
+
 func _test_strict_json_boundary_rejects_duplicate_and_unsafe_numbers() -> void:
 	var validator := ContentValidatorScript.new()
 	var duplicate: Variant = validator.parse_json('{"nested":{"seed":1,"s\\u0065ed":7}}')
@@ -112,9 +148,48 @@ func _test_utf16_source_length_nesting_and_long_string_scanner() -> void:
 	assert_true(parsed.ok)
 	assert_eq(parsed.value, long_value)
 
+func _test_large_json_scan_has_linear_runtime() -> void:
+	var validator := ContentValidatorScript.new()
+	var large_string_source := '"%s"' % "a".repeat(1500000)
+	var memory_before := int(Performance.get_monitor(Performance.MEMORY_STATIC_MAX))
+	var started_usec := Time.get_ticks_usec()
+	var string_result: Variant = validator.parse_json(large_string_source)
+	var string_elapsed_usec := Time.get_ticks_usec() - started_usec
+	var string_peak_bytes := int(Performance.get_monitor(Performance.MEMORY_STATIC_MAX)) - memory_before
+	assert_true(string_result.ok)
+	assert_true(
+		string_elapsed_usec < 3000000,
+		"1.5M string scan exceeded 3s: %d usec" % string_elapsed_usec
+	)
+	assert_true(
+		string_peak_bytes < 32 * 1024 * 1024,
+		"1.5M string scan peak allocation: %d bytes" % string_peak_bytes
+	)
+
+	var number_parts := PackedStringArray()
+	number_parts.resize(300000)
+	number_parts.fill("0")
+	var number_source := "[%s]" % ",".join(number_parts)
+	started_usec = Time.get_ticks_usec()
+	var number_result: Variant = validator.parse_json(number_source)
+	var number_elapsed_usec := Time.get_ticks_usec() - started_usec
+	assert_true(number_result.ok)
+	assert_true(
+		number_elapsed_usec < 3000000,
+		"300k number scan exceeded the threshold: %d usec" % number_elapsed_usec
+	)
+
 func _test_lone_surrogates_fail_closed() -> void:
 	var validator := ContentValidatorScript.new()
-	for source in ['"\\ud800"', '"\\udc00"', '{"\\ud800":1}']:
+	for source in [
+		'"\\ud800"',
+		'"\\udc00"',
+		'{"\\ud800":1}',
+		'"�"',
+		'"\\ufffd"',
+		'{"�":1}',
+		'{"\\ufffd":1}',
+	]:
 		var result: Variant = validator.parse_json(source)
 		assert_false(result.ok)
 		assert_eq(result.first_error_code(), "INVALID_JSON")
