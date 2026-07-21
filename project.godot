@@ -1,0 +1,22 @@
+; Engine configuration file.
+; Edit through the Godot editor when possible.
+config_version=5
+
+[application]
+
+config/name="Mathland"
+config/features=PackedStringArray("4.7")
+config/version="1.0.0"
+run/main_scene="res://scenes/app/app_shell.tscn"
+
+[display/window]
+
+size/viewport_width=1080
+size/viewport_height=1920
+handheld/orientation=1
+stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

@@ -1,0 +1,29 @@
+name: Godot tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.7.1
+        run: |
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/godot/godot.zip" \
+            https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          mv "$RUNNER_TEMP/godot/Godot_v4.7.1-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          chmod +x "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+      - name: Verify Godot version
+        run: godot --version | grep -q '^4\.7\.1'
+      - name: Run unit suite
+        run: godot --headless --path . --script res://tests/run_all.gd -- --suite unit
+      - name: Run scene suite
+        run: godot --headless --path . --script res://tests/run_all.gd -- --suite scene
+      - name: Run integration suite
+        run: godot --headless --path . --script res://tests/run_all.gd -- --suite integration
