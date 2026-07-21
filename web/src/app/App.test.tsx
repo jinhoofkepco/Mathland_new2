@@ -4,13 +4,19 @@ import { describe, expect, it } from "vitest";
 
 import { App } from "./App";
 import { MathLandRouter } from "./router";
+import { CloudProvider } from "../cloud/cloud_provider";
+import { FakeCloud } from "../cloud/fake_cloud";
+
+const cloud = new FakeCloud();
 
 describe("App", () => {
   it("renders the signed-out MathLand shell in Korean", () => {
     render(
-      <MemoryRouter>
-        <App />
-      </MemoryRouter>,
+      <CloudProvider cloud={cloud}>
+        <MemoryRouter>
+          <App />
+        </MemoryRouter>
+      </CloudProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "MathLand 보호자" })).toBeVisible();
@@ -24,9 +30,11 @@ describe("App", () => {
     window.location.hash = "#/login";
 
     render(
-      <MathLandRouter>
-        <App />
-      </MathLandRouter>,
+      <CloudProvider cloud={cloud}>
+        <MathLandRouter>
+          <App />
+        </MathLandRouter>
+      </CloudProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "보호자 로그인" })).toBeVisible();

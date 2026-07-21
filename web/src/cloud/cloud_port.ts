@@ -4,6 +4,7 @@ import type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -11,7 +12,7 @@ import type {
   SaveDraftInput,
   SessionState,
   ValidationReportWire,
-} from "@mathland/contracts";
+} from "@mathland/contracts/cloud";
 
 export type {
   AiPatchResult,
@@ -19,6 +20,7 @@ export type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -27,7 +29,7 @@ export type {
   SaveDraftInput,
   SessionState,
   ValidationReportWire,
-} from "@mathland/contracts";
+} from "@mathland/contracts/cloud";
 
 export interface CloudPort {
   session(): Promise<SessionState>;

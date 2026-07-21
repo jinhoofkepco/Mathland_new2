@@ -92,6 +92,9 @@ export class FakeCloud implements CloudPort {
     const copy = clone(snapshot);
     if (query.profileId) {
       copy.sessions = copy.sessions.filter((session) => session.profileId === query.profileId);
+      copy.activities = copy.activities.filter((activity) => activity.profileId === query.profileId);
+      copy.errors = copy.errors.filter((error) => error.profileId === query.profileId);
+      copy.rewards = copy.rewards.filter((reward) => reward.profileId === query.profileId);
     }
     return copy;
   }
@@ -100,7 +103,7 @@ export class FakeCloud implements CloudPort {
     if (!this.#children.some((child) => child.id === profileId)) {
       throw new Error("Profile is not available");
     }
-    return { code: "482913", expiresAt: "2030-01-01T00:10:00.000Z" };
+    return { code: "482913", expiresAt: new Date(Date.now() + 10 * 60_000).toISOString() };
   }
 
   async disconnectDevice(deviceId: string): Promise<void> {

@@ -22,7 +22,7 @@ import {
   SessionMembershipRowSchema,
   SessionStateSchema,
   ValidationReportWireSchema,
-} from "@mathland/contracts";
+} from "@mathland/contracts/cloud";
 
 import type {
   AiPatchResult,

@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./app/App";
 import { MathLandRouter } from "./app/router";
+import { AuthProvider } from "./auth/auth_provider";
+import { CloudProvider } from "./cloud/cloud_provider";
 import "./styles/tokens.css";
 import "./styles/global.css";
 
@@ -14,8 +16,12 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <MathLandRouter>
-      <App />
-    </MathLandRouter>
+    <CloudProvider>
+      <MathLandRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MathLandRouter>
+    </CloudProvider>
   </StrictMode>,
 );

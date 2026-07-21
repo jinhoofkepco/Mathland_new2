@@ -1,5 +1,14 @@
 import { Link, Route, Routes } from "react-router-dom";
 
+import { AuthCallbackPage } from "../auth/AuthCallbackPage";
+import { LoginPage } from "../auth/LoginPage";
+import { RequireRole } from "../auth/require_role";
+import { RequireSession } from "../auth/require_session";
+import { DashboardPage } from "../dashboard/DashboardPage";
+import { DataControlsPage } from "../data/DataControlsPage";
+import { DevicesPage } from "../devices/DevicesPage";
+import { AppLayout } from "../layout/AppLayout";
+
 function WelcomePage() {
   return (
     <main id="main-content" className="welcome-shell">
@@ -34,13 +43,21 @@ function WelcomePage() {
   );
 }
 
-function LoginPlaceholder() {
+function StudioPlaceholder() {
   return (
-    <main id="main-content" className="simple-page">
-      <Link to="/">← 돌아가기</Link>
-      <h1>보호자 로그인</h1>
-      <p>안전한 이메일 링크로 로그인합니다.</p>
+    <main id="main-content" className="management-page">
+      <p className="eyebrow">현장에서 바로 바꾸는 활동 설정</p>
+      <h1>콘텐츠 스튜디오</h1>
+      <p>검증된 초안만 저장·미리보기·배포할 수 있습니다.</p>
     </main>
+  );
+}
+
+function ProtectedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireSession>
+      <AppLayout>{children}</AppLayout>
+    </RequireSession>
   );
 }
 
@@ -52,7 +69,21 @@ export function App() {
       </a>
       <Routes>
         <Route path="/" element={<WelcomePage />} />
-        <Route path="/login" element={<LoginPlaceholder />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/dashboard" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+        <Route path="/dashboard/:familyId/:profileId" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+        <Route path="/devices" element={<ProtectedPage><DevicesPage /></ProtectedPage>} />
+        <Route path="/data" element={<ProtectedPage><DataControlsPage /></ProtectedPage>} />
+        <Route
+          path="/studio/*"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["editor", "owner"]}><StudioPlaceholder /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route path="*" element={<main className="state-page"><h1>화면을 찾을 수 없습니다</h1><Link to="/">처음으로</Link></main>} />
       </Routes>
     </>
   );
