@@ -51,6 +51,7 @@ func run(_tree: SceneTree) -> void:
 	assert_true("checksum" in ContentContractV1.REQUIRED_PACKAGE_KEYS)
 	assert_true("packages" in ContentContractV1.REQUIRED_MANIFEST_KEYS)
 	_test_ecmascript_c0_string_escaping()
+	_test_null_character_boundaries_fail_closed()
 	_test_ecmascript_unicode_corpus()
 	_test_published_package_checksum_regression()
 	_test_canonical_json_and_checksum_match_typescript()
@@ -72,16 +73,6 @@ func _test_ecmascript_c0_string_escaping() -> void:
 		var vector: Dictionary = vector_value
 		var codepoint: int = vector["codepoint"]
 		if codepoint == 0:
-			assert_eq(
-				'{"value":%s}' % validator._encode_ecmascript_codepoints(PackedInt32Array([0])),
-				vector["value_canonical"],
-				"C0 value U+0000"
-			)
-			assert_eq(
-				'{%s:1}' % validator._encode_ecmascript_codepoints(PackedInt32Array([0x6B, 0])),
-				vector["key_canonical"],
-				"C0 key U+0000"
-			)
 			continue
 		var character := String.chr(codepoint)
 		assert_eq(
@@ -96,6 +87,40 @@ func _test_ecmascript_c0_string_escaping() -> void:
 			vector["key_canonical"],
 			"C0 key U+%04x" % codepoint
 		)
+
+func _test_null_character_boundaries_fail_closed() -> void:
+	var validator := ContentValidatorScript.new()
+	for source in ['{"value":"\\u0000"}', '{"key\\u0000":1}']:
+		var parsed: Variant = validator.parse_json(source)
+		assert_false(parsed.ok)
+		assert_eq(parsed.first_error_code(), "INVALID_UNICODE")
+
+	# Godot 4.7 exposes attempted in-memory U+0000 as U+FFFD. The public package
+	# validator must reject that lossy representation before checksum comparison.
+	var parsed_fixture: Variant = validator.parse_json(
+		FileAccess.get_file_as_string(PUBLISHED_PACKAGE_PATH),
+		PUBLISHED_PACKAGE_PATH
+	)
+	assert_true(parsed_fixture.ok)
+	var package: Dictionary = parsed_fixture.value.duplicate(true)
+	package["localizations"]["ko-KR"]["description"] = String.chr(0xFFFD)
+	assert_eq(validator.content_checksum(package), "")
+	var validation: Variant = validator.validate_package(package)
+	assert_false(validation.ok)
+	assert_eq(validation.first_error_code(), "INVALID_UNICODE")
+	assert_eq(validation.issues[0]["path"], ["localizations", "ko-KR", "description"])
+
+	var key_package: Dictionary = parsed_fixture.value.duplicate(true)
+	var invalid_key := "hidden%skey" % String.chr(0xFFFD)
+	key_package["difficulty_bands"][0]["generator_parameters"][invalid_key] = true
+	assert_eq(validator.content_checksum(key_package), "")
+	var key_validation: Variant = validator.validate_package(key_package)
+	assert_false(key_validation.ok)
+	assert_eq(key_validation.first_error_code(), "INVALID_UNICODE")
+	assert_eq(
+		key_validation.issues[0]["path"],
+		["difficulty_bands", 0, "generator_parameters", invalid_key]
+	)
 
 func _test_ecmascript_unicode_corpus() -> void:
 	var validator := ContentValidatorScript.new()
@@ -252,14 +277,14 @@ func _test_lone_surrogates_fail_closed() -> void:
 		'"\\ud800"',
 		'"\\udc00"',
 		'{"\\ud800":1}',
-		'"�"',
-		'"\\ufffd"',
-		'{"�":1}',
-		'{"\\ufffd":1}',
 	]:
 		var result: Variant = validator.parse_json(source)
 		assert_false(result.ok)
 		assert_eq(result.first_error_code(), "INVALID_JSON")
+	for source in ['"�"', '"\\ufffd"', '{"�":1}', '{"\\ufffd":1}']:
+		var result: Variant = validator.parse_json(source)
+		assert_false(result.ok)
+		assert_eq(result.first_error_code(), "INVALID_UNICODE")
 	assert_eq(validator.parse_json('"\\ud83d\\ude00"').value, "😀")
 	# Godot replaces an in-memory lone surrogate with U+FFFD before validation.
 	var lone_surrogate_replacement := String.chr(0xFFFD)

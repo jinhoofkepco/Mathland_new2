@@ -75,6 +75,39 @@ describe("activity semantic validation", () => {
       expect.arrayContaining(["COMBO_THRESHOLDS", "ADAPTIVE_BOUNDS", "ADAPTIVE_THRESHOLDS", "VALIDATION_SAMPLES"]),
     );
   });
+
+  it("reports U+0000 string values and object keys with stable field paths", () => {
+    const draft = makeValidDraft();
+    draft.localizations["ko-KR"].description = "설명\u0000숨김";
+    draft.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    const report = validateActivityDraft(draft);
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
+  });
+
+  it("does not mistake an authored object length field for Array.length", () => {
+    const draft = makeValidDraft();
+    draft.difficulty_bands[0]!.generator_parameters.length = "\u0000";
+
+    expect(validateActivityDraft(draft).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "length"],
+      }),
+    );
+  });
 });
 
 describe("published package validation", () => {
@@ -90,6 +123,33 @@ describe("published package validation", () => {
     changed.run.goal.target += 1;
     expect(changed.checksum).not.toBe(contentChecksum(changed));
     expect(issueCodes(validatePublishedActivity(changed))).toContain("CHECKSUM_MISMATCH");
+  });
+
+  it("fails closed before checksum comparison when a published package gains U+0000", () => {
+    const published = makePublished();
+    published.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyPublished = makePublished();
+    keyPublished.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(() => contentChecksum(published)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => contentChecksum(keyPublished)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => validatePublishedActivity(published)).not.toThrow();
+    expect(validatePublishedActivity(published).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(validatePublishedActivity(keyPublished).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
   });
 });
 

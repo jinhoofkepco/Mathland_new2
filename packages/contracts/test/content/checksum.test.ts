@@ -57,9 +57,9 @@ function numberFromBits(bits: string): number {
 }
 
 describe("canonical JSON", () => {
-  it("matches ECMAScript escaping for every C0 control in values and keys", () => {
+  it("matches ECMAScript escaping for C0 controls U+0001 through U+001F", () => {
     expect(STRING_VECTORS.c0).toHaveLength(0x20);
-    for (const vector of STRING_VECTORS.c0) {
+    for (const vector of STRING_VECTORS.c0.slice(1)) {
       const character = String.fromCharCode(vector.codepoint);
       const value = { value: character };
       const keyed = { [`k${character}`]: 1 };
@@ -199,6 +199,17 @@ describe("canonical JSON", () => {
       expect.objectContaining({ code: "INVALID_UNICODE", path: [replacement] }),
     );
   });
+
+  it("rejects U+0000 in string values and object keys", () => {
+    const nullCharacter = "\u0000";
+
+    expect(() => canonicalJson({ value: nullCharacter })).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE", path: ["value"] }),
+    );
+    expect(() => canonicalJson({ [`key${nullCharacter}`]: 1 })).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE", path: [`key${nullCharacter}`] }),
+    );
+  });
 });
 
 describe("strict raw JSON boundary", () => {
@@ -257,7 +268,15 @@ describe("strict raw JSON boundary", () => {
   it("rejects escaped and literal U+FFFD before JSON decoding", () => {
     for (const source of ['"\ufffd"', '"\\ufffd"', '{"\ufffd":1}', '{"\\ufffd":1}']) {
       expect(() => parseJsonStrict(source)).toThrowError(
-        expect.objectContaining({ code: "INVALID_JSON" }),
+        expect.objectContaining({ code: "INVALID_UNICODE" }),
+      );
+    }
+  });
+
+  it("rejects escaped and literal U+0000 values and keys with the stable Unicode error", () => {
+    for (const source of ['"\u0000"', '"\\u0000"', '{"\u0000":1}', '{"\\u0000":1}']) {
+      expect(() => parseJsonStrict(source)).toThrowError(
+        expect.objectContaining({ code: "INVALID_UNICODE" }),
       );
     }
   });

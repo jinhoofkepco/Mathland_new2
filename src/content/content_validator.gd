@@ -465,7 +465,11 @@ func _expect_exact_keys(
 			_add_issue(issues, "SCHEMA_UNKNOWN_KEY", path + [key], "Unknown field is not allowed")
 
 func _validate_json_domain(value: Variant, path: Array, issues: Array[Dictionary]) -> void:
-	if value == null or value is bool or value is String:
+	if value == null or value is bool:
+		return
+	if value is String:
+		if not _is_well_formed_unicode(value):
+			_add_issue(issues, "INVALID_UNICODE", path, "Content strings must not contain U+0000 or lossy Unicode")
 		return
 	if typeof(value) == TYPE_INT:
 		if not _is_safe_integer(value):
@@ -490,6 +494,8 @@ func _validate_json_domain(value: Variant, path: Array, issues: Array[Dictionary
 				_add_issue(issues, "SCHEMA_KEY_TYPE", path, "JSON object keys must be strings")
 				continue
 			var key: String = key_value
+			if not _is_well_formed_unicode(key):
+				_add_issue(issues, "INVALID_UNICODE", path + [key], "Content object keys must not contain U+0000 or lossy Unicode")
 			if key in Contract.FORBIDDEN_OBJECT_KEYS:
 				_add_issue(issues, "FORBIDDEN_OBJECT_KEY", path + [key], "Reserved object key is forbidden")
 			_validate_json_domain(object[key], path + [key], issues)
@@ -558,16 +564,6 @@ func _encode_ecmascript_string(value: String) -> String:
 	bytes.append(0x22)
 	for index in value.length():
 		_append_ecmascript_codepoint(bytes, value.unicode_at(index))
-	bytes.append(0x22)
-	return bytes.get_string_from_utf8()
-
-# Godot 4.7 normalizes U+0000 before it reaches String APIs. Keeping the shared
-# codepoint entry point makes that ECMAScript escape rule explicit and testable.
-func _encode_ecmascript_codepoints(codepoints: PackedInt32Array) -> String:
-	var bytes := PackedByteArray()
-	bytes.append(0x22)
-	for codepoint in codepoints:
-		_append_ecmascript_codepoint(bytes, codepoint)
 	bytes.append(0x22)
 	return bytes.get_string_from_utf8()
 
@@ -979,11 +975,12 @@ func _scan_string(state: Dictionary, path: Array, decode_value: bool) -> Diction
 				_add_issue(state["issues"], "INVALID_JSON", path, "Malformed JSON string")
 				return {"ok": false, "value": ""}
 			return {"ok": true, "value": decoded}
-		if character.unicode_at(0) < 0x20:
-			_add_issue(state["issues"], "INVALID_JSON", path, "Unescaped control character in string")
+		var codepoint := character.unicode_at(0)
+		if codepoint == 0 or codepoint == 0xFFFD:
+			_add_issue(state["issues"], "INVALID_UNICODE", path, "U+0000 and lossy Unicode are not accepted in content JSON")
 			return {"ok": false, "value": ""}
-		if character.unicode_at(0) == 0xFFFD:
-			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON string")
+		if codepoint < 0x20:
+			_add_issue(state["issues"], "INVALID_JSON", path, "Unescaped control character in string")
 			return {"ok": false, "value": ""}
 		if character != "\\":
 			index += 1
@@ -1002,7 +999,7 @@ func _scan_string(state: Dictionary, path: Array, decode_value: bool) -> Diction
 		if not hexadecimal.is_valid_hex_number(false):
 			_add_issue(state["issues"], "INVALID_JSON", path, "Malformed Unicode escape")
 			return {"ok": false, "value": ""}
-		var codepoint := hexadecimal.hex_to_int()
+		codepoint = hexadecimal.hex_to_int()
 		index += 5
 		if codepoint >= 0xD800 and codepoint <= 0xDBFF:
 			if index + 5 >= source.length() or source.substr(index, 2) != "\\u":
@@ -1021,8 +1018,8 @@ func _scan_string(state: Dictionary, path: Array, decode_value: bool) -> Diction
 		elif codepoint >= 0xDC00 and codepoint <= 0xDFFF:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Unpaired Unicode surrogate")
 			return {"ok": false, "value": ""}
-		if codepoint == 0xFFFD:
-			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON escape")
+		if codepoint == 0 or codepoint == 0xFFFD:
+			_add_issue(state["issues"], "INVALID_UNICODE", path, "U+0000 and lossy Unicode are not accepted in content JSON")
 			return {"ok": false, "value": ""}
 	_add_issue(state["issues"], "INVALID_JSON", path, "Unterminated string")
 	return {"ok": false, "value": ""}
@@ -1131,7 +1128,7 @@ func _is_safe_integer(value: Variant) -> bool:
 func _is_well_formed_unicode(value: String) -> bool:
 	for index in value.length():
 		var codepoint := value.unicode_at(index)
-		if codepoint == 0xFFFD or (codepoint >= 0xD800 and codepoint <= 0xDFFF):
+		if codepoint == 0 or codepoint == 0xFFFD or (codepoint >= 0xD800 and codepoint <= 0xDFFF):
 			return false
 	return true
 
