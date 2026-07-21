@@ -84,6 +84,15 @@ function commandIsUsable(command, args, options) {
   return options.outputPattern.test(output);
 }
 
+function isExactSingleLine(output, expected) {
+  const withoutTerminalLineEnding = output.endsWith("\r\n")
+    ? output.slice(0, -2)
+    : output.endsWith("\n")
+      ? output.slice(0, -1)
+      : output;
+  return withoutTerminalLineEnding === expected;
+}
+
 async function isValidAndroidJar(jarCommand, androidJar, timeoutMs) {
   try {
     const info = await stat(androidJar);
@@ -94,8 +103,13 @@ async function isValidAndroidJar(jarCommand, androidJar, timeoutMs) {
     return false;
   }
   try {
-    const listing = capture(jarCommand, ["tf", androidJar, ANDROID_JAR_SENTINEL], timeoutMs);
-    return listing === ANDROID_JAR_SENTINEL;
+    const result = runCommand(jarCommand, ["tf", androidJar, ANDROID_JAR_SENTINEL], timeoutMs);
+    return (
+      !result.error
+      && result.status === 0
+      && (result.stderr || "") === ""
+      && isExactSingleLine(result.stdout || "", ANDROID_JAR_SENTINEL)
+    );
   } catch {
     return false;
   }

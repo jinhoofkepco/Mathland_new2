@@ -234,6 +234,27 @@ process.exit(0);
   assert.match(validateProbe(probe).join("\n"), /android-35\/android\.jar is missing or invalid/);
 });
 
+test("requires exactly one Android sentinel entry from the jar listing", async (t) => {
+  const fixture = await createToolchainFixture(t);
+  const invalidListings = [
+    `${ANDROID_JAR_SENTINEL} \n`,
+    `${ANDROID_JAR_SENTINEL}\t\n`,
+    `${ANDROID_JAR_SENTINEL}\n\n`,
+    `${ANDROID_JAR_SENTINEL}\ncom/example/Other.class\n`,
+  ];
+
+  for (const listing of invalidListings) {
+    await writeExecutable(path.join(fixture.paths.jdk, "bin", "jar"), `
+if (process.argv[2] !== "tf" || !process.argv[3] || process.argv[4] !== "${ANDROID_JAR_SENTINEL}") process.exit(9);
+process.stdout.write(${JSON.stringify(listing)});
+`);
+
+    const probe = await probeToolchain(fixture.env, { timeoutMs: 5_000 });
+
+    assert.equal(probe.androidPlatformJarValid, false, `accepted listing ${JSON.stringify(listing)}`);
+  }
+});
+
 test("rejects an empty android.jar without trusting its filename", async (t) => {
   const fixture = await createToolchainFixture(t);
   await writeFile(fixture.paths.platformJar, "");
