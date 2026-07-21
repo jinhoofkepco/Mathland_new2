@@ -38,6 +38,22 @@ MATHLAND_FILES="$(
   APKANALYZER_OPTS="$MATHLAND_APKANALYZER_OPTS" \
     "$MATHLAND_APKANALYZER_BIN" files list "$MATHLAND_APK_PATH"
 )"
+MATHLAND_NORMALIZED_FILES="$(
+  perl -ne '
+    chomp;
+    s{\r$}{};
+    s{\\}{/}g;
+    s{/+}{/}g;
+    s{^/+}{};
+    1 while s{^\./}{};
+    print "$_\n" if length;
+  ' <<<"$MATHLAND_FILES"
+)"
+
+if rg --quiet --pcre2 '(?:^|/)\.\.(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
+  echo "APK policy failed: unsafe parent path component present" >&2
+  exit 1
+fi
 
 require_manifest() {
   local pattern="$1"
@@ -87,15 +103,15 @@ if [ "$MATHLAND_PERMISSIONS" != "$MATHLAND_EXPECTED_PERMISSIONS" ]; then
   exit 1
 fi
 
-if ! rg --quiet '^/lib/arm64-v8a/[^/]+\.so$' <<<"$MATHLAND_FILES"; then
+if ! rg --quiet '^lib/arm64-v8a/[^/]+\.so$' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: arm64-v8a shared library missing" >&2
   exit 1
 fi
-if rg --quiet --pcre2 '^/lib/(?!arm64-v8a(?:/|$))[^/]+/' <<<"$MATHLAND_FILES"; then
+if rg --quiet --pcre2 '^lib/(?!arm64-v8a(?:/|$))[^/]+/' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: non-ARM64 native library present" >&2
   exit 1
 fi
-if rg --quiet --pcre2 '^/assets/(?:package(?:-lock)?\.json|(?:.*/)?node_modules/|(?:tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|android|dist)/|\.env(?:\.|$)|\.DS_Store$|[^/]+\.(?:keystore|jks|p12)$)' <<<"$MATHLAND_FILES"; then
+if rg --quiet --pcre2 '(?:^|/)(?:\.git|\.github|node_modules|tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|dist)(?:/|$)|^assets/(?:[^/]+/)*android(?:/|$)|(?:^|/)(?:package(?:-lock)?\.json|\.env(?:\.[^/]*)?|\.DS_Store|[^/]*\.(?:keystore|jks|p12))$' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: host development artifact present" >&2
   exit 1
 fi

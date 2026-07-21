@@ -48,6 +48,17 @@ test("accepts the exact private ARM64 manifest policy", () => {
   assert.match(result.stdout, /PASS: Android manifest and ABI policy/);
 });
 
+test("accepts generated Android and Godot runtime metadata", () => {
+  const result = runInspection({
+    files: [
+      "/lib/arm64-v8a/libgodot_android.so",
+      "/META-INF/com/android/build/gradle/app-metadata.properties",
+      "/assets/.godot/exported/fixture/export-app_shell.scn",
+    ].join("\n"),
+  });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("rejects dangerous permissions", () => {
   const result = runInspection({
     manifest: validManifest.replace(
@@ -108,6 +119,33 @@ test("rejects host development artifacts from packaged assets", () => {
     "/assets/tools/private_generator.mjs",
     "/assets/.env.local",
     "/assets/release.keystore",
+    "/assets/runtime/private/.git/config",
+    "/assets/runtime/private/.github/workflows/ci.yml",
+    "/assets/runtime/private/.env",
+    "/assets/runtime/private/.env.production",
+    "/assets/runtime/private/.DS_Store",
+    "/assets/runtime/private/package.json",
+    "/assets/runtime/private/package-lock.json",
+    "/assets/runtime/private/keys/release.jks",
+    "/assets/runtime/private/keys/release.keystore",
+    "/assets/runtime/private/keys/release.p12",
+    "/assets/runtime/private/android/build.bin",
+    "/assets/runtime/private/coverage/report.json",
+    "/assets/runtime/private/dist/app.js",
+    "/assets/runtime/private/docs/plan.md",
+    "/assets/runtime/private/node_modules/example/index.js",
+    "/assets/runtime/private/packages/contracts/package.json",
+    "/assets/runtime/private/playwright-report/index.html",
+    "/assets/runtime/private/reports/test.xml",
+    "/assets/runtime/private/scripts/build.sh",
+    "/assets/runtime/private/supabase/config.toml",
+    "/assets/runtime/private/test-results/result.json",
+    "/assets/runtime/private/tests/test.gd",
+    "/assets/runtime/private/tools/private_generator.mjs",
+    "/assets/runtime/private/web/index.html",
+    "//assets//runtime//private//.env.staging",
+    "./assets/runtime/private/keys/release.jks",
+    String.raw`\assets\runtime\private\keys\release.keystore`,
   ];
   for (const path of forbidden) {
     const result = runInspection({

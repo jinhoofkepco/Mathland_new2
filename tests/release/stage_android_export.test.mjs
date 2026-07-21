@@ -41,6 +41,35 @@ function makeSource(root, includeHostArtifacts) {
   write(root, ".env.local", "secret");
   write(root, "release.keystore", "secret key");
   write(root, ".DS_Store", "finder");
+  write(root, "assets/host/.git/config", "nested git metadata");
+  write(root, "assets/host/.github/workflows/ci.yml", "nested workflow");
+  write(root, "assets/host/.godot/editor/project_metadata.cfg", "nested editor cache");
+  write(root, "assets/host/.env", "nested secret");
+  write(root, "assets/host/.env.production", "nested environment secret");
+  write(root, "assets/host/.DS_Store", "nested finder metadata");
+  write(root, "assets/host/package.json", "nested host package");
+  write(root, "assets/host/package-lock.json", "nested host lock");
+  write(root, "assets/host/keys/release.jks", "nested jks key");
+  write(root, "assets/host/keys/release.keystore", "nested keystore key");
+  write(root, "assets/host/keys/release.p12", "nested p12 key");
+  for (const directory of [
+    "android",
+    "coverage",
+    "dist",
+    "docs",
+    "node_modules",
+    "packages",
+    "playwright-report",
+    "reports",
+    "scripts",
+    "supabase",
+    "test-results",
+    "tests",
+    "tools",
+    "web",
+  ]) {
+    write(root, `assets/host/${directory}/forbidden.txt`, `nested ${directory}`);
+  }
 }
 
 test("staged runtime listing is identical with or without npm and host artifacts", () => {
