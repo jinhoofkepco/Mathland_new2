@@ -76,11 +76,11 @@ const STRING_LISTS = {
   MANIFEST_ENTRY_KEYS: ["activity_id", "content_version", "path", "checksum"],
 } as const;
 
-function renderPackedStringArray(name: string, values: readonly string[]): string[] {
+function renderConstStringArray(name: string, values: readonly string[]): string[] {
   return [
-    `static var ${name}: PackedStringArray = PackedStringArray([`,
+    `const ${name} := [`,
     ...values.map((value) => `\t${JSON.stringify(value)},`),
-    "])",
+    "]",
   ];
 }
 
@@ -108,7 +108,8 @@ export function renderGodotContentContract(): string {
     'const CHECKSUM_PREFIX := "sha256:"',
     "const CHECKSUM_HEX_LENGTH := 64",
     "const MAX_JSON_SOURCE_LENGTH := 2000000",
-    "const MAX_JSON_NESTING := 128",
+    "const MAX_JSON_SOURCE_BYTES := 6000000",
+    "const MAX_JSON_NESTING := 64",
     "const MAX_TITLE_CODEPOINTS := 80",
     "const MAX_DESCRIPTION_CODEPOINTS := 500",
     "const MAX_TUTORIAL_CODEPOINTS := 240",
@@ -116,10 +117,10 @@ export function renderGodotContentContract(): string {
   ];
 
   for (const [name, values] of Object.entries(STRING_LISTS)) {
-    lines.push(...renderPackedStringArray(name, values), "");
+    lines.push(...renderConstStringArray(name, values), "");
   }
   lines.push(
-    "static var VALIDATION_SEEDS: PackedInt64Array = PackedInt64Array([1, 7, 42, 20260721])",
+    "const VALIDATION_SEEDS := [1, 7, 42, 20260721]",
     "",
     ...renderActivityGeneratorMap(),
     "",

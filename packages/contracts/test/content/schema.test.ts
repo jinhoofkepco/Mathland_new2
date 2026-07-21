@@ -75,6 +75,12 @@ describe("content package schemas", () => {
     expect(
       ContentManifestV1Schema.safeParse({ ...manifest, published_at: "next Tuesday" }).success,
     ).toBe(false);
+
+    for (const malformedVersion of ["1..0.0", "1.0..0", "1.0.0.", ".1.0.0"]) {
+      expect(
+        ActivityPackageV1Schema.safeParse({ ...published, content_version: malformedVersion }).success,
+      ).toBe(false);
+    }
   });
 
   it("structurally requires the ordered three-band shape and all eleven manifest entries", () => {
@@ -92,6 +98,16 @@ describe("content package schemas", () => {
       ContentManifestV1Schema.safeParse({ ...manifest, packages: manifest.packages.slice(1) }).success,
     ).toBe(false);
   });
+
+  it.each(["\u00a0", "\ufeff", "\u1680", "\u2003", "\u2028", "\u2029", "\u3000"])(
+    "rejects ECMAScript whitespace U+%s at authored text edges",
+    (whitespace) => {
+      const draft = makeValidDraft();
+      draft.localizations["ko-KR"].title = `${whitespace}덧셈`;
+
+      expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(false);
+    },
+  );
 });
 
 describe("checked-in JSON Schemas", () => {

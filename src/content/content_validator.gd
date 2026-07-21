@@ -12,7 +12,7 @@ var _timestamp_pattern := RegEx.create_from_string(
 
 func parse_json(source: String, source_name: String = "") -> ContentValidationResult:
 	var issues: Array[Dictionary] = []
-	if source.length() > Contract.MAX_JSON_SOURCE_LENGTH:
+	if _utf16_length(source) > Contract.MAX_JSON_SOURCE_LENGTH:
 		_add_issue(issues, "SOURCE_TOO_LARGE", [], "JSON source exceeds the content limit")
 		return ValidationResult.new(false, issues, null, source_name)
 
@@ -138,13 +138,13 @@ func _validate_localizations(value: Variant, issues: Array[Dictionary]) -> void:
 		_add_issue(issues, "SCHEMA_TYPE", ["localizations"], "Localizations must be an object")
 		return
 	var localizations: Dictionary = value
-	_expect_exact_keys(localizations, Contract.LOCALIZATION_ROOT_KEYS, PackedStringArray(), ["localizations"], issues)
+	_expect_exact_keys(localizations, Contract.LOCALIZATION_ROOT_KEYS, [], ["localizations"], issues)
 	var korean_value: Variant = localizations.get("ko-KR")
 	if not korean_value is Dictionary:
 		_add_issue(issues, "SCHEMA_TYPE", ["localizations", "ko-KR"], "Korean localization must be an object")
 		return
 	var korean: Dictionary = korean_value
-	_expect_exact_keys(korean, Contract.LOCALIZATION_KEYS, PackedStringArray(), ["localizations", "ko-KR"], issues)
+	_expect_exact_keys(korean, Contract.LOCALIZATION_KEYS, [], ["localizations", "ko-KR"], issues)
 	_validate_trimmed_text(korean.get("title"), Contract.MAX_TITLE_CODEPOINTS, ["localizations", "ko-KR", "title"], issues)
 	_validate_trimmed_text(korean.get("description"), Contract.MAX_DESCRIPTION_CODEPOINTS, ["localizations", "ko-KR", "description"], issues)
 	var steps_value: Variant = korean.get("tutorial_steps")
@@ -162,14 +162,14 @@ func _validate_run(value: Variant, issues: Array[Dictionary]) -> void:
 		_add_issue(issues, "SCHEMA_TYPE", ["run"], "Run tuning must be an object")
 		return
 	var run: Dictionary = value
-	_expect_exact_keys(run, Contract.RUN_KEYS, PackedStringArray(), ["run"], issues)
+	_expect_exact_keys(run, Contract.RUN_KEYS, [], ["run"], issues)
 	_validate_positive_integer(run.get("starting_hearts"), ["run", "starting_hearts"], issues)
 	_validate_positive_integer(run.get("boss_every_correct"), ["run", "boss_every_correct"], issues)
 
 	var goal_value: Variant = run.get("goal")
 	if goal_value is Dictionary:
 		var goal: Dictionary = goal_value
-		_expect_exact_keys(goal, Contract.GOAL_KEYS, PackedStringArray(), ["run", "goal"], issues)
+		_expect_exact_keys(goal, Contract.GOAL_KEYS, [], ["run", "goal"], issues)
 		if goal.get("kind") != "correct_answers":
 			_add_issue(issues, "SCHEMA_LITERAL", ["run", "goal", "kind"], "Only correct-answer goals are supported")
 		_validate_positive_integer(goal.get("target"), ["run", "goal", "target"], issues)
@@ -179,7 +179,7 @@ func _validate_run(value: Variant, issues: Array[Dictionary]) -> void:
 	var timer_value: Variant = run.get("timer")
 	if timer_value is Dictionary:
 		var timer: Dictionary = timer_value
-		_expect_exact_keys(timer, Contract.TIMER_KEYS, PackedStringArray(), ["run", "timer"], issues)
+		_expect_exact_keys(timer, Contract.TIMER_KEYS, [], ["run", "timer"], issues)
 		_validate_boolean(timer.get("enabled"), ["run", "timer", "enabled"], issues)
 		_validate_positive_integer(timer.get("seconds"), ["run", "timer", "seconds"], issues)
 		_validate_boolean(timer.get("profile_can_disable"), ["run", "timer", "profile_can_disable"], issues)
@@ -189,7 +189,7 @@ func _validate_run(value: Variant, issues: Array[Dictionary]) -> void:
 	var rewards_value: Variant = run.get("rewards")
 	if rewards_value is Dictionary:
 		var rewards: Dictionary = rewards_value
-		_expect_exact_keys(rewards, Contract.REWARDS_KEYS, PackedStringArray(), ["run", "rewards"], issues)
+		_expect_exact_keys(rewards, Contract.REWARDS_KEYS, [], ["run", "rewards"], issues)
 		_validate_positive_integer(rewards.get("apples_per_correct"), ["run", "rewards", "apples_per_correct"], issues)
 		_validate_positive_integer(rewards.get("completion_apples"), ["run", "rewards", "completion_apples"], issues)
 	else:
@@ -216,7 +216,7 @@ func _validate_run(value: Variant, issues: Array[Dictionary]) -> void:
 	var effects_value: Variant = run.get("effects")
 	if effects_value is Dictionary:
 		var effects: Dictionary = effects_value
-		_expect_exact_keys(effects, Contract.EFFECT_KEYS, PackedStringArray(), ["run", "effects"], issues)
+		_expect_exact_keys(effects, Contract.EFFECT_KEYS, [], ["run", "effects"], issues)
 		for effect_key in Contract.EFFECT_KEYS:
 			if String(effects.get(effect_key, "")) not in Contract.EFFECT_PRESET_IDS:
 				_add_issue(issues, "UNKNOWN_EFFECT_ID", ["run", "effects", effect_key], "Effect preset is not allowlisted")
@@ -237,7 +237,7 @@ func _validate_bands(value: Variant, activity_id: String, issues: Array[Dictiona
 			continue
 		var band: Dictionary = band_value
 		var path: Array = ["difficulty_bands", index]
-		_expect_exact_keys(band, Contract.BAND_KEYS, PackedStringArray(), path, issues)
+		_expect_exact_keys(band, Contract.BAND_KEYS, [], path, issues)
 		if index >= Contract.BAND_IDS.size() or band.get("band_id") != Contract.BAND_IDS[index]:
 			_add_issue(issues, "BAND_ORDER", path + ["band_id"], "Difficulty bands must be intro, practice, challenge")
 		var generator_id := String(band.get("generator_id", ""))
@@ -265,7 +265,7 @@ func _validate_manipulative(value: Variant, path: Array, issues: Array[Dictionar
 		_add_issue(issues, "SCHEMA_TYPE", path, "Manipulative config must be an object")
 		return
 	var config: Dictionary = value
-	_expect_exact_keys(config, Contract.MANIPULATIVE_KEYS, PackedStringArray(), path, issues)
+	_expect_exact_keys(config, Contract.MANIPULATIVE_KEYS, [], path, issues)
 	if String(config.get("id", "")) not in Contract.MANIPULATIVE_IDS:
 		_add_issue(issues, "UNKNOWN_MANIPULATIVE_ID", path + ["id"], "Manipulative is not allowlisted")
 	_validate_parameters(config.get("config"), path + ["config"], issues)
@@ -290,7 +290,7 @@ func _validate_parameters(value: Variant, path: Array, issues: Array[Dictionary]
 			continue
 		if parameter is String:
 			var string_value: String = parameter
-			if string_value.length() > 128 or string_value.is_empty() or string_value != string_value.strip_edges():
+			if string_value.length() > 128 or not _is_ecmascript_trimmed(string_value):
 				_add_issue(issues, "SCHEMA_STRING", path + [key], "Parameter string is empty, padded, or too long")
 			elif _safe_tuning_key_pattern.search(string_value) == null and string_value not in ["+", "-", "*", "/", "%"]:
 				_add_issue(issues, "UNSAFE_TUNING_STRING", path + [key], "Parameter string cannot be a path, URL, or code")
@@ -311,12 +311,14 @@ func _validate_adaptive_policy(value: Variant, issues: Array[Dictionary]) -> voi
 		_add_issue(issues, "SCHEMA_TYPE", path, "Adaptive policy must be an object")
 		return
 	var policy: Dictionary = value
-	_expect_exact_keys(policy, Contract.ADAPTIVE_POLICY_KEYS, PackedStringArray(), path, issues)
+	_expect_exact_keys(policy, Contract.ADAPTIVE_POLICY_KEYS, [], path, issues)
 	if policy.get("enabled_by_default") != false or not policy.get("enabled_by_default") is bool:
 		_add_issue(issues, "ADAPTIVE_DEFAULT", path + ["enabled_by_default"], "Adaptive difficulty must default to off")
 	_validate_positive_integer(policy.get("window_size"), path + ["window_size"], issues)
 	var minimum := String(policy.get("min_band_id", ""))
 	var maximum := String(policy.get("max_band_id", ""))
+	_validate_trimmed_text(minimum, 32, path + ["min_band_id"], issues)
+	_validate_trimmed_text(maximum, 32, path + ["max_band_id"], issues)
 	var minimum_index := Contract.BAND_IDS.find(minimum)
 	var maximum_index := Contract.BAND_IDS.find(maximum)
 	if minimum_index < 0 or maximum_index < 0 or minimum_index > maximum_index:
@@ -343,7 +345,7 @@ func _validate_samples(value: Variant, issues: Array[Dictionary]) -> void:
 			_add_issue(issues, "SCHEMA_TYPE", path + [index], "Validation sample must be an object")
 			continue
 		var sample: Dictionary = sample_value
-		_expect_exact_keys(sample, Contract.VALIDATION_SAMPLE_KEYS, PackedStringArray(), path + [index], issues)
+		_expect_exact_keys(sample, Contract.VALIDATION_SAMPLE_KEYS, [], path + [index], issues)
 		var band_id := String(sample.get("band_id", ""))
 		if band_id not in Contract.BAND_IDS:
 			_add_issue(issues, "UNKNOWN_BAND_ID", path + [index, "band_id"], "Validation sample band is unknown")
@@ -367,11 +369,11 @@ func _validate_answer_value(value: Variant, path: Array, issues: Array[Dictionar
 	var answer: Dictionary = value
 	var kind := String(answer.get("kind", ""))
 	if kind == "integer":
-		_expect_exact_keys(answer, Contract.INTEGER_ANSWER_KEYS, PackedStringArray(), path, issues)
+		_expect_exact_keys(answer, Contract.INTEGER_ANSWER_KEYS, [], path, issues)
 		if not _is_safe_integer(answer.get("value")):
 			_add_issue(issues, "SCHEMA_TYPE", path + ["value"], "Integer answer must be a safe integer")
 	elif kind == "integer_list":
-		_expect_exact_keys(answer, Contract.INTEGER_LIST_ANSWER_KEYS, PackedStringArray(), path, issues)
+		_expect_exact_keys(answer, Contract.INTEGER_LIST_ANSWER_KEYS, [], path, issues)
 		var values_value: Variant = answer.get("values")
 		if values_value is Array:
 			var values: Array = values_value
@@ -387,7 +389,7 @@ func _validate_answer_value(value: Variant, path: Array, issues: Array[Dictionar
 		_add_issue(issues, "SCHEMA_UNION", path + ["kind"], "Unknown answer kind")
 
 func _validate_manifest_shape(manifest: Dictionary, issues: Array[Dictionary]) -> void:
-	_expect_exact_keys(manifest, Contract.REQUIRED_MANIFEST_KEYS, PackedStringArray(), [], issues)
+	_expect_exact_keys(manifest, Contract.REQUIRED_MANIFEST_KEYS, [], [], issues)
 	_validate_json_domain(manifest, [], issues)
 	if manifest.get("schema_version") != Contract.SCHEMA_VERSION:
 		_add_issue(issues, "UNSUPPORTED_SCHEMA", ["schema_version"], "Only manifest schema version 1 is supported")
@@ -419,7 +421,7 @@ func _validate_manifest_shape(manifest: Dictionary, issues: Array[Dictionary]) -
 			continue
 		var entry: Dictionary = entry_value
 		var path: Array = ["packages", index]
-		_expect_exact_keys(entry, Contract.MANIFEST_ENTRY_KEYS, PackedStringArray(), path, issues)
+		_expect_exact_keys(entry, Contract.MANIFEST_ENTRY_KEYS, [], path, issues)
 		var activity_id := String(entry.get("activity_id", ""))
 		if activity_id not in Contract.ACTIVITY_IDS:
 			_add_issue(issues, "UNKNOWN_ACTIVITY_ID", path + ["activity_id"], "Manifest activity is not allowlisted")
@@ -440,8 +442,8 @@ func _validate_manifest_shape(manifest: Dictionary, issues: Array[Dictionary]) -
 
 func _expect_exact_keys(
 	value: Dictionary,
-	required: PackedStringArray,
-	optional: PackedStringArray,
+	required: Array,
+	optional: Array,
 	path: Array,
 	issues: Array[Dictionary]
 ) -> void:
@@ -496,6 +498,9 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 	if value is bool:
 		return "true" if value else "false"
 	if value is String:
+		if not _is_well_formed_unicode(value):
+			state["ok"] = false
+			return ""
 		return JSON.stringify(value)
 	if typeof(value) == TYPE_INT:
 		if not _is_safe_integer(value):
@@ -527,10 +532,13 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 				state["ok"] = false
 				return ""
 			var key: String = key_value
+			if not _is_well_formed_unicode(key):
+				state["ok"] = false
+				return ""
 			if depth == 0 and omit_checksum and key == "checksum":
 				continue
 			keys.append(key)
-		keys.sort()
+		keys.sort_custom(_utf16_key_less)
 		var entries: Array[String] = []
 		for key in keys:
 			entries.append("%s:%s" % [JSON.stringify(key), _encode_canonical(object[key], depth + 1, omit_checksum, state)])
@@ -539,13 +547,17 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 	return ""
 
 func _encode_ecmascript_number(number: float) -> String:
-	var encoded := JSON.stringify(number).to_lower()
+	var encoded := JSON.stringify(number, "", true, true).to_lower()
 	if number == 0.0:
 		return "0"
-	if abs(number) >= 0.000001:
-		return _normalize_scientific_exponent(encoded) if "e" in encoded else encoded
 	if "e" in encoded:
-		return _normalize_scientific_exponent(encoded)
+		var normalized := _normalize_scientific_exponent(encoded)
+		var exponent := int(normalized.get_slice("e", 1))
+		if exponent >= -6 and exponent < 21:
+			return _scientific_to_decimal(normalized)
+		return normalized
+	if abs(number) >= 0.000001:
+		return encoded
 
 	var sign := ""
 	var unsigned := encoded
@@ -567,6 +579,30 @@ func _encode_ecmascript_number(number: float) -> String:
 	if significant.length() > 1:
 		mantissa += ".%s" % significant.substr(1)
 	return "%s%se%d" % [sign, mantissa, exponent]
+
+func _scientific_to_decimal(encoded: String) -> String:
+	var parts := encoded.split("e", true, 1)
+	if parts.size() != 2:
+		return encoded
+	var mantissa := String(parts[0])
+	var sign := ""
+	if mantissa.begins_with("-"):
+		sign = "-"
+		mantissa = mantissa.substr(1)
+	var decimal_index := mantissa.find(".")
+	if decimal_index < 0:
+		decimal_index = mantissa.length()
+	var digits := mantissa.replace(".", "")
+	var decimal_position := decimal_index + int(parts[1])
+	if decimal_position <= 0:
+		return "%s0.%s%s" % [sign, "0".repeat(-decimal_position), digits]
+	if decimal_position >= digits.length():
+		return "%s%s%s" % [sign, digits, "0".repeat(decimal_position - digits.length())]
+	return "%s%s.%s" % [
+		sign,
+		digits.substr(0, decimal_position),
+		digits.substr(decimal_position),
+	]
 
 func _normalize_scientific_exponent(encoded: String) -> String:
 	var parts := encoded.split("e", false, 1)
@@ -681,26 +717,38 @@ func _scan_array(state: Dictionary, path: Array, depth: int) -> bool:
 func _scan_string(state: Dictionary, path: Array) -> Dictionary:
 	var source: String = state["source"]
 	var index: int = state["index"] + 1
-	var decoded := ""
+	var decoded_parts := PackedStringArray()
 	while index < source.length():
 		var character := source[index]
 		if character == "\"":
 			state["index"] = index + 1
-			return {"ok": true, "value": decoded}
+			return {"ok": true, "value": "".join(decoded_parts)}
 		if character.unicode_at(0) < 0x20:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Unescaped control character in string")
 			return {"ok": false, "value": ""}
+		if character.unicode_at(0) == 0xFFFD:
+			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON string")
+			return {"ok": false, "value": ""}
 		if character != "\\":
-			decoded += character
+			decoded_parts.append(character)
 			index += 1
 			continue
 		index += 1
 		if index >= source.length():
 			break
 		var escape := source[index]
-		var escapes := {"\"": "\"", "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}
-		if escapes.has(escape):
-			decoded += escapes[escape]
+		var decoded_escape := ""
+		match escape:
+			"\"": decoded_escape = "\""
+			"\\": decoded_escape = "\\"
+			"/": decoded_escape = "/"
+			"b": decoded_escape = "\b"
+			"f": decoded_escape = "\f"
+			"n": decoded_escape = "\n"
+			"r": decoded_escape = "\r"
+			"t": decoded_escape = "\t"
+		if not decoded_escape.is_empty():
+			decoded_parts.append(decoded_escape)
 			index += 1
 			continue
 		if escape != "u" or index + 4 >= source.length():
@@ -729,7 +777,10 @@ func _scan_string(state: Dictionary, path: Array) -> Dictionary:
 		elif codepoint >= 0xDC00 and codepoint <= 0xDFFF:
 			_add_issue(state["issues"], "INVALID_JSON", path, "Unpaired Unicode surrogate")
 			return {"ok": false, "value": ""}
-		decoded += String.chr(codepoint)
+		if codepoint == 0xFFFD:
+			_add_issue(state["issues"], "INVALID_JSON", path, "Invalid Unicode replacement in JSON escape")
+			return {"ok": false, "value": ""}
+		decoded_parts.append(String.chr(codepoint))
 	_add_issue(state["issues"], "INVALID_JSON", path, "Unterminated string")
 	return {"ok": false, "value": ""}
 
@@ -755,8 +806,37 @@ func _validate_trimmed_text(value: Variant, maximum: int, path: Array, issues: A
 		_add_issue(issues, "SCHEMA_TYPE", path, "Expected text")
 		return
 	var text: String = value
-	if text.is_empty() or text != text.strip_edges() or text.length() > maximum:
+	if not _is_ecmascript_trimmed(text) or text.length() > maximum:
 		_add_issue(issues, "SCHEMA_STRING", path, "Text is empty, padded, or too long")
+
+func _is_ecmascript_trimmed(value: String) -> bool:
+	if value.is_empty():
+		return false
+	return (
+		not _is_ecmascript_whitespace(value.unicode_at(0))
+		and not _is_ecmascript_whitespace(value.unicode_at(value.length() - 1))
+	)
+
+func _is_ecmascript_whitespace(codepoint: int) -> bool:
+	return (
+		codepoint in [
+			0x0009,
+			0x000A,
+			0x000B,
+			0x000C,
+			0x000D,
+			0x0020,
+			0x00A0,
+			0x1680,
+			0x2028,
+			0x2029,
+			0x202F,
+			0x205F,
+			0x3000,
+			0xFEFF,
+		]
+		or (codepoint >= 0x2000 and codepoint <= 0x200A)
+	)
 
 func _validate_positive_integer(value: Variant, path: Array, issues: Array[Dictionary]) -> void:
 	if not _is_positive_integer(value):
@@ -778,6 +858,40 @@ func _is_safe_integer(value: Variant) -> bool:
 			and number <= Contract.SAFE_INTEGER_MAX
 		)
 	return false
+
+func _is_well_formed_unicode(value: String) -> bool:
+	for index in value.length():
+		var codepoint := value.unicode_at(index)
+		if codepoint == 0xFFFD or (codepoint >= 0xD800 and codepoint <= 0xDFFF):
+			return false
+	return true
+
+func _utf16_key_less(left: String, right: String) -> bool:
+	var left_units := _utf16_code_units(left)
+	var right_units := _utf16_code_units(right)
+	var shared_length := mini(left_units.size(), right_units.size())
+	for index in shared_length:
+		if left_units[index] != right_units[index]:
+			return left_units[index] < right_units[index]
+	return left_units.size() < right_units.size()
+
+func _utf16_code_units(value: String) -> PackedInt32Array:
+	var units := PackedInt32Array()
+	for index in value.length():
+		var codepoint := value.unicode_at(index)
+		if codepoint <= 0xFFFF:
+			units.append(codepoint)
+		else:
+			var scalar_offset := codepoint - 0x10000
+			units.append(0xD800 + (scalar_offset >> 10))
+			units.append(0xDC00 + (scalar_offset & 0x3FF))
+	return units
+
+func _utf16_length(value: String) -> int:
+	var code_units := 0
+	for index in value.length():
+		code_units += 2 if value.unicode_at(index) > 0xFFFF else 1
+	return code_units
 
 func _normalize_json_numbers(value: Variant) -> Variant:
 	if typeof(value) == TYPE_FLOAT:
@@ -814,7 +928,7 @@ func _is_probability(value: Variant) -> bool:
 func _is_semantic_version(value: Variant) -> bool:
 	if not value is String:
 		return false
-	var parts := String(value).split(".", false)
+	var parts := String(value).split(".", true)
 	if parts.size() != 3:
 		return false
 	for part in parts:
@@ -868,7 +982,7 @@ func _is_iso_timestamp(value: Variant) -> bool:
 			return false
 	return true
 
-func _same_string_sequence(values: Array, expected: PackedStringArray) -> bool:
+func _same_string_sequence(values: Array, expected: Array) -> bool:
 	if values.size() != expected.size():
 		return false
 	for index in values.size():

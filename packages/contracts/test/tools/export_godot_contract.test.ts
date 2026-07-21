@@ -52,7 +52,13 @@ describe("Godot content contract exporter", () => {
     }
     expect(generated).toContain("const SCHEMA_VERSION := 1");
     expect(generated).toContain("const SAFE_INTEGER_MAX := 9007199254740991");
+    expect(generated).toContain("const MAX_JSON_SOURCE_BYTES := 6000000");
+    expect(generated).toContain("const MAX_JSON_NESTING := 64");
     expect(generated).toContain('const CHECKSUM_PREFIX := "sha256:"');
+    expect(generated).toContain("const ACTIVITY_IDS := [");
+    expect(generated).toContain("const VALIDATION_SEEDS := [1, 7, 42, 20260721]");
+    expect(generated).not.toContain("static var ACTIVITY_IDS");
+    expect(generated).not.toContain("static var VALIDATION_SEEDS");
   });
 
   it("keeps the Godot repository fixtures valid under the canonical TypeScript boundary", async () => {

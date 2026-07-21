@@ -16,11 +16,14 @@ func run(_tree: SceneTree) -> void:
 	_test_returns_deep_copy_and_pins_requested_version()
 	_test_returns_immutable_ordered_summaries()
 	_test_rejects_invalid_packages()
+	_test_rejects_semantic_versions_with_empty_segments()
+	_test_rejects_ecmascript_whitespace_at_text_edges()
 	_test_valid_cache_candidate_has_priority()
 	_test_one_invalid_cached_package_rejects_the_whole_candidate()
 	_test_bad_cache_falls_back_to_bundled_candidate()
 	_test_failed_reinitialization_preserves_valid_state()
 	_test_rejects_manifest_path_traversal()
+	_test_rejects_oversized_file_before_reading()
 
 func _test_returns_deep_copy_and_pins_requested_version() -> void:
 	var repository := ContentRepositoryScript.new()
@@ -77,6 +80,36 @@ func _test_rejects_invalid_packages() -> void:
 	var unsafe_tuning := valid.duplicate(true)
 	unsafe_tuning["difficulty_bands"][0]["generator_parameters"]["source"] = "../escape.json"
 	assert_false(repository.validate_package(unsafe_tuning).ok)
+
+func _test_rejects_semantic_versions_with_empty_segments() -> void:
+	var repository := ContentRepositoryScript.new()
+	var valid := _read_json_dictionary(VALID_ACTIVITY_PATH)
+	for malformed_version in ["1..0.0", "1.0..0", "1.0.0.", ".1.0.0"]:
+		var candidate := valid.duplicate(true)
+		candidate["content_version"] = malformed_version
+		var result: Variant = repository.validate_package(candidate)
+		var codes: Array[String] = []
+		for issue_value in result.issues:
+			codes.append(String(issue_value["code"]))
+		assert_true(
+			"SEMANTIC_VERSION" in codes,
+			"Expected empty semver segment rejection: %s" % malformed_version
+		)
+
+func _test_rejects_ecmascript_whitespace_at_text_edges() -> void:
+	var repository := ContentRepositoryScript.new()
+	var valid := _read_json_dictionary(VALID_ACTIVITY_PATH)
+	for codepoint in [0x00A0, 0xFEFF, 0x1680, 0x2003, 0x2028, 0x2029, 0x3000]:
+		var candidate := valid.duplicate(true)
+		candidate["localizations"]["ko-KR"]["title"] = "%s덧셈" % String.chr(codepoint)
+		var result: Variant = repository.validate_package(candidate)
+		var codes: Array[String] = []
+		for issue_value in result.issues:
+			codes.append(String(issue_value["code"]))
+		assert_true(
+			"SCHEMA_STRING" in codes,
+			"Expected ECMAScript whitespace rejection: U+%04X" % codepoint
+		)
 
 func _test_valid_cache_candidate_has_priority() -> void:
 	_install_cache(VALID_CACHE_ROOT, "캐시 덧셈 탐험")
@@ -136,6 +169,15 @@ func _test_rejects_manifest_path_traversal() -> void:
 	var result: Variant = repository.initialize(path, "user://missing-content-cache")
 	assert_false(result.ok)
 	assert_eq(repository.list_activities(), [])
+
+func _test_rejects_oversized_file_before_reading() -> void:
+	var path := "user://content_repository_oversized_manifest.json"
+	_write_text(path, " ".repeat(6000001))
+	var repository := ContentRepositoryScript.new()
+	var result: Variant = repository.initialize(path, "user://missing-content-cache")
+	assert_false(result.ok)
+	assert_eq(result.issues[0]["code"], "SOURCE_TOO_LARGE")
+	assert_eq(result.issues[0]["message"], "Content file exceeds the pre-read byte limit")
 
 func _read_json_dictionary(path: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))

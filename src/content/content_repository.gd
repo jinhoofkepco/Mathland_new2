@@ -3,6 +3,7 @@ extends RefCounted
 
 const ValidatorScript = preload("res://src/content/content_validator.gd")
 const ValidationResult = preload("res://src/content/content_validation_result.gd")
+const Contract = preload("res://src/content/generated/content_contract_v1.gd")
 
 var _validator := ValidatorScript.new()
 var _manifest: Dictionary = {}
@@ -121,6 +122,14 @@ func _read_json_dictionary(path: String) -> ContentValidationResult:
 		return ValidationResult.new(
 			false,
 			[_issue("FILE_MISSING", [], "Content file could not be opened: %s" % path)],
+			null,
+			path
+		)
+	if file.get_length() > Contract.MAX_JSON_SOURCE_BYTES:
+		file.close()
+		return ValidationResult.new(
+			false,
+			[_issue("SOURCE_TOO_LARGE", [], "Content file exceeds the pre-read byte limit")],
 			null,
 			path
 		)

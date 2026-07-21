@@ -33,6 +33,15 @@ describe("canonical JSON", () => {
     expect(canonicalJson({ z: [1, 2] })).not.toBe(canonicalJson({ z: [2, 1] }));
   });
 
+  it("sorts object keys by UTF-16 code units rather than Unicode scalar values", () => {
+    const astral = "𐀀";
+    const privateUseBmp = "";
+
+    expect(canonicalJson({ [privateUseBmp]: 2, [astral]: 1 })).toBe(
+      `{"${astral}":1,"${privateUseBmp}":2}`,
+    );
+  });
+
   it("creates stable lowercase UTF-8 SHA-256 checksums without mutating input", () => {
     const value = { title: "수학 섬", a: { y: 2, x: 1 }, checksum: "old" };
     const snapshot = structuredClone(value);
@@ -67,6 +76,19 @@ describe("canonical JSON", () => {
       expect.objectContaining({ code: "NON_PLAIN_OBJECT" }),
     );
   });
+
+  it("rejects lone UTF-16 surrogates in string values and object keys", () => {
+    const loneHigh = String.fromCharCode(0xd800);
+    const loneLow = String.fromCharCode(0xdc00);
+
+    expect(() => canonicalJson({ value: loneHigh })).toThrowError(
+      expect.objectContaining({ code: "LONE_SURROGATE", path: ["value"] }),
+    );
+    expect(() => canonicalJson({ [loneLow]: 1 })).toThrowError(
+      expect.objectContaining({ code: "LONE_SURROGATE", path: [loneLow] }),
+    );
+    expect(canonicalJson({ value: "😀" })).toBe('{"value":"😀"}');
+  });
 });
 
 describe("strict raw JSON boundary", () => {
@@ -88,5 +110,37 @@ describe("strict raw JSON boundary", () => {
       한글: "값",
     });
     expect(() => parseJsonStrict('{"a":01}')).toThrow(ContentJsonParseError);
+  });
+
+  it("counts source length as UTF-16 code units and caps nesting at 64", () => {
+    const exactlyAtLimit = `"${"😀".repeat(999_999)}"`;
+    const overLimit = `"${"😀".repeat(1_000_000)}"`;
+
+    expect(exactlyAtLimit.length).toBe(2_000_000);
+    expect(parseJsonStrict(exactlyAtLimit)).toBe("😀".repeat(999_999));
+    expect(() => parseJsonStrict(overLimit)).toThrowError(
+      expect.objectContaining({ code: "SOURCE_TOO_LARGE" }),
+    );
+    expect(parseJsonStrict(`${"[".repeat(64)}0${"]".repeat(64)}`)).toBeDefined();
+    expect(() => parseJsonStrict(`${"[".repeat(65)}0${"]".repeat(65)}`)).toThrowError(
+      expect.objectContaining({ code: "NESTING_TOO_DEEP" }),
+    );
+  });
+
+  it("rejects escaped and literal lone surrogates in JSON strings and keys", () => {
+    const loneHigh = String.fromCharCode(0xd800);
+
+    for (const source of [
+      '"\\ud800"',
+      '"\\udc00"',
+      '{"\\ud800":1}',
+      `"${loneHigh}"`,
+      `{"${loneHigh}":1}`,
+    ]) {
+      expect(() => parseJsonStrict(source)).toThrowError(
+        expect.objectContaining({ code: "INVALID_JSON" }),
+      );
+    }
+    expect(parseJsonStrict('"\\ud83d\\ude00"')).toBe("😀");
   });
 });

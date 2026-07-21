@@ -9,12 +9,13 @@ const SAFE_INTEGER_MAX := 9007199254740991
 const CHECKSUM_PREFIX := "sha256:"
 const CHECKSUM_HEX_LENGTH := 64
 const MAX_JSON_SOURCE_LENGTH := 2000000
-const MAX_JSON_NESTING := 128
+const MAX_JSON_SOURCE_BYTES := 6000000
+const MAX_JSON_NESTING := 64
 const MAX_TITLE_CODEPOINTS := 80
 const MAX_DESCRIPTION_CODEPOINTS := 500
 const MAX_TUTORIAL_CODEPOINTS := 240
 
-static var ACTIVITY_IDS: PackedStringArray = PackedStringArray([
+const ACTIVITY_IDS := [
 	"addition_ones",
 	"subtraction_ones",
 	"multiplication",
@@ -26,9 +27,9 @@ static var ACTIVITY_IDS: PackedStringArray = PackedStringArray([
 	"foundations_base_ten",
 	"foundations_number_line",
 	"foundations_basic_operations",
-])
+]
 
-static var GENERATOR_IDS: PackedStringArray = PackedStringArray([
+const GENERATOR_IDS := [
 	"addition_v1",
 	"subtraction_v1",
 	"multiplication_v1",
@@ -40,29 +41,29 @@ static var GENERATOR_IDS: PackedStringArray = PackedStringArray([
 	"base_ten_v1",
 	"number_line_v1",
 	"basic_operations_v1",
-])
+]
 
-static var MANIPULATIVE_IDS: PackedStringArray = PackedStringArray([
+const MANIPULATIVE_IDS := [
 	"none",
 	"counters",
 	"ten_frame",
 	"base_ten",
 	"number_line",
 	"answer_slots",
-])
+]
 
-static var ANSWER_LAYOUT_IDS: PackedStringArray = PackedStringArray([
+const ANSWER_LAYOUT_IDS := [
 	"numeric_keypad",
 	"choice_grid",
 	"factor_slots",
 	"manipulative_submit",
-])
+]
 
-static var SCENE_IDS: PackedStringArray = PackedStringArray([
+const SCENE_IDS := [
 	"activity_run",
-])
+]
 
-static var EFFECT_PRESET_IDS: PackedStringArray = PackedStringArray([
+const EFFECT_PRESET_IDS := [
 	"correct",
 	"wrong",
 	"combo_1",
@@ -75,9 +76,9 @@ static var EFFECT_PRESET_IDS: PackedStringArray = PackedStringArray([
 	"reward",
 	"collection",
 	"coupon",
-])
+]
 
-static var ICON_IDS: PackedStringArray = PackedStringArray([
+const ICON_IDS := [
 	"addition_ones",
 	"subtraction_ones",
 	"multiplication",
@@ -93,9 +94,9 @@ static var ICON_IDS: PackedStringArray = PackedStringArray([
 	"wrong",
 	"heart",
 	"speaker",
-])
+]
 
-static var DIALOGUE_IDS: PackedStringArray = PackedStringArray([
+const DIALOGUE_IDS := [
 	"moa_home_welcome",
 	"moa_tutorial_counting",
 	"moa_tutorial_number_bonds",
@@ -105,21 +106,21 @@ static var DIALOGUE_IDS: PackedStringArray = PackedStringArray([
 	"moa_tutorial_basic_operations",
 	"moa_reward",
 	"moa_level_up",
-])
+]
 
-static var BAND_IDS: PackedStringArray = PackedStringArray([
+const BAND_IDS := [
 	"intro",
 	"practice",
 	"challenge",
-])
+]
 
-static var FORBIDDEN_OBJECT_KEYS: PackedStringArray = PackedStringArray([
+const FORBIDDEN_OBJECT_KEYS := [
 	"__proto__",
 	"prototype",
 	"constructor",
-])
+]
 
-static var REQUIRED_PACKAGE_KEYS: PackedStringArray = PackedStringArray([
+const REQUIRED_PACKAGE_KEYS := [
 	"schema_version",
 	"content_version",
 	"activity_id",
@@ -130,23 +131,23 @@ static var REQUIRED_PACKAGE_KEYS: PackedStringArray = PackedStringArray([
 	"difficulty_bands",
 	"validation_samples",
 	"checksum",
-])
+]
 
-static var OPTIONAL_PACKAGE_KEYS: PackedStringArray = PackedStringArray([
+const OPTIONAL_PACKAGE_KEYS := [
 	"adaptive_policy",
-])
+]
 
-static var LOCALIZATION_ROOT_KEYS: PackedStringArray = PackedStringArray([
+const LOCALIZATION_ROOT_KEYS := [
 	"ko-KR",
-])
+]
 
-static var LOCALIZATION_KEYS: PackedStringArray = PackedStringArray([
+const LOCALIZATION_KEYS := [
 	"title",
 	"description",
 	"tutorial_steps",
-])
+]
 
-static var RUN_KEYS: PackedStringArray = PackedStringArray([
+const RUN_KEYS := [
 	"starting_hearts",
 	"goal",
 	"timer",
@@ -154,25 +155,25 @@ static var RUN_KEYS: PackedStringArray = PackedStringArray([
 	"combo_thresholds",
 	"boss_every_correct",
 	"effects",
-])
+]
 
-static var GOAL_KEYS: PackedStringArray = PackedStringArray([
+const GOAL_KEYS := [
 	"kind",
 	"target",
-])
+]
 
-static var TIMER_KEYS: PackedStringArray = PackedStringArray([
+const TIMER_KEYS := [
 	"enabled",
 	"seconds",
 	"profile_can_disable",
-])
+]
 
-static var REWARDS_KEYS: PackedStringArray = PackedStringArray([
+const REWARDS_KEYS := [
 	"apples_per_correct",
 	"completion_apples",
-])
+]
 
-static var EFFECT_KEYS: PackedStringArray = PackedStringArray([
+const EFFECT_KEYS := [
 	"correct",
 	"wrong",
 	"combo",
@@ -180,72 +181,72 @@ static var EFFECT_KEYS: PackedStringArray = PackedStringArray([
 	"level_up",
 	"reward",
 	"health_loss",
-])
+]
 
-static var BAND_KEYS: PackedStringArray = PackedStringArray([
+const BAND_KEYS := [
 	"band_id",
 	"generator_id",
 	"generator_parameters",
 	"answer_layout",
 	"manipulative",
-])
+]
 
-static var ANSWER_LAYOUT_REQUIRED_KEYS: PackedStringArray = PackedStringArray([
+const ANSWER_LAYOUT_REQUIRED_KEYS := [
 	"id",
-])
+]
 
-static var ANSWER_LAYOUT_OPTIONAL_KEYS: PackedStringArray = PackedStringArray([
+const ANSWER_LAYOUT_OPTIONAL_KEYS := [
 	"options",
-])
+]
 
-static var MANIPULATIVE_KEYS: PackedStringArray = PackedStringArray([
+const MANIPULATIVE_KEYS := [
 	"id",
 	"config",
 	"initial_state",
-])
+]
 
-static var ADAPTIVE_POLICY_KEYS: PackedStringArray = PackedStringArray([
+const ADAPTIVE_POLICY_KEYS := [
 	"enabled_by_default",
 	"min_band_id",
 	"max_band_id",
 	"window_size",
 	"promote_correctness",
 	"demote_correctness",
-])
+]
 
-static var VALIDATION_SAMPLE_KEYS: PackedStringArray = PackedStringArray([
+const VALIDATION_SAMPLE_KEYS := [
 	"band_id",
 	"seed",
 	"expected_answer",
-])
+]
 
-static var INTEGER_ANSWER_KEYS: PackedStringArray = PackedStringArray([
+const INTEGER_ANSWER_KEYS := [
 	"kind",
 	"value",
-])
+]
 
-static var INTEGER_LIST_ANSWER_KEYS: PackedStringArray = PackedStringArray([
+const INTEGER_LIST_ANSWER_KEYS := [
 	"kind",
 	"values",
 	"order_matters",
-])
+]
 
-static var REQUIRED_MANIFEST_KEYS: PackedStringArray = PackedStringArray([
+const REQUIRED_MANIFEST_KEYS := [
 	"schema_version",
 	"manifest_version",
 	"published_at",
 	"activity_order",
 	"packages",
-])
+]
 
-static var MANIFEST_ENTRY_KEYS: PackedStringArray = PackedStringArray([
+const MANIFEST_ENTRY_KEYS := [
 	"activity_id",
 	"content_version",
 	"path",
 	"checksum",
-])
+]
 
-static var VALIDATION_SEEDS: PackedInt64Array = PackedInt64Array([1, 7, 42, 20260721])
+const VALIDATION_SEEDS := [1, 7, 42, 20260721]
 
 const ACTIVITY_GENERATOR_IDS := {
 	"addition_ones": "addition_v1",

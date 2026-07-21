@@ -8,6 +8,7 @@ export type CanonicalJsonErrorCode =
   | "NON_PLAIN_OBJECT"
   | "ACCESSOR_PROPERTY"
   | "SYMBOL_KEY"
+  | "LONE_SURROGATE"
   | "CYCLE";
 
 export class CanonicalJsonError extends TypeError {
@@ -48,7 +49,7 @@ export interface CanonicalJsonOptions {
 }
 
 const MAX_JSON_SOURCE_LENGTH = 2_000_000;
-const MAX_JSON_NESTING = 128;
+const MAX_JSON_NESTING = 64;
 const JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/;
 
 /**
@@ -213,6 +214,17 @@ class StrictJsonScanner {
       if (codePoint < 0x20) {
         this.fail("INVALID_JSON", path, this.index, "Unescaped control character in string");
       }
+      if (codePoint >= 0xd800 && codePoint <= 0xdbff) {
+        const lowSurrogate = this.source.charCodeAt(this.index + 1);
+        if (!(lowSurrogate >= 0xdc00 && lowSurrogate <= 0xdfff)) {
+          this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
+        }
+        this.index += 2;
+        continue;
+      }
+      if (codePoint >= 0xdc00 && codePoint <= 0xdfff) {
+        this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
+      }
       if (character === "\\") {
         this.index += 1;
         const escape = this.source[this.index];
@@ -223,6 +235,25 @@ class StrictJsonScanner {
           const hexadecimal = this.source.slice(this.index + 1, this.index + 5);
           if (!/^[0-9a-fA-F]{4}$/.test(hexadecimal)) {
             this.fail("INVALID_JSON", path, this.index, "Malformed Unicode escape");
+          }
+          const codeUnit = Number.parseInt(hexadecimal, 16);
+          if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+            if (this.source.slice(this.index + 5, this.index + 7) !== "\\u") {
+              this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
+            }
+            const lowHexadecimal = this.source.slice(this.index + 7, this.index + 11);
+            if (!/^[0-9a-fA-F]{4}$/.test(lowHexadecimal)) {
+              this.fail("INVALID_JSON", path, this.index, "Malformed Unicode surrogate");
+            }
+            const lowCodeUnit = Number.parseInt(lowHexadecimal, 16);
+            if (lowCodeUnit < 0xdc00 || lowCodeUnit > 0xdfff) {
+              this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
+            }
+            this.index += 11;
+            continue;
+          }
+          if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+            this.fail("INVALID_JSON", path, this.index, "Unpaired Unicode surrogate");
           }
           this.index += 5;
           continue;
@@ -284,6 +315,7 @@ function serializeCanonical(
     case "boolean":
       return value ? "true" : "false";
     case "string":
+      assertWellFormedUnicode(value, path);
       return JSON.stringify(value);
     case "number": {
       if (!Number.isFinite(value)) {
@@ -387,9 +419,35 @@ function validateObjectProperties(value: Record<string, unknown>, path: JsonPath
     if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
       throw new CanonicalJsonError("ACCESSOR_PROPERTY", [...path, key], "Accessors are not JSON values");
     }
+    assertWellFormedUnicode(key, [...path, key]);
     keys.push(key);
   }
   return keys;
+}
+
+function assertWellFormedUnicode(value: string, path: JsonPath): void {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      const lowCodeUnit = value.charCodeAt(index + 1);
+      if (!(lowCodeUnit >= 0xdc00 && lowCodeUnit <= 0xdfff)) {
+        throw new CanonicalJsonError(
+          "LONE_SURROGATE",
+          path,
+          "Canonical JSON rejects unpaired UTF-16 surrogates",
+        );
+      }
+      index += 1;
+      continue;
+    }
+    if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      throw new CanonicalJsonError(
+        "LONE_SURROGATE",
+        path,
+        "Canonical JSON rejects unpaired UTF-16 surrogates",
+      );
+    }
+  }
 }
 
 function compareCodeUnits(left: string, right: string): number {
