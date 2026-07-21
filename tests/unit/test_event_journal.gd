@@ -3,6 +3,32 @@ extends "res://tests/support/test_case.gd"
 const BASE_PATH := "user://tests/events"
 const EventJournal = preload("res://src/persistence/event_journal.gd")
 
+class FaultInjectingJournal extends EventJournal:
+	var failure_point := ""
+	var promotion_failed := false
+
+	func _write_bytes(path: String, bytes: PackedByteArray) -> Error:
+		if failure_point == "corrupt_write" and path.ends_with(".partial.corrupt.tmp"):
+			return ERR_CANT_CREATE
+		if failure_point == "before_rotation" and path.ends_with(".recovery.tmp"):
+			return ERR_CANT_CREATE
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		if file == null:
+			return FileAccess.get_open_error()
+		file.store_buffer(bytes)
+		file.flush()
+		var error := file.get_error()
+		file.close()
+		return error
+
+	func _rename_path(from_path: String, to_path: String) -> Error:
+		if from_path.ends_with(".recovery.tmp") and to_path.ends_with(".jsonl") and failure_point in ["promotion", "restoration"] and not promotion_failed:
+			promotion_failed = true
+			return ERR_CANT_CREATE
+		if from_path.ends_with(".recovery.bak") and to_path.ends_with(".jsonl") and failure_point == "restoration":
+			return ERR_CANT_CREATE
+		return DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
+
 func run(_tree: SceneTree) -> void:
 	_cleanup()
 	_test_append_reopen_and_tail_recovery()
@@ -14,6 +40,18 @@ func run(_tree: SceneTree) -> void:
 	_test_complete_blank_and_invalid_records_are_errors()
 	_cleanup()
 	_test_unacknowledged_caps_at_one_hundred_without_mutation()
+	_cleanup()
+	_test_tail_quarantine_preserves_exact_bytes()
+	_cleanup()
+	_test_valid_unterminated_record_gets_separator_before_append()
+	_cleanup()
+	_test_corrupt_artifact_write_failure_preserves_original()
+	_cleanup()
+	_test_quarantine_failure_before_rotation_preserves_original()
+	_cleanup()
+	_test_quarantine_promotion_failure_restores_original()
+	_cleanup()
+	_test_interrupted_restoration_recovers_on_startup()
 	_cleanup()
 
 func _test_append_reopen_and_tail_recovery() -> void:
@@ -103,6 +141,93 @@ func _test_unacknowledged_caps_at_one_hundred_without_mutation() -> void:
 	assert_eq(journal.unacknowledged(0, 0), [])
 	assert_eq(_read_text(path), before)
 
+func _test_tail_quarantine_preserves_exact_bytes() -> void:
+	var prepared := _prepare_corrupt_journal("exact.jsonl")
+	var recovered := EventJournal.new()
+	var recovery := recovered.configure("profile-a", "device-a", prepared.path)
+	assert_true(recovery.ok)
+	assert_true(recovery.quarantined_tail)
+	assert_true(_read_bytes(prepared.path) == prepared.prefix, "valid prefix bytes changed")
+	assert_true(_read_bytes("%s.partial.corrupt" % prepared.path) == prepared.tail, "corrupt tail bytes changed")
+	assert_eq(recovered.replay().events.size(), 2)
+
+func _test_valid_unterminated_record_gets_separator_before_append() -> void:
+	var path := _path("valid-unterminated.jsonl")
+	var writer := EventJournal.new()
+	assert_true(writer.configure("profile-a", "device-a", path).ok)
+	assert_true(writer.append(_answer_payload("session-a", 7)).ok)
+	var unterminated := _read_bytes(path)
+	unterminated.resize(unterminated.size() - 1)
+	assert_eq(_write_bytes_direct(path, unterminated), OK)
+	var reopened := EventJournal.new()
+	assert_true(reopened.configure("profile-a", "device-a", path).ok)
+	assert_true(reopened.append(_answer_payload("session-a", 8)).ok)
+	var replayed := reopened.replay()
+	assert_true(replayed.ok)
+	assert_eq(replayed.get("events", []).size(), 2)
+
+func _test_corrupt_artifact_write_failure_preserves_original() -> void:
+	var prepared := _prepare_corrupt_journal("corrupt-write.jsonl")
+	var journal := FaultInjectingJournal.new()
+	journal.failure_point = "corrupt_write"
+	var failed := journal.configure("profile-a", "device-a", prepared.path)
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "tail_quarantine_failed")
+	assert_true(_read_bytes(prepared.path) == prepared.original, "corrupt write failure changed original")
+
+func _test_quarantine_failure_before_rotation_preserves_original() -> void:
+	var prepared := _prepare_corrupt_journal("before-rotation.jsonl")
+	var journal := FaultInjectingJournal.new()
+	journal.failure_point = "before_rotation"
+	var failed := journal.configure("profile-a", "device-a", prepared.path)
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "tail_quarantine_failed")
+	assert_true(_read_bytes(prepared.path) == prepared.original, "original changed before rotation")
+	var recovered := EventJournal.new().configure("profile-a", "device-a", prepared.path)
+	assert_true(recovered.ok)
+
+func _test_quarantine_promotion_failure_restores_original() -> void:
+	var prepared := _prepare_corrupt_journal("promotion.jsonl")
+	var journal := FaultInjectingJournal.new()
+	journal.failure_point = "promotion"
+	var failed := journal.configure("profile-a", "device-a", prepared.path)
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "tail_quarantine_failed")
+	assert_true(_read_bytes(prepared.path) == prepared.original, "promotion failure did not restore original")
+	var recovered := EventJournal.new().configure("profile-a", "device-a", prepared.path)
+	assert_true(recovered.ok)
+
+func _test_interrupted_restoration_recovers_on_startup() -> void:
+	var prepared := _prepare_corrupt_journal("restoration.jsonl")
+	var journal := FaultInjectingJournal.new()
+	journal.failure_point = "restoration"
+	var failed := journal.configure("profile-a", "device-a", prepared.path)
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "tail_quarantine_failed")
+	var backup_path := "%s.recovery.bak" % prepared.path
+	assert_true(FileAccess.file_exists(backup_path))
+	if FileAccess.file_exists(backup_path):
+		assert_true(_read_bytes(backup_path) == prepared.original, "recovery backup lost original bytes")
+		var recovered := EventJournal.new()
+		var recovery := recovered.configure("profile-a", "device-a", prepared.path)
+		assert_true(recovery.ok)
+		assert_eq(recovered.replay().events.size(), 2)
+		assert_true(_read_bytes(prepared.path) == prepared.prefix, "startup recovery changed prefix bytes")
+
+func _prepare_corrupt_journal(name: String) -> Dictionary:
+	var path := _path(name)
+	var journal := EventJournal.new()
+	assert_true(journal.configure("profile-a", "device-a", path).ok)
+	var first := journal.append(_answer_payload("session-a", 7))
+	var second := journal.append(_answer_payload("session-a", 8))
+	assert_true(first.ok and second.ok)
+	var prefix := ("  %s  \n\t%s \n" % [JSON.stringify(first.event), JSON.stringify(second.event)]).to_utf8_buffer()
+	var tail := PackedByteArray([0x7b, 0xff, 0x00, 0x41])
+	var original := prefix.duplicate()
+	original.append_array(tail)
+	assert_eq(_write_bytes_direct(path, original), OK)
+	return {"path": path, "prefix": prefix, "tail": tail, "original": original}
+
 func _answer_payload(session_id: String, answer: Variant) -> Dictionary:
 	return {"session_id": session_id, "client_timestamp": "2026-07-21T09:00:00Z", "event_type": "answer_submitted", "activity_id": "foundation_ten_rods", "content_version": "a-vertical-1", "question_seed": 42, "generator_id": "foundation_ten_rods", "band_id": "count_to_10", "resolved_parameters": {"left": 3, "right": 4}, "submitted_answer": answer, "correct_answer": 7, "correctness": answer == 7, "response_duration_ms": 1200, "hints": 0, "health_delta": 0, "combo": 1, "reward_delta": {"apples": 2}}
 
@@ -123,8 +248,27 @@ func _read_text(path: String) -> String:
 	file.close()
 	return content
 
+func _read_bytes(path: String) -> PackedByteArray:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return PackedByteArray()
+	var bytes := file.get_buffer(file.get_length())
+	file.close()
+	return bytes
+
+func _write_bytes_direct(path: String, bytes: PackedByteArray) -> Error:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_buffer(bytes)
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	return error
+
 func _cleanup() -> void:
-	for name in ["events.jsonl", "events.jsonl.partial.corrupt", "first.jsonl", "second.jsonl", "scope.jsonl", "invalid.jsonl", "limits.jsonl"]:
-		var path := _path(name)
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	for journal_name in ["events.jsonl", "first.jsonl", "second.jsonl", "scope.jsonl", "invalid.jsonl", "limits.jsonl", "exact.jsonl", "valid-unterminated.jsonl", "corrupt-write.jsonl", "before-rotation.jsonl", "promotion.jsonl", "restoration.jsonl"]:
+		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".recovery.tmp", ".recovery.bak"]:
+			var path := _path("%s%s" % [journal_name, suffix])
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
