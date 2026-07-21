@@ -1,2 +1,7 @@
 export * from "./ids.js";
 export * from "./types.js";
+export * from "./canonical_json.js";
+export * from "./checksum.js";
+export * from "./json_schema.js";
+export * from "./schema.js";
+export * from "./validate.js";

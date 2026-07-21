@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mathland.local/schemas/content-manifest-v1.schema.json",
+  "title": "MathLand Content Manifest v1",
+  "$comment": "Cross-field rules are enforced by the exported semantic validators.",
+  "x-mathland-semantic-validation": [
+    "activity_order and package entries contain the complete canonical catalogue",
+    "each package path exactly matches its activity_id and content_version",
+    "manifest and parsed package checksums match"
+  ],
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "number",
+      "const": 1
+    },
+    "manifest_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "activity_order": {
+      "minItems": 11,
+      "maxItems": 11,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "addition_ones",
+          "subtraction_ones",
+          "multiplication",
+          "common_multiples_lcm",
+          "prime_factorization",
+          "foundations_counting",
+          "foundations_number_bonds",
+          "foundations_ten_frame",
+          "foundations_base_ten",
+          "foundations_number_line",
+          "foundations_basic_operations"
+        ]
+      }
+    },
+    "packages": {
+      "minItems": 11,
+      "maxItems": 11,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "activity_id": {
+            "type": "string",
+            "enum": [
+              "addition_ones",
+              "subtraction_ones",
+              "multiplication",
+              "common_multiples_lcm",
+              "prime_factorization",
+              "foundations_counting",
+              "foundations_number_bonds",
+              "foundations_ten_frame",
+              "foundations_base_ten",
+              "foundations_number_line",
+              "foundations_basic_operations"
+            ]
+          },
+          "content_version": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^content\\/packages\\/(?:addition_ones|subtraction_ones|multiplication|common_multiples_lcm|prime_factorization|foundations_counting|foundations_number_bonds|foundations_ten_frame|foundations_base_ten|foundations_number_line|foundations_basic_operations)\\/(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.json$"
+          },
+          "checksum": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "activity_id",
+          "content_version",
+          "path",
+          "checksum"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "manifest_version",
+    "published_at",
+    "activity_order",
+    "packages"
+  ],
+  "additionalProperties": false
+}
