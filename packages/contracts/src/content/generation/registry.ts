@@ -4,9 +4,11 @@ import type {
   GeneratorValidationResult,
   QuestionGeneratorContract,
 } from "./types.js";
+import { AdditionGenerator, MultiplicationGenerator, SubtractionGenerator } from "./arithmetic.js";
 
 class PendingQuestionGenerator implements QuestionGeneratorContract {
   readonly generatorId: GeneratorId;
+  readonly lastError = "GENERATOR_NOT_IMPLEMENTED";
 
   constructor(generatorId: GeneratorId) {
     this.generatorId = generatorId;
@@ -24,9 +26,9 @@ class PendingQuestionGenerator implements QuestionGeneratorContract {
 type GeneratorFactory = () => QuestionGeneratorContract;
 
 const GENERATOR_FACTORIES: Readonly<Record<GeneratorId, GeneratorFactory>> = {
-  addition_v1: () => new PendingQuestionGenerator("addition_v1"),
-  subtraction_v1: () => new PendingQuestionGenerator("subtraction_v1"),
-  multiplication_v1: () => new PendingQuestionGenerator("multiplication_v1"),
+  addition_v1: () => new AdditionGenerator(),
+  subtraction_v1: () => new SubtractionGenerator(),
+  multiplication_v1: () => new MultiplicationGenerator(),
   common_multiple_v1: () => new PendingQuestionGenerator("common_multiple_v1"),
   prime_factorization_v1: () => new PendingQuestionGenerator("prime_factorization_v1"),
   counting_v1: () => new PendingQuestionGenerator("counting_v1"),

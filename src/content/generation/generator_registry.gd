@@ -2,11 +2,14 @@ class_name GeneratorRegistry
 extends RefCounted
 
 const QuestionGeneratorScript = preload("res://src/content/generation/question_generator.gd")
+const AdditionGeneratorScript = preload("res://src/content/generation/generators/addition_generator.gd")
+const SubtractionGeneratorScript = preload("res://src/content/generation/generators/subtraction_generator.gd")
+const MultiplicationGeneratorScript = preload("res://src/content/generation/generators/multiplication_generator.gd")
 
 const GENERATORS := {
-	"addition_v1": QuestionGeneratorScript,
-	"subtraction_v1": QuestionGeneratorScript,
-	"multiplication_v1": QuestionGeneratorScript,
+	"addition_v1": AdditionGeneratorScript,
+	"subtraction_v1": SubtractionGeneratorScript,
+	"multiplication_v1": MultiplicationGeneratorScript,
 	"common_multiple_v1": QuestionGeneratorScript,
 	"prime_factorization_v1": QuestionGeneratorScript,
 	"counting_v1": QuestionGeneratorScript,

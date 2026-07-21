@@ -12,3 +12,4 @@ export * from "./generation/rng.js";
 export * from "./generation/types.js";
 export * from "./generation/registry.js";
 export * from "./generation/adaptive_band.js";
+export * from "./generation/arithmetic.js";

@@ -14,6 +14,7 @@ export interface GeneratorValidationResult {
 
 export interface QuestionGeneratorContract {
   readonly generatorId: GeneratorId;
+  readonly lastError: string;
   validateParameters(parameters: Readonly<ResolvedParametersV1>): GeneratorValidationResult;
   generate(
     activity: Readonly<Record<string, unknown>>,
