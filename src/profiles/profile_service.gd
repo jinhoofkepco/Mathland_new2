@@ -1,6 +1,7 @@
 extends Node
 
 const FILE_NAME := "profiles.json"
+const MAX_NOW_UNIX := 9007199254740961
 const AtomicJsonStoreScript = preload("res://src/persistence/atomic_json_store.gd")
 const ProfileRecordScript = preload("res://src/profiles/profile_record.gd")
 const PinVerifierScript = preload("res://src/profiles/pin_verifier.gd")
@@ -9,12 +10,12 @@ const UuidV4Script = preload("res://src/core/uuid_v4.gd")
 signal profiles_changed
 signal selection_changed
 
-var _store: RefCounted
+var _store: AtomicJsonStoreScript
 var _profiles: Array[Dictionary] = []
 var _selected_profile_id := ""
 
-func _init(store: RefCounted = null) -> void:
-	_store = store if _is_store_usable(store) else AtomicJsonStoreScript.new("user://.")
+func _init(store: AtomicJsonStoreScript = null) -> void:
+	_store = store if store != null else AtomicJsonStoreScript.new("user://.")
 	_load_index()
 
 func create_profile(nickname: Variant, avatar_id: Variant, pin: Variant) -> Dictionary:
@@ -38,7 +39,7 @@ func create_profile(nickname: Variant, avatar_id: Variant, pin: Variant) -> Dict
 	return {"ok": true, "profile": _public_profile(profile)}
 
 func verify_and_select(profile_id: Variant, pin: Variant, now_unix: Variant) -> Dictionary:
-	if not profile_id is String or not now_unix is int:
+	if not profile_id is String or not now_unix is int or now_unix < 0 or now_unix > MAX_NOW_UNIX:
 		return {"ok": false, "error": "invalid_request"}
 	var index := _profile_index(profile_id)
 	if index < 0:
@@ -157,6 +158,3 @@ func _public_profile(profile: Dictionary) -> Dictionary:
 		"settings": profile.settings.duplicate(true),
 		"created_at": profile.created_at,
 	}
-
-func _is_store_usable(store: RefCounted) -> bool:
-	return store != null and store.has_method("load") and store.has_method("save")

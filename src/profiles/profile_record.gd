@@ -23,6 +23,7 @@ const BOOLEAN_SETTINGS := [
 const AUDIO_SETTINGS := ["master_db", "music_db", "sfx_db", "voice_db"]
 const MIN_AUDIO_DB := -80.0
 const MAX_AUDIO_DB := 0.0
+const MAX_SAFE_INTEGER := 9007199254740991
 
 static func create(profile_id: String, nickname: Variant, avatar_id: Variant, pin_data: Dictionary, created_at: int) -> Dictionary:
 	var normalized_nickname := normalize_nickname(nickname)
@@ -136,4 +137,4 @@ static func _is_valid_setting(key: Variant, value: Variant) -> bool:
 static func _is_nonnegative_integer(value: Variant) -> bool:
 	if value is int:
 		return value >= 0
-	return value is float and is_finite(value) and value >= 0.0 and value == floor(value)
+	return value is float and is_finite(value) and value >= 0.0 and value <= MAX_SAFE_INTEGER and value == floor(value)

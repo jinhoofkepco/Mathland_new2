@@ -20,6 +20,21 @@ class ToggleSaveStore extends AtomicJsonStore:
 			return ERR_CANT_CREATE
 		return super(path, value)
 
+class MalformedStore extends AtomicJsonStore:
+	var load_calls := 0
+	var save_calls := 0
+
+	func _init() -> void:
+		super(BASE_PATH)
+
+	func load(_path: String) -> Dictionary:
+		load_calls += 1
+		return {"ok": true, "value": "not_an_index"}
+
+	func save(_path: String, _value: Variant) -> Error:
+		save_calls += 1
+		return ERR_CANT_CREATE
+
 func run(_tree: SceneTree) -> void:
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_profiles_are_isolated_and_pin_is_not_plaintext()
@@ -30,7 +45,7 @@ func run(_tree: SceneTree) -> void:
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_persisted_unknown_fields_are_stripped_and_index_shape_is_validated()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
-	_test_invalid_store_collaborator_is_initialized_safely()
+	_test_malformed_store_response_does_not_fallback()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_lock_state_persists_and_is_isolated()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
@@ -39,6 +54,8 @@ func run(_tree: SceneTree) -> void:
 	_test_save_failures_do_not_mutate_service_state()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 	_test_settings_and_selection_save_failures_rollback()
+	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
+	_test_failed_pin_save_failure_rolls_back_security_state()
 	_cleanup_files(["profiles.json", "profiles.json.tmp", "profiles.json.bak"])
 
 func _test_profiles_are_isolated_and_pin_is_not_plaintext() -> void:
@@ -85,7 +102,7 @@ func _test_persisted_invalid_nicknames_and_integers_are_rejected() -> void:
 			assert_eq(reloaded_integer.get_profile(created.profile.profile_id), {})
 			reloaded_integer.free()
 	for integer_key in ["failed_attempts", "locked_until", "created_at"]:
-		for invalid_integer in [1.5, INF, -1]:
+		for invalid_integer in [1.5, INF, -1, 1e100]:
 			var invalid_record: Dictionary = base_index.profiles[0].duplicate(true)
 			invalid_record[integer_key] = invalid_integer
 			assert_eq(ProfileRecord.from_dictionary(invalid_record), {})
@@ -128,9 +145,12 @@ func _test_persisted_unknown_fields_are_stripped_and_index_shape_is_validated() 
 	reloaded.free()
 	service.free()
 
-func _test_invalid_store_collaborator_is_initialized_safely() -> void:
-	var service := ProfileService.new(RefCounted.new())
-	assert_true(service.read_index_for_test().has("profiles"))
+func _test_malformed_store_response_does_not_fallback() -> void:
+	var store := MalformedStore.new()
+	var service := ProfileService.new(store)
+	assert_eq(store.load_calls, 1)
+	assert_eq(service.create_profile("모아", "moa_coral", "1234").error, "save_failed")
+	assert_eq(store.save_calls, 1)
 	service.free()
 
 func _test_lock_state_persists_and_is_isolated() -> void:
@@ -175,6 +195,18 @@ func _test_settings_and_selection_save_failures_rollback() -> void:
 	assert_false(service.get_profile(created.profile.profile_id).settings.reduced_motion)
 	assert_eq(service.verify_and_select(created.profile.profile_id, "1234", 1000).error, "save_failed")
 	assert_eq(service.selected_profile(), {})
+	service.free()
+
+func _test_failed_pin_save_failure_rolls_back_security_state() -> void:
+	var store := ToggleSaveStore.new(BASE_PATH)
+	var service := ProfileService.new(store)
+	var created := service.create_profile("모아", "moa_coral", "1234")
+	store.fail_saves = true
+	assert_eq(service.verify_and_select(created.profile.profile_id, "0000", 1000).error, "save_failed")
+	assert_eq(service.read_index_for_test().profiles[0].failed_attempts, 0)
+	assert_eq(service.read_index_for_test().profiles[0].locked_until, 0)
+	assert_eq(service.verify_and_select(created.profile.profile_id, "0000", -1).error, "invalid_request")
+	assert_eq(service.verify_and_select(created.profile.profile_id, "0000", 9007199254740962).error, "invalid_request")
 	service.free()
 
 func _cleanup_files(file_names: Array[String]) -> void:
