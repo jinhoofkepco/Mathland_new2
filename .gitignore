@@ -3,8 +3,12 @@
 
 # Local builds and signing material
 builds/
+android/build/
+addons/mathland_secure_credentials/bin/
+reports/
 *.keystore
 *.jks
+*.p12
 
 # Local environment and credentials
 .env
