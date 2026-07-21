@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "activity_id": "foundation_ten_rods",
+  "content_version": "a-vertical-1",
+  "generator_id": "foundation_ten_rods",
+  "initial_health": 3,
+  "target_score": 5,
+  "timer": {
+    "enabled": false,
+    "duration_ms": 0
+  },
+  "reward_per_correct": {
+    "apples": 2
+  },
+  "bands": [
+    {
+      "band_id": "count_to_10",
+      "minimum": 1,
+      "maximum": 10
+    }
+  ],
+  "answer_layout": "numeric_keypad",
+  "manipulative": {
+    "kind": "ten_rods",
+    "scene_path": "res://scenes/game/manipulatives/ten_rod_board.tscn"
+  }
+}
