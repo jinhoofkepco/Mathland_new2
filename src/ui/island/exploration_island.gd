@@ -44,7 +44,7 @@ func _ready() -> void:
 	grid.add_theme_constant_override("v_separation", 7)
 	body.add_child(grid)
 	_add_route_button(grid, "DailyPathButton", "island.daily_path", open_daily_path)
-	_add_route_button(grid, "FreePlayButton", "island.free_play", func(): _route(AppRouteScript.FREE_PLAY))
+	_add_route_button(grid, "FreePlayButton", "island.free_play", open_free_play)
 	_add_route_button(grid, "InventoryButton", "island.inventory", func(): _route(AppRouteScript.INVENTORY))
 	_add_route_button(grid, "CollectionButton", "island.collection", func(): _route(AppRouteScript.COLLECTION))
 	_add_route_button(grid, "SettingsButton", "island.settings", func(): _route(AppRouteScript.SETTINGS))
@@ -67,6 +67,9 @@ func sync_state() -> Dictionary:
 
 func open_daily_path() -> void:
 	_route(AppRouteScript.DAILY_PATH)
+
+func open_free_play() -> void:
+	_route(AppRouteScript.FREE_PLAY)
 
 func switch_profile() -> void:
 	_reset_route(AppRouteScript.PROFILE_SELECT, {"profile_id": ""})

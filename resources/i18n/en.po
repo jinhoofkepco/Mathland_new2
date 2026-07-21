@@ -293,3 +293,111 @@ msgstr "Collection found!"
 
 msgid "effect.coupon.caption"
 msgstr "Coupon found!"
+
+msgid "activity.foundation_ten_rods.add"
+msgstr "Build the answer with rods and ones"
+
+msgid "activity.foundation_ten_rods.add_prompt"
+msgstr "%d + %d = ?"
+
+msgid "activity.speaker"
+msgstr "Listen"
+
+msgid "activity.score"
+msgstr "Score %d"
+
+msgid "activity.intro.title"
+msgstr "Ten-rod adventure"
+
+msgid "activity.intro.body"
+msgstr "A long rod is 10 and a small one is 1. Add and remove them to build your answer."
+
+msgid "activity.intro.skip"
+msgstr "Start now"
+
+msgid "activity.error.generic"
+msgstr "Check saved progress and try again"
+
+msgid "manipulative.tens"
+msgstr "Ten rods"
+
+msgid "manipulative.units"
+msgstr "Ones"
+
+msgid "manipulative.tens_count"
+msgstr "Ten rods × %d"
+
+msgid "manipulative.units_count"
+msgstr "Ones × %d"
+
+msgid "manipulative.add_ten"
+msgstr "+ ten rod"
+
+msgid "manipulative.remove_ten"
+msgstr "- ten rod"
+
+msgid "manipulative.add_unit"
+msgstr "+ one"
+
+msgid "manipulative.remove_unit"
+msgstr "- one"
+
+msgid "manipulative.submit"
+msgstr "Submit answer"
+
+msgid "manipulative.ten_rod"
+msgstr "A long rod representing ten"
+
+msgid "manipulative.unit_cube"
+msgstr "A small piece representing one"
+
+msgid "feedback.correct"
+msgstr "Correct!"
+
+msgid "feedback.wrong"
+msgstr "One heart was lost"
+
+msgid "result.title"
+msgstr "Adventure result"
+
+msgid "result.subtitle"
+msgstr "Every reward you earned is kept"
+
+msgid "result.reason.health_depleted"
+msgstr "All hearts are used. Ready to try again?"
+
+msgid "result.reason.target_reached"
+msgstr "You reached the goal!"
+
+msgid "result.reason.unknown"
+msgstr "This adventure is complete"
+
+msgid "result.score"
+msgstr "Correct answers"
+
+msgid "result.apples"
+msgstr "Apples earned"
+
+msgid "result.review"
+msgstr "Questions to review"
+
+msgid "result.island_delta"
+msgstr "Apples added to the island"
+
+msgid "result.restart"
+msgstr "Play this again"
+
+msgid "result.island"
+msgstr "Return to island"
+
+msgid "reward.reward"
+msgstr "You found apples!"
+
+msgid "reward.collection"
+msgstr "New collection found!"
+
+msgid "reward.coupon"
+msgstr "New coupon found!"
+
+msgid "reward.tap_to_continue"
+msgstr "Tap to continue"

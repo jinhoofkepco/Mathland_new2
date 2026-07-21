@@ -36,6 +36,14 @@ func _route(route: StringName, extras: Dictionary = {}) -> Dictionary:
 		next_params[key] = extras[key]
 	return _router.navigate(route, next_params)
 
+func _replace(route: StringName, extras: Dictionary = {}) -> Dictionary:
+	if _router == null or not _router.has_method("replace"):
+		return {"ok": false, "error": "router_unavailable"}
+	var next_params := _params.duplicate(false)
+	for key in extras:
+		next_params[key] = extras[key]
+	return _router.replace(route, next_params)
+
 func _back() -> bool:
 	return _router != null and _router.has_method("back") and _router.back()
 

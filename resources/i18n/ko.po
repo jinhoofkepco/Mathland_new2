@@ -293,3 +293,111 @@ msgstr "도감 발견!"
 
 msgid "effect.coupon.caption"
 msgstr "쿠폰 획득!"
+
+msgid "activity.foundation_ten_rods.add"
+msgstr "막대와 낱개로 답을 만들어요"
+
+msgid "activity.foundation_ten_rods.add_prompt"
+msgstr "%d + %d = ?"
+
+msgid "activity.speaker"
+msgstr "듣기"
+
+msgid "activity.score"
+msgstr "점수 %d"
+
+msgid "activity.intro.title"
+msgstr "10막대 탐험"
+
+msgid "activity.intro.body"
+msgstr "긴 막대는 10, 작은 낱개는 1이에요. 더하고 빼며 답을 만들어 봐요."
+
+msgid "activity.intro.skip"
+msgstr "바로 시작"
+
+msgid "activity.error.generic"
+msgstr "저장 상태를 확인한 뒤 다시 시도해 주세요"
+
+msgid "manipulative.tens"
+msgstr "10막대"
+
+msgid "manipulative.units"
+msgstr "낱개"
+
+msgid "manipulative.tens_count"
+msgstr "10막대 × %d"
+
+msgid "manipulative.units_count"
+msgstr "낱개 × %d"
+
+msgid "manipulative.add_ten"
+msgstr "+10막대"
+
+msgid "manipulative.remove_ten"
+msgstr "-10막대"
+
+msgid "manipulative.add_unit"
+msgstr "+낱개"
+
+msgid "manipulative.remove_unit"
+msgstr "-낱개"
+
+msgid "manipulative.submit"
+msgstr "이 답 내기"
+
+msgid "manipulative.ten_rod"
+msgstr "10을 나타내는 긴 막대"
+
+msgid "manipulative.unit_cube"
+msgstr "1을 나타내는 낱개"
+
+msgid "feedback.correct"
+msgstr "맞았어요!"
+
+msgid "feedback.wrong"
+msgstr "하트가 하나 줄었어요"
+
+msgid "result.title"
+msgstr "탐험 결과"
+
+msgid "result.subtitle"
+msgstr "모은 보상은 그대로 남아 있어요"
+
+msgid "result.reason.health_depleted"
+msgstr "하트를 모두 썼어요. 다시 도전해 볼까요?"
+
+msgid "result.reason.target_reached"
+msgstr "목표를 달성했어요!"
+
+msgid "result.reason.unknown"
+msgstr "이번 탐험을 마쳤어요"
+
+msgid "result.score"
+msgstr "맞힌 문제"
+
+msgid "result.apples"
+msgstr "이번에 모은 사과"
+
+msgid "result.review"
+msgstr "다시 볼 문제"
+
+msgid "result.island_delta"
+msgstr "섬에 더해진 사과"
+
+msgid "result.restart"
+msgstr "같은 놀이 다시 하기"
+
+msgid "result.island"
+msgstr "탐험섬으로"
+
+msgid "reward.reward"
+msgstr "사과를 찾았어요!"
+
+msgid "reward.collection"
+msgstr "새 도감을 발견했어요!"
+
+msgid "reward.coupon"
+msgstr "새 쿠폰을 찾았어요!"
+
+msgid "reward.tap_to_continue"
+msgstr "눌러서 계속"

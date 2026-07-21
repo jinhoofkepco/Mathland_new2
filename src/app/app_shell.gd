@@ -15,6 +15,8 @@ const ROUTE_SCENE_PATHS := {
 	AppRouteScript.ISLAND: "res://scenes/island/exploration_island.tscn",
 	AppRouteScript.DAILY_PATH: "res://scenes/island/daily_path.tscn",
 	AppRouteScript.FREE_PLAY: "res://scenes/island/free_play.tscn",
+	AppRouteScript.ACTIVITY_RUN: "res://scenes/game/activity_run.tscn",
+	AppRouteScript.RESULT: "res://scenes/game/run_result.tscn",
 	AppRouteScript.INVENTORY: "res://scenes/island/inventory.tscn",
 	AppRouteScript.COLLECTION: "res://scenes/island/collection.tscn",
 	AppRouteScript.SETTINGS: "res://scenes/island/settings.tscn",
