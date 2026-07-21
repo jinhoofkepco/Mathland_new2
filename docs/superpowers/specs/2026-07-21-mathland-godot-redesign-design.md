@@ -1,6 +1,6 @@
 # MathLand Godot Redesign Design
 
-**Status:** User-approved product design; awaiting written-spec review
+**Status:** User-approved for implementation
 
 **Date:** 2026-07-21
 
