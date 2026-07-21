@@ -28,6 +28,25 @@ const FIXTURE_SHA256 = {
   "quiz_game_8_1.csv": "b5fbfd500cc7b309bc9ddd15700714135d41693505adc93e4e20c0412b8e1a2b",
 } as const;
 
+const PASSIVE_TEXT_FIELDS = ["title", "description", "log1"] as const;
+const PASSIVE_TEXT_ATTACKS = [
+  "process.exit(1)",
+  "require(child_process)",
+  "ok&&sh",
+  "ok|sh",
+  "/etc/passwd",
+  "C:/secret",
+  "//server/share",
+  "file:/etc/passwd",
+  "..%2fsecret",
+  ".. /secret",
+  "%252e%252e%252fsecret",
+  "file%3a%2fetc%2fpasswd",
+  "process．exit（1）",
+  "．．／secret",
+  "＼＼server＼share",
+] as const;
+
 interface ExpectedConversionFile {
   source_commit: string;
   expression_parity_cases: {
@@ -43,6 +62,18 @@ function field(document: ReturnType<typeof parseLegacyCsv>, key: string, index =
   const matches = document.levels[0]!.fields.filter((candidate) => candidate.key === key);
   expect(matches.length).toBeGreaterThan(index);
   return matches[index]!;
+}
+
+function sourceWithPassiveText(
+  fieldName: (typeof PASSIVE_TEXT_FIELDS)[number],
+  value: string,
+): string {
+  if (fieldName === "title") {
+    return [`[title],${value}`, "[icon],plus", "[level],1"].join("\n");
+  }
+  return ["[title],x", "[icon],plus", "[level],1", `[${fieldName}],${value}`].join(
+    "\n",
+  );
 }
 
 describe("legacy expression translation", () => {
@@ -117,6 +148,32 @@ describe("legacy CSV state-machine parser", () => {
     ).toEqual(["_", "A", "+", "B:1", "C:?", "?"]);
   });
 
+  it("accepts only the reviewed display-text and legacy-log grammar", () => {
+    const source = [
+      "[title],테스트[enter]게임 -New 1-!!~~~+",
+      "[icon],plus",
+      "[level],1",
+      "[description],2자리수 빼기!!",
+      "[log1],1의자리::A+E=Mod[A+E~10]=digit[answer~5]",
+      "[log2],A B * C D=(10*A+B)*(10*C+D)=answer",
+    ].join("\n");
+
+    const document = parseLegacyCsv(source, "reviewed-text.csv");
+    expect(document.metadata[0]!.cells).toEqual(["테스트[enter]게임 -New 1-!!~~~+"]);
+    expect(field(document, "description").cells).toEqual(["2자리수 빼기!!"]);
+    expect(field(document, "log1").cells).toEqual([
+      "1의자리::A+E=Mod[A+E~10]=digit[answer~5]",
+    ]);
+  });
+
+  it.each(
+    PASSIVE_TEXT_FIELDS.flatMap((fieldName) =>
+      PASSIVE_TEXT_ATTACKS.map((value) => [fieldName, value] as const),
+    ),
+  )("rejects executable or path syntax in %s: %s", (fieldName, value) => {
+    expect(() => parseLegacyCsv(sourceWithPassiveText(fieldName, value), "bad.csv")).toThrow();
+  });
+
   it.each([
     "[title],x\n[icon],plus\n[level],1\n[component A,10,1],1",
     "[title],x\n[icon],plus\n[level],1\n[component A,1],1",
@@ -148,6 +205,12 @@ describe("pinned legacy fixture conversion", () => {
         FIXTURE_SHA256[fixtureName],
       );
     }
+  });
+
+  it("keeps development-only CSV fixtures outside Godot's resource importer", () => {
+    expect(readFileSync(new URL(".gdignore", FIXTURE_ROOT), "utf8")).toBe(
+      "# Development-only legacy fixtures; do not import CSV files as Godot translations.\n",
+    );
   });
 
   it.each(FIXTURE_NAMES)("matches the reviewed conversion for %s", (fixtureName) => {

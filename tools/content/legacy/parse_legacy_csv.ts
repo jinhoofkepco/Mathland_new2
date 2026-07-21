@@ -13,6 +13,7 @@ const MAX_LINES = 4_000;
 const MAX_LINE_CODE_UNITS = 4_096;
 const MAX_CELLS = 256;
 const MAX_CELL_CODE_UNITS = 1_024;
+const MAX_PERCENT_DECODE_PASSES = 4;
 
 const EXACT_FIELD_NAMES: Readonly<Record<string, string>> = {
   title: "title",
@@ -55,9 +56,33 @@ const EXPRESSION_FIELD_NAMES = new Set([
 ]);
 
 const PASSIVE_SINGLE_VALUE_FIELDS = new Set(["title", "icon", "description", "questiontype", "keypad"]);
+const DISPLAY_TEXT_FIELD_NAMES = new Set(["title", "description"]);
+const LOG_FIELD_NAMES = new Set(["log1", "log2", "log3", "log4", "log5"]);
 const QUESTION_LITERAL_TOKENS = new Set(["_", "__", "___", "h_", "+", "-", "x", "?"]);
 const LEGACY_ICON_VALUES = new Set(["plus", "minus", "multiple", "gongbaesu", "primefactorization"]);
 const LEGACY_KEYPAD_VALUES = new Set(["phone3", "phone4"]);
+const DISPLAY_TEXT_PUNCTUATION = new Set([" ", "!", "~", "+", "-"]);
+const LEGACY_LOG_PUNCTUATION = new Set([
+  " ",
+  ":",
+  "=",
+  "+",
+  "-",
+  "*",
+  "/",
+  "~",
+  "[",
+  "]",
+  "(",
+  ")",
+  "_",
+]);
+const UNICODE_LETTER_OR_NUMBER = /^[\p{L}\p{N}]$/u;
+const PERCENT_ESCAPE = /%[0-9a-f]{2}/i;
+const URI_SCHEME = /(?:^|[\s(\[=])(?:[a-z][a-z0-9+.-]*):/i;
+const ASCII_CODE_CALL =
+  /(?:^|[^a-z0-9_$])(?:[a-z_$][a-z0-9_$]*\.)*[a-z_$][a-z0-9_$]*[ \t]*\(/i;
+const ABSOLUTE_PATH = /(?:^|[\s(=])(?:\/{1,2}|~\/|[a-z]:\/)/i;
 
 interface ParsedRecord {
   header_parts: string[];
@@ -241,9 +266,33 @@ function parseIntegerCells(cells: string[], sourceName: string, line: number, la
   return cells.map((cell) => parseIntegerAtLeast(cell, sourceName, line, label, 0));
 }
 
-function assertPassiveCell(cell: string, sourceName: string, line: number): void {
-  const lowercase = cell.toLowerCase();
-  const forbiddenCharacter = [...cell].some(
+function normalizedSecurityText(cell: string, sourceName: string, line: number): string {
+  let normalized = cell.normalize("NFKC");
+  for (let pass = 0; pass < MAX_PERCENT_DECODE_PASSES && PERCENT_ESCAPE.test(normalized); pass += 1) {
+    try {
+      normalized = decodeURIComponent(normalized).normalize("NFKC");
+    } catch {
+      fail(sourceName, line, 1, "passive legacy cell contains invalid percent encoding");
+    }
+  }
+  if (PERCENT_ESCAPE.test(normalized)) {
+    fail(sourceName, line, 1, "passive legacy cell has too many percent-encoding layers");
+  }
+  for (const character of normalized) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code < 0x20 || code === 0x7f) {
+      fail(sourceName, line, 1, "passive legacy cell contains an encoded control character");
+    }
+  }
+  return normalized;
+}
+
+function assertNoExecutableOrPathSyntax(cell: string, sourceName: string, line: number): void {
+  const normalized = normalizedSecurityText(cell, sourceName, line);
+  const slashNormalized = normalized.replaceAll("\\", "/");
+  const compactPath = slashNormalized.replace(/\s+/gu, "");
+  const pathSegments = compactPath.split("/");
+  const forbiddenCharacter = [...normalized].some(
     (character) =>
       character === ";" ||
       character === "`" ||
@@ -252,18 +301,47 @@ function assertPassiveCell(cell: string, sourceName: string, line: number): void
       character === "<" ||
       character === ">" ||
       character === "\\" ||
-      character === "$",
+      character === "$" ||
+      character === "&" ||
+      character === "|",
   );
   if (
     forbiddenCharacter ||
-    lowercase.includes("javascript:") ||
-    lowercase.includes("script:") ||
-    lowercase.includes("://") ||
-    lowercase.includes("../") ||
-    lowercase.includes("=>")
+    normalized.includes("=>") ||
+    URI_SCHEME.test(normalized) ||
+    ASCII_CODE_CALL.test(normalized) ||
+    ABSOLUTE_PATH.test(slashNormalized) ||
+    pathSegments.includes("..")
   ) {
     fail(sourceName, line, 1, "passive legacy cell contains executable or path syntax");
   }
+}
+
+function assertDisplayTextGrammar(cell: string, sourceName: string, line: number): void {
+  const withoutLineBreakTokens = cell.normalize("NFKC").split("[enter]").join("");
+  if (withoutLineBreakTokens.length === 0) {
+    fail(sourceName, line, 1, "legacy display text cannot be empty");
+  }
+  for (const character of withoutLineBreakTokens) {
+    if (!UNICODE_LETTER_OR_NUMBER.test(character) && !DISPLAY_TEXT_PUNCTUATION.has(character)) {
+      fail(sourceName, line, 1, "legacy display text contains unsupported syntax");
+    }
+  }
+}
+
+function assertLegacyLogGrammar(cell: string, sourceName: string, line: number): void {
+  const normalized = cell.normalize("NFKC");
+  for (const character of normalized) {
+    if (!UNICODE_LETTER_OR_NUMBER.test(character) && !LEGACY_LOG_PUNCTUATION.has(character)) {
+      fail(sourceName, line, 1, "legacy log contains unsupported syntax");
+    }
+  }
+}
+
+function assertPassiveCell(key: string, cell: string, sourceName: string, line: number): void {
+  assertNoExecutableOrPathSyntax(cell, sourceName, line);
+  if (DISPLAY_TEXT_FIELD_NAMES.has(key)) assertDisplayTextGrammar(cell, sourceName, line);
+  else if (LOG_FIELD_NAMES.has(key)) assertLegacyLogGrammar(cell, sourceName, line);
 }
 
 export function parseLegacyQuestionFormat(
@@ -360,7 +438,7 @@ function buildField(
     if (PASSIVE_SINGLE_VALUE_FIELDS.has(key) && cells.length !== 1) {
       fail(sourceName, line, 1, `${key} requires one cell`);
     }
-    for (const cell of cells) assertPassiveCell(cell, sourceName, line);
+    for (const cell of cells) assertPassiveCell(key, cell, sourceName, line);
     if (key === "icon" && !LEGACY_ICON_VALUES.has(cells[0]!)) {
       fail(sourceName, line, 1, "unsupported legacy icon identifier");
     }
