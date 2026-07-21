@@ -378,6 +378,12 @@ msgstr "Number key"
 msgid "answer.choice"
 msgstr "Choose answer"
 
+msgid "answer.choice.selected"
+msgstr "Selected answer %d"
+
+msgid "answer.choice.unselected"
+msgstr "Answer %d, not selected"
+
 msgid "answer.factor"
 msgstr "Add factor"
 

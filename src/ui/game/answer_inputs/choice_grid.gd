@@ -79,7 +79,14 @@ func _render() -> void:
 	for button in _buttons:
 		if String(button.name).begins_with("Choice_"):
 			var value := String(button.name).trim_prefix("Choice_").to_int()
-			button.modulate = Color.WHITE if value == _selected else Color(0.84, 0.88, 0.9, 1.0)
+			var is_selected: bool = _selected is int and value == int(_selected)
+			button.configure_display_text("%s %d" % ["✓" if is_selected else "○", value])
+			var accessibility_key: String = "answer.choice.selected" if is_selected else "answer.choice.unselected"
+			var accessibility_text: String = TranslationServer.translate(accessibility_key) % value
+			button.accessibility_name = accessibility_text
+			button.accessibility_description = accessibility_text
+			button.tooltip_text = accessibility_text
+			button.modulate = Color.WHITE if is_selected else Color(0.84, 0.88, 0.9, 1.0)
 
 func _valid_options(value: Variant) -> Array[int]:
 	var result: Array[int] = []

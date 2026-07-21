@@ -248,8 +248,13 @@ func _test_terminal_completion_failure_emits_no_presentation() -> void:
 func _test_timeout_uses_the_same_persistence_boundary() -> void:
 	var fixture := _fixture({"timer": {"enabled": true, "duration_ms": 1}})
 	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	assert_true(fixture.session.has_method("time_remaining_ms"), "RunSession must expose the controller timer to its host")
+	if fixture.session.has_method("time_remaining_ms"):
+		assert_eq(fixture.session.time_remaining_ms(), 1)
 	fixture.operations.clear()
 	fixture.clock.advance_ms(1)
+	if fixture.session.has_method("time_remaining_ms"):
+		assert_eq(fixture.session.time_remaining_ms(), 0)
 	var result: Dictionary = fixture.session.expire_question()
 	assert_true(result.ok)
 	assert_eq(fixture.operations, ["journal.append", "progress.commit"])

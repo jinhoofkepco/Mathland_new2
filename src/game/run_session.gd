@@ -161,6 +161,12 @@ func snapshot() -> Dictionary:
 		return {}
 	return _controller.snapshot()
 
+func time_remaining_ms() -> int:
+	if _controller == null or not _controller.has_method("time_remaining_ms"):
+		return 0
+	var remaining: Variant = _controller.time_remaining_ms()
+	return remaining if remaining is int and remaining >= 0 else 0
+
 func session_id() -> String:
 	return _session_id
 
@@ -308,7 +314,7 @@ func _report_persistence_failure(code: String) -> void:
 func _dependencies_are_valid() -> bool:
 	if not _controller is Object or not _journal is Object or not _progress is Object:
 		return false
-	for method in ["start", "begin_question", "plan_answer", "plan_timeout", "prepare_commit", "discard", "commit", "snapshot"]:
+	for method in ["start", "begin_question", "plan_answer", "plan_timeout", "prepare_commit", "discard", "commit", "snapshot", "time_remaining_ms"]:
 		if not _controller.has_method(method):
 			return false
 	return _journal.has_method("append") and _progress.has_method("commit")

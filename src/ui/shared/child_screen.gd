@@ -78,6 +78,24 @@ func _connect_tactile(button: Control, callback: Callable) -> void:
 		_ui_policy.register_tactile(button)
 	MathlandUiScript.connect_tactile(button, callback, _audio_service)
 
+func _register_tactile_tree(root: Node) -> void:
+	if root == null:
+		return
+	var candidates: Array[Node] = [root]
+	candidates.append_array(root.find_children("*", "Control", true, false))
+	var audio_callback := Callable(self, "_on_internal_tactile_sfx")
+	for candidate in candidates:
+		if not candidate.has_signal("sfx_requested"):
+			continue
+		if _ui_policy != null and _ui_policy.has_method("register_tactile"):
+			_ui_policy.register_tactile(candidate)
+		if not candidate.is_connected("sfx_requested", audio_callback):
+			candidate.connect("sfx_requested", audio_callback)
+
+func _on_internal_tactile_sfx(sfx_id: StringName) -> void:
+	if _audio_service != null and _audio_service.has_method("play_sfx"):
+		_audio_service.play_sfx(sfx_id)
+
 func _play_effect(effect_name: StringName, at: Vector2 = Vector2.ZERO) -> void:
 	if _effects_service != null and _effects_service.has_method("play"):
 		_effects_service.play(effect_name, at)

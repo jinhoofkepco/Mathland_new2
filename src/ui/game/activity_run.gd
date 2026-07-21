@@ -14,6 +14,7 @@ const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 const SystemClockScript = preload("res://src/core/system_clock.gd")
 const TenRodBoardScene = preload("res://scenes/game/manipulatives/ten_rod_board.tscn")
 const RewardOverlayScene = preload("res://scenes/game/reward_overlay.tscn")
+const UINT32_MAX := 0xFFFFFFFF
 const MAX_SAFE_INTEGER := 9007199254740991
 const MAX_RESPONSE_DURATION_MS := 86_400_000
 const DIALOGUE_BY_GENERATOR := {
@@ -69,12 +70,16 @@ func configure(params: Dictionary) -> void:
 	if response_clock is Object and response_clock.has_method("now_ms"):
 		_response_clock = response_clock
 	var seed_value: Variant = params.get("seed", 42)
-	_initial_seed = int(seed_value) if seed_value is int and seed_value >= 0 else 42
+	_initial_seed = int(seed_value) if seed_value is int and seed_value >= 0 and seed_value <= UINT32_MAX else 42
 	_next_seed = _initial_seed
 
 func _ready() -> void:
 	_build_ui()
 	_start_activity()
+
+func _process(_delta: float) -> void:
+	if can_answer() and _timer_has_expired():
+		_expire_current_question()
 
 func introduction_visible() -> bool:
 	return _introduction_open and _introduction != null and _introduction.visible
@@ -100,21 +105,42 @@ func can_answer() -> bool:
 func submit_answer(answer: Variant, response_ms: int, hints: int = 0) -> Dictionary:
 	if not can_answer():
 		return {"ok": false, "error": "input_unavailable"}
+	if _timer_has_expired():
+		return _expire_current_question()
 	_submitting = true
 	_update_interaction()
 	var result: Variant = _run_session.submit_answer(answer, response_ms, hints)
+	return _handle_session_result(result, "invalid_session_result")
+
+func _expire_current_question() -> Dictionary:
+	if not can_answer() or _run_session == null or not _run_session.has_method("expire_question"):
+		return {"ok": false, "error": "input_unavailable"}
+	_submitting = true
+	_update_interaction()
+	var result: Variant = _run_session.expire_question()
+	return _handle_session_result(result, "invalid_timeout_result")
+
+func _handle_session_result(result: Variant, invalid_result_error: String) -> Dictionary:
 	if not result is Dictionary:
 		_submitting = false
 		_persistence_blocked = true
 		_update_interaction()
-		return {"ok": false, "error": "invalid_session_result"}
+		return {"ok": false, "error": invalid_result_error}
 	if not result.get("ok", false):
 		_submitting = false
-		var explicitly_retry_safe: bool = result.get("retry_safe", null) is bool and result.retry_safe
-		_persistence_blocked = not explicitly_retry_safe or _session_is_blocked()
+		var retry_safe: Variant = result.get("retry_safe")
+		_persistence_blocked = _session_is_blocked() or (retry_safe is bool and not retry_safe)
 		_show_error(String(result.get("error", "persistence_failed")))
 		_update_interaction()
 	return result.duplicate(false)
+
+func _timer_has_expired() -> bool:
+	if not _state.get("timer_enabled", false):
+		return false
+	if _run_session == null or not _run_session.has_method("time_remaining_ms"):
+		return false
+	var remaining: Variant = _run_session.time_remaining_ms()
+	return remaining is int and remaining <= 0
 
 func current_question() -> Dictionary:
 	return _question.duplicate(true)
@@ -278,7 +304,7 @@ func _on_answer_committed(event: Dictionary, transition: RefCounted) -> void:
 	_play_answer_presentation(event, transition_data, correctness)
 	_update_status()
 	if _state.get("status") == "running":
-		_next_seed += 1
+		_next_seed = 0 if _next_seed == UINT32_MAX else _next_seed + 1
 		var next_question := _generate_question(_next_seed)
 		var begun: Variant = _run_session.begin_question(next_question)
 		if begun is Dictionary and begun.get("ok", false):
@@ -518,7 +544,9 @@ func _prepare_question_controls(question: Dictionary) -> bool:
 		_manipulative_host.add_child(_manipulative)
 		var config: Variant = manipulative_data.get("config", {})
 		_manipulative.configure(config if config is Dictionary else {}, question)
-		_manipulative.answer_submitted.connect(_on_board_answer)
+		_register_tactile_tree(_manipulative)
+		if layout_id == &"manipulative_submit":
+			_manipulative.answer_submitted.connect(_on_board_answer)
 	if layout_id != &"manipulative_submit":
 		_answer_input = AnswerInputFactoryScript.create(layout_id)
 		if _answer_input == null:
@@ -528,6 +556,7 @@ func _prepare_question_controls(question: Dictionary) -> bool:
 		_answer_input.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_answer_input_host.add_child(_answer_input)
 		_answer_input.configure(question)
+		_register_tactile_tree(_answer_input)
 		_answer_input.answer_submitted.connect(_on_board_answer)
 	_manipulative_host.visible = _manipulative != null
 	_answer_input_host.visible = _answer_input != null

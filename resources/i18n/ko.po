@@ -378,6 +378,12 @@ msgstr "숫자 입력"
 msgid "answer.choice"
 msgstr "답 고르기"
 
+msgid "answer.choice.selected"
+msgstr "선택된 답 %d"
+
+msgid "answer.choice.unselected"
+msgstr "선택되지 않은 답 %d"
+
 msgid "answer.factor"
 msgstr "인수 넣기"
 
