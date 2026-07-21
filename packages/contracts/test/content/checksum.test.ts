@@ -145,6 +145,17 @@ describe("canonical JSON", () => {
     expect(canonicalJson({ z: [1, 2] })).not.toBe(canonicalJson({ z: [2, 1] }));
   });
 
+  it("excludes omitted root values from canonical preflight", () => {
+    const value: { value: number; checksum?: unknown } = { value: 1 };
+    value.checksum = value;
+
+    expect(canonicalJson(value, { omitTopLevel: ["checksum"] })).toBe('{"value":1}');
+    expect(contentChecksum(value)).toBe(contentChecksum({ value: 1 }));
+    expect(() => canonicalJson(value)).toThrowError(
+      expect.objectContaining({ code: "CYCLE", path: ["checksum"] }),
+    );
+  });
+
   it("sorts object keys by UTF-16 code units rather than Unicode scalar values", () => {
     const astral = "𐀀";
     const privateUseBmp = "";

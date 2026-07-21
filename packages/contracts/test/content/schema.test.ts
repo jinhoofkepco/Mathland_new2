@@ -46,6 +46,18 @@ describe("content package schemas", () => {
     expect(ActivityPackageV1Schema.parse(published)).toEqual(published);
   });
 
+  it.each([
+    ["smallest subnormal", Number.MIN_VALUE],
+    ["largest subnormal", 2.225073858507201e-308],
+    ["smallest normal", 2.2250738585072014e-308],
+  ])("accepts the finite binary64 %s probability boundary", (_label, boundary) => {
+    const draft = makeValidDraft();
+    draft.adaptive_policy!.demote_correctness = 0;
+    draft.adaptive_policy!.promote_correctness = boundary;
+
+    expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(true);
+  });
+
   it("rejects unknown fields at every authored object boundary", () => {
     const draft = makeValidDraft() as unknown as Record<string, unknown>;
     const run = draft.run as Record<string, unknown>;

@@ -56,7 +56,6 @@ export interface CanonicalJsonOptions {
 const MAX_JSON_SOURCE_LENGTH = 2_000_000;
 const MAX_JSON_NESTING = 64;
 const MAX_EXACT_BINARY_INTEGER = 4_503_599_627_370_496;
-const MIN_NORMAL_DOUBLE = 2.2250738585072014e-308;
 
 /**
  * Parses untrusted JSON while key spelling information still exists.
@@ -328,6 +327,10 @@ class StrictJsonScanner {
     }
 
     const lexeme = this.source.slice(start, cursor);
+    if (isZeroDecimalLexeme(lexeme)) {
+      this.index = cursor;
+      return;
+    }
     if (decimalLexemeAdjustedExponent(lexeme) > 308) {
       this.fail("NON_FINITE_NUMBER", path, start, "JSON number exceeds the finite range");
     }
@@ -335,10 +338,7 @@ class StrictJsonScanner {
     if (!Number.isFinite(number)) {
       this.fail("NON_FINITE_NUMBER", path, start, "JSON number exceeds the finite range");
     }
-    if (
-      (!isZeroDecimalLexeme(lexeme) && number === 0) ||
-      (number !== 0 && Math.abs(number) < MIN_NORMAL_DOUBLE)
-    ) {
+    if (number === 0) {
       this.fail("UNSAFE_INTEGER", path, start, "JSON number underflows across supported runtimes");
     }
     if (Number.isInteger(number)) {
@@ -468,8 +468,8 @@ function parseCappedExponent(source: string): number {
 }
 
 export function canonicalJson(value: unknown, options: CanonicalJsonOptions = {}): string {
-  assertCanonicalDomain(value);
   const omittedRootKeys = new Set(options.omitTopLevel ?? []);
+  assertCanonicalDomain(value, omittedRootKeys);
   return serializeCanonical(value, [], 0, omittedRootKeys, new Set<object>());
 }
 
@@ -477,7 +477,7 @@ type CanonicalDomainFrame =
   | { kind: "visit"; value: unknown; path: (string | number)[]; depth: number }
   | { kind: "leave"; value: object };
 
-function assertCanonicalDomain(root: unknown): void {
+function assertCanonicalDomain(root: unknown, omittedRootKeys: ReadonlySet<string>): void {
   const activeAncestors = new Set<object>();
   const stack: CanonicalDomainFrame[] = [{ kind: "visit", value: root, path: [], depth: 0 }];
 
@@ -550,6 +550,9 @@ function assertCanonicalDomain(root: unknown): void {
     stack.push({ kind: "leave", value });
     for (let index = keys.length - 1; index >= 0; index -= 1) {
       const key = keys[index]!;
+      if (depth === 0 && omittedRootKeys.has(key)) {
+        continue;
+      }
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (descriptor === undefined || !("value" in descriptor)) {
         throw new CanonicalJsonError("ACCESSOR_PROPERTY", [...path, key], "Accessors are not JSON values");

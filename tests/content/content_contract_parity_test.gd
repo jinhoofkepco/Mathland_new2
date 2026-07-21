@@ -56,6 +56,7 @@ func run(_tree: SceneTree) -> void:
 	_test_ecmascript_unicode_corpus()
 	_test_published_package_checksum_regression()
 	_test_canonical_json_and_checksum_match_typescript()
+	_test_omitted_root_checksum_is_not_preflighted()
 	_test_ecmascript_number_to_string_regression()
 	_test_ecmascript_number_property_corpus()
 	_test_strict_json_boundary_rejects_duplicate_and_unsafe_numbers()
@@ -185,6 +186,14 @@ func _test_canonical_json_and_checksum_match_typescript() -> void:
 	)
 	assert_eq(validator.canonical_json({"n": 9007199254740992.0}), "")
 
+func _test_omitted_root_checksum_is_not_preflighted() -> void:
+	var validator := ContentValidatorScript.new()
+	var value := {"value": 1}
+	value["checksum"] = value
+	assert_eq(validator.canonical_json(value, true), '{"value":1}')
+	assert_eq(validator.content_checksum(value), validator.content_checksum({"value": 1}))
+	assert_eq(validator.canonical_json(value), "")
+
 func _test_ecmascript_number_to_string_regression() -> void:
 	var validator := ContentValidatorScript.new()
 	var number := _float_from_hex_bits("3b1d8e556da8dd77")
@@ -209,6 +218,14 @@ func _test_ecmascript_number_property_corpus() -> void:
 			vector["canonical"],
 			"IEEE-754 bits %s" % vector["bits"]
 		)
+		var parsed: Variant = validator.parse_json('{"value":%s}' % vector["canonical"])
+		assert_true(parsed.ok, "decimal %s issues=%s" % [vector["canonical"], parsed.issues])
+		if parsed.ok:
+			assert_eq(
+				validator.canonical_json(parsed.value),
+				'{"value":%s}' % vector["canonical"],
+				"decimal %s" % vector["canonical"]
+			)
 
 func _float_from_hex_bits(bits: String) -> float:
 	var bytes := PackedByteArray()
