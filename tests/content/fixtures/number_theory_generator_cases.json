@@ -1,0 +1,46 @@
+[
+  {
+    "name": "two operand distinct LCM",
+    "generator_id": "common_multiple_v1",
+    "seed": 1,
+    "parameters": {"operand_count":2,"operand_min":2,"operand_max":12,"require_distinct":true},
+    "expected": {
+      "resolved_parameters": {"operands":[2,3],"operator":"lcm","answer":6},
+      "prompt": {"key":"question.common_multiple","args":{"expression":"2 3"}},
+      "correct_answer": {"kind":"integer","value":6}
+    }
+  },
+  {
+    "name": "three operand distinct LCM",
+    "generator_id": "common_multiple_v1",
+    "seed": 42,
+    "parameters": {"operand_count":3,"operand_min":2,"operand_max":15,"require_distinct":true},
+    "expected": {
+      "resolved_parameters": {"operands":[6,4,15],"operator":"lcm","answer":60},
+      "prompt": {"key":"question.common_multiple","args":{"expression":"6 4 15"}},
+      "correct_answer": {"kind":"integer","value":60}
+    }
+  },
+  {
+    "name": "prime factors preserve repeated slots",
+    "generator_id": "prime_factorization_v1",
+    "seed": 42,
+    "parameters": {"value_min":20,"value_max":500,"factor_count_min":3,"factor_count_max":4,"allowed_primes":[2,3,5,7]},
+    "expected": {
+      "resolved_parameters": {"value":28,"factors":[2,2,7],"factor_count":3,"allowed_primes":[2,3,5,7]},
+      "prompt": {"key":"question.prime_factorization","args":{"value":28}},
+      "correct_answer": {"kind":"integer_list","values":[2,2,7],"order_matters":false}
+    }
+  },
+  {
+    "name": "prime factors fixed slot count",
+    "generator_id": "prime_factorization_v1",
+    "seed": 305419896,
+    "parameters": {"value_min":1,"value_max":10000,"factor_count_min":4,"factor_count_max":4,"allowed_primes":[2,3,5]},
+    "expected": {
+      "resolved_parameters": {"value":225,"factors":[3,3,5,5],"factor_count":4,"allowed_primes":[2,3,5]},
+      "prompt": {"key":"question.prime_factorization","args":{"value":225}},
+      "correct_answer": {"kind":"integer_list","values":[3,3,5,5],"order_matters":false}
+    }
+  }
+]

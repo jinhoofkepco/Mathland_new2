@@ -5,6 +5,7 @@ import type {
   QuestionGeneratorContract,
 } from "./types.js";
 import { AdditionGenerator, MultiplicationGenerator, SubtractionGenerator } from "./arithmetic.js";
+import { CommonMultipleGenerator, PrimeFactorizationGenerator } from "./number_theory.js";
 
 class PendingQuestionGenerator implements QuestionGeneratorContract {
   readonly generatorId: GeneratorId;
@@ -29,8 +30,8 @@ const GENERATOR_FACTORIES: Readonly<Record<GeneratorId, GeneratorFactory>> = {
   addition_v1: () => new AdditionGenerator(),
   subtraction_v1: () => new SubtractionGenerator(),
   multiplication_v1: () => new MultiplicationGenerator(),
-  common_multiple_v1: () => new PendingQuestionGenerator("common_multiple_v1"),
-  prime_factorization_v1: () => new PendingQuestionGenerator("prime_factorization_v1"),
+  common_multiple_v1: () => new CommonMultipleGenerator(),
+  prime_factorization_v1: () => new PrimeFactorizationGenerator(),
   counting_v1: () => new PendingQuestionGenerator("counting_v1"),
   number_bonds_v1: () => new PendingQuestionGenerator("number_bonds_v1"),
   ten_frame_v1: () => new PendingQuestionGenerator("ten_frame_v1"),
