@@ -33,7 +33,7 @@ corner_radius_top_right = 22
 corner_radius_bottom_right = 22
 corner_radius_bottom_left = 22
 
-[node name="TactileButton" type="Control"]
+[node name="TactileButton" type="Control" unique_id=1]
 custom_minimum_size = Vector2(240, 64)
 layout_mode = 3
 anchors_preset = 0
@@ -44,7 +44,7 @@ focus_mode = 2
 accessibility_name = "계속"
 script = ExtResource("1_button")
 
-[node name="Shadow" type="Panel" parent="."]
+[node name="Shadow" type="Panel" parent="." unique_id=2]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -57,7 +57,7 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleShadow")
 
-[node name="Visual" type="Control" parent="."]
+[node name="Visual" type="Control" parent="." unique_id=3]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -67,7 +67,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Surface" type="Panel" parent="Visual"]
+[node name="Surface" type="Panel" parent="Visual" unique_id=4]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -78,7 +78,7 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleSurface")
 
-[node name="Content" type="HBoxContainer" parent="Visual"]
+[node name="Content" type="HBoxContainer" parent="Visual" unique_id=5]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -91,7 +91,7 @@ mouse_filter = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="IconLabel" type="Label" parent="Visual/Content"]
+[node name="IconLabel" type="Label" parent="Visual/Content" unique_id=6]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -101,7 +101,7 @@ text = "›"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="TextLabel" type="Label" parent="Visual/Content"]
+[node name="TextLabel" type="Label" parent="Visual/Content" unique_id=7]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -110,7 +110,7 @@ theme_override_font_sizes/font_size = 26
 text = "계속"
 vertical_alignment = 1
 
-[node name="FocusRing" type="Panel" parent="."]
+[node name="FocusRing" type="Panel" parent="." unique_id=8]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
