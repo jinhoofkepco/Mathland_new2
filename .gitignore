@@ -4,6 +4,10 @@
 # Local builds and signing material
 builds/
 android/build/
+android/plugins/secure_credentials/.gradle/
+android/plugins/secure_credentials/.kotlin/
+android/plugins/secure_credentials/build/
+android/plugins/secure_credentials/secure_credentials/build/
 addons/mathland_secure_credentials/bin/
 reports/
 *.keystore
