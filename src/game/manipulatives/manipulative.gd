@@ -3,6 +3,7 @@ extends Control
 
 signal state_changed(state: Dictionary)
 signal answer_submitted(answer: Variant)
+signal sfx_requested(id: StringName)
 
 var _base_interaction_enabled := true
 

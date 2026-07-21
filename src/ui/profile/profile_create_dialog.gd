@@ -12,10 +12,12 @@ var _avatar: OptionButton
 var _pin: LineEdit
 var _error_label: Label
 var _ui_policy: Variant
+var _audio_service: Variant
 
 func configure(params: Dictionary) -> void:
 	_profile_service = params.get("profile_service")
 	_ui_policy = params.get("ui_policy")
+	_audio_service = params.get("audio_service")
 
 func _ready() -> void:
 	_build_ui()
@@ -92,8 +94,8 @@ func _build_ui() -> void:
 	var save_button := MathlandUiScript.tactile_button("SaveProfileButton", "ui.save", "ui.status.correct", Vector2(0, 52), 17)
 	save_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions.add_child(save_button)
-	MathlandUiScript.connect_tactile(close_button, _dismiss)
-	MathlandUiScript.connect_tactile(save_button, _submit_form)
+	MathlandUiScript.connect_tactile(close_button, _dismiss, _audio_service)
+	MathlandUiScript.connect_tactile(save_button, _submit_form, _audio_service)
 	if _ui_policy != null and _ui_policy.has_method("register_tactile"):
 		_ui_policy.register_tactile(close_button)
 		_ui_policy.register_tactile(save_button)

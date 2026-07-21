@@ -301,7 +301,7 @@ msgid "activity.foundation_ten_rods.add_prompt"
 msgstr "%d + %d = ?"
 
 msgid "activity.speaker"
-msgstr "Listen"
+msgstr "Play/stop"
 
 msgid "activity.score"
 msgstr "Score %d"
@@ -428,6 +428,9 @@ msgstr "New collection found!"
 
 msgid "reward.coupon"
 msgstr "New coupon found!"
+
+msgid "reward.level_up"
+msgstr "Level up!"
 
 msgid "reward.tap_to_continue"
 msgstr "Tap to continue"

@@ -8,7 +8,7 @@ const RunSessionScript = preload("res://src/game/run_session.gd")
 const ContentRepositoryScript = preload("res://src/content/vertical_slice_content_repository.gd")
 const QuestionEngineScript = preload("res://src/content/vertical_slice_question_engine.gd")
 
-class ReplayJournal extends RefCounted:
+class LocalRecordingJournal extends RefCounted:
 	var events: Array[Dictionary] = []
 	var replay_calls := 0
 
@@ -23,7 +23,7 @@ func run(_tree: SceneTree) -> void:
 		return
 	var SyncScript: Variant = load(SERVICE_PATH)
 	var OfflineScript: Variant = load(OFFLINE_PATH)
-	var journal := ReplayJournal.new()
+	var journal := LocalRecordingJournal.new()
 	journal.events.assign([{"event_id": "one"}, {"event_id": "two"}, {"event_id": "three"}])
 	var service: Variant = OfflineScript.new(journal)
 	assert_eq(service.get_script().get_base_script(), SyncScript, "offline sync must implement the SyncService port")

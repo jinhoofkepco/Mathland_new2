@@ -38,11 +38,19 @@ class PersistedProfileService extends RefCounted:
 	func get_profile(profile_id: Variant) -> Dictionary:
 		return PROFILE.duplicate(true) if profile_id == PROFILE.profile_id else {}
 
+class RecordingAudioService extends Node:
+	var music_requests: Array[StringName] = []
+
+	func play_music(music_id: StringName) -> bool:
+		music_requests.append(music_id)
+		return true
+
 func run(tree: SceneTree) -> void:
 	_test_push_replace_back_and_unknown_are_contained()
 	_test_only_owned_route_node_is_replaced()
 	await _test_shell_handles_cancel_without_duplicating_root(tree)
 	await _test_cold_start_always_requires_profile_selection(tree)
+	await _test_shell_selects_music_for_route_context(tree)
 	assert_false(ProjectSettings.get_setting("application/config/quit_on_go_back", true))
 
 func _test_push_replace_back_and_unknown_are_contained() -> void:
@@ -162,6 +170,24 @@ func _test_cold_start_always_requires_profile_selection(tree: SceneTree) -> void
 	assert_eq(shell.current_route(), AppRouteScript.PROFILE_SELECT, "persisted selection must not bypass PIN")
 	assert_eq(shell.route_host.get_child_count(), 1)
 	assert_eq(shell.route_host.get_child(0).name, "ProfileSelect")
+	shell.queue_free()
+	await tree.process_frame
+
+func _test_shell_selects_music_for_route_context(tree: SceneTree) -> void:
+	var audio := RecordingAudioService.new()
+	var shell: Control = AppShellScene.instantiate()
+	shell.configure_dependencies({
+		"profile_service": PersistedProfileService.new(),
+		"audio_service": audio,
+		"device_id": "17f0c6b8-4f8d-4d59-9c1a-8af4310d835f",
+	})
+	tree.root.add_child(shell)
+	await tree.process_frame
+	assert_eq(audio.music_requests, [&"exploration_loop"])
+	shell._on_route_audio_changed(AppRouteScript.ACTIVITY_RUN, {})
+	assert_eq(audio.music_requests, [&"exploration_loop", &"concentration_loop"])
+	shell._on_route_audio_changed(AppRouteScript.RESULT, {})
+	assert_eq(audio.music_requests, [&"exploration_loop", &"concentration_loop", &"exploration_loop"])
 	shell.queue_free()
 	await tree.process_frame
 

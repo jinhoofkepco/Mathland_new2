@@ -301,7 +301,7 @@ msgid "activity.foundation_ten_rods.add_prompt"
 msgstr "%d + %d = ?"
 
 msgid "activity.speaker"
-msgstr "듣기"
+msgstr "듣기/정지"
 
 msgid "activity.score"
 msgstr "점수 %d"
@@ -428,6 +428,9 @@ msgstr "새 도감을 발견했어요!"
 
 msgid "reward.coupon"
 msgstr "새 쿠폰을 찾았어요!"
+
+msgid "reward.level_up"
+msgstr "레벨이 올랐어요!"
 
 msgid "reward.tap_to_continue"
 msgstr "눌러서 계속"

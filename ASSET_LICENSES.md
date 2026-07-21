@@ -37,3 +37,18 @@ Generated source candidates under `assets/source/art/generated/` are the immutab
 - `art.moa.point` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/moa/moa_point.png
 - `art.island.exploration_bg` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/island/exploration_island_bg.png
 - `art.collection.shells` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/collection/collection_shells.png
+
+## Original MathLand audio
+
+The machine-readable rights ledger is the ordered set of `kind: "audio"` records in `assets/asset-manifest.json`. Audio validation joins every release ID, path, SHA-256, channel count, license, redistribution assertion, review assertion, and kind-specific provenance against that structured record; the human-readable lists below are documentation rather than admission by token matching.
+
+`MathLand-Original-Audio-1.0` covers the deterministic procedural music and sound effects authored specifically for MathLand in `tools/assets/generate_original_audio.mjs`. Redistribution is confirmed. No third-party sample, system voice, or recorded performer is used.
+
+- `exploration_loop`, `concentration_loop`, `boss_loop`
+- `button_down`, `button_release`, `correct`, `wrong`, `heart_loss`, `combo_1`, `combo_2`, `combo_3`, `boss`, `level_up`, `reward`, `manipulative_place`
+
+## Ppaso synthetic Korean guide voice
+
+`Ppaso-TTS-v8-Apache-2.0` covers the nine synthetic-derived guide clips generated from the Apache-2.0 Ppaso-TTS v8 model. Source: https://huggingface.co/akamotaco/ppaso-tts-v1 at exact revision `53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9`. The reviewed model card identifies a Korean single female synthetic voice, synthetic training speech produced with Apache-2.0 CosyVoice, no real-person identity, and no voice cloning. The model weights are not redistributed; only MathLand's generated Ogg outputs are included. Redistribution of the outputs is confirmed by the project owner. Exact Korean inputs are in `assets/source/audio/dialogue-ko-KR.csv`; generation and post-processing are recorded in `tools/assets/generate_ppaso_voice.py` and `assets/source/audio/AUDIO_DELIVERY_SPEC.md`.
+
+- `moa_home_welcome`, `moa_tutorial_counting`, `moa_tutorial_number_bonds`, `moa_tutorial_ten_frame`, `moa_tutorial_base_ten`, `moa_tutorial_number_line`, `moa_tutorial_basic_operations`, `moa_reward`, `moa_level_up`

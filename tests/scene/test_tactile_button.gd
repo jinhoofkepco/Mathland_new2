@@ -54,6 +54,7 @@ func _test_pointer_down_release_and_cancel(tree: SceneTree) -> void:
 	button._gui_input(_mouse_button(Vector2(20, 20), false))
 	assert_eq(counts.accepted, 1)
 	assert_eq(counts.cancelled, 0)
+	assert_eq(sfx, [&"button_down", &"button_release"], "accepted release feedback was not requested")
 	await tree.create_timer(0.25).timeout
 	assert_eq(button.get_node("Visual").scale, Vector2.ONE)
 
@@ -63,6 +64,7 @@ func _test_pointer_down_release_and_cancel(tree: SceneTree) -> void:
 	assert_eq(counts.presses, 2)
 	assert_eq(counts.accepted, 1)
 	assert_eq(counts.cancelled, 1)
+	assert_eq(sfx, [&"button_down", &"button_release", &"button_down"], "cancelled release played acceptance audio")
 	button._gui_input(_touch(Vector2(20, 20), true, 5))
 	button._gui_input(_touch(Vector2(20, 20), false, 6))
 	assert_eq(counts.accepted, 1, "another finger cannot accept the active press")

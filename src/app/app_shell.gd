@@ -48,6 +48,7 @@ func set_router(router: Variant) -> void:
 	_dispose_owned_router()
 	_router = router
 	_owns_router = false
+	_bind_route_audio()
 
 func configure_dependencies(dependencies: Dictionary) -> bool:
 	if is_inside_tree():
@@ -172,7 +173,21 @@ func _bootstrap_default_experience() -> void:
 			route_scenes[route] = packed
 	_router = AppRouterScript.new(route_host, route_scenes)
 	_owns_router = true
+	_bind_route_audio()
 	_router.navigate(AppRouteScript.PROFILE_SELECT, _base_route_params())
+
+func _bind_route_audio() -> void:
+	if _router == null or not _router.has_signal("route_changed"):
+		return
+	var callback := Callable(self, "_on_route_audio_changed")
+	if not _router.route_changed.is_connected(callback):
+		_router.route_changed.connect(callback)
+
+func _on_route_audio_changed(route: StringName, _params_for_route: Dictionary) -> void:
+	if _audio_service == null or not _audio_service.has_method("play_music"):
+		return
+	var music_id := &"concentration_loop" if route == AppRouteScript.ACTIVITY_RUN else &"exploration_loop"
+	_audio_service.play_music(music_id)
 
 func _base_route_params(profile_id: String = "") -> Dictionary:
 	var sync_status := {"state": "offline", "pending_count": 0, "last_success_at": null}

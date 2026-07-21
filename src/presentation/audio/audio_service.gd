@@ -5,6 +5,7 @@ signal voice_finished(dialogue_id: StringName)
 signal voice_missing(dialogue_id: StringName)
 
 const ToneFactoryScript = preload("res://src/presentation/audio/tone_factory.gd")
+const MANIFEST_PATH := "res://assets/audio/audio-manifest.json"
 const BUS_SETTING_KEYS := {
 	"master_db": &"Master",
 	"music_db": &"Music",
@@ -22,27 +23,63 @@ const VOICE_IDS: Array[StringName] = [
 	&"moa_reward",
 	&"moa_level_up",
 ]
+const MUSIC_IDS: Array[StringName] = [
+	&"exploration_loop",
+	&"concentration_loop",
+	&"boss_loop",
+]
+const SFX_IDS: Array[StringName] = [
+	&"button_down",
+	&"button_release",
+	&"correct",
+	&"wrong",
+	&"heart_loss",
+	&"combo_1",
+	&"combo_2",
+	&"combo_3",
+	&"boss",
+	&"level_up",
+	&"reward",
+	&"manipulative_place",
+]
 const MIN_AUDIO_DB := -80.0
 const MAX_AUDIO_DB := 0.0
 
 var _tone_factory := ToneFactoryScript.new()
+var _music_registry: Dictionary = {}
+var _sfx_registry: Dictionary = {}
 var _voice_registry: Dictionary = {}
+var _activity_dialogue_map: Dictionary = {}
+var _policy_dialogue_map: Dictionary = {}
+var _consumed_automatic_voice: Dictionary = {}
 var _voice_enabled := true
+var _manifest_loaded := false
+var _instruction_voice_requires_speaker := true
+var _voice_blocks_input := false
+var _current_music_id: StringName = &""
 var _current_voice_id: StringName = &""
 var _music_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _voice_player: AudioStreamPlayer
 
 func _ready() -> void:
+	_load_manifest()
 	_ensure_players()
 
 func _exit_tree() -> void:
+	_current_music_id = &""
 	_current_voice_id = &""
 	for player in [_music_player, _sfx_player, _voice_player]:
 		if player != null:
 			player.stop()
 			player.stream = null
+	_music_registry.clear()
+	_sfx_registry.clear()
 	_voice_registry.clear()
+	_activity_dialogue_map.clear()
+	_policy_dialogue_map.clear()
+	_consumed_automatic_voice.clear()
+	_manifest_loaded = false
 
 func apply_settings(settings: Dictionary) -> bool:
 	var pending_volumes := {}
@@ -71,12 +108,37 @@ func apply_settings(settings: Dictionary) -> bool:
 	return true
 
 func play_sfx(sfx_id: StringName) -> bool:
-	var stream: AudioStreamWAV = _tone_factory.create_sfx(sfx_id)
+	_load_manifest()
+	var canonical_id := &"heart_loss" if sfx_id == &"health_loss" else sfx_id
+	var stream: AudioStream = _sfx_registry.get(canonical_id)
+	if stream == null:
+		stream = _tone_factory.create_sfx(sfx_id)
 	if stream == null or not _ensure_players():
 		return false
 	_sfx_player.stream = stream
 	_start_player(_sfx_player)
 	return true
+
+func play_music(music_id: StringName) -> bool:
+	_load_manifest()
+	var stream: AudioStream = _music_registry.get(music_id)
+	if stream == null or not _ensure_players():
+		return false
+	if _current_music_id == music_id and _music_player.stream == stream:
+		return true
+	_current_music_id = music_id
+	_music_player.stream = stream
+	_start_player(_music_player)
+	return true
+
+func stop_music() -> void:
+	_current_music_id = &""
+	if _music_player != null:
+		_music_player.stop()
+		_music_player.stream = null
+
+func current_music_id() -> StringName:
+	return _current_music_id
 
 func register_voice(dialogue_id: StringName, stream: AudioStream) -> bool:
 	if dialogue_id not in VOICE_IDS or stream == null:
@@ -85,6 +147,7 @@ func register_voice(dialogue_id: StringName, stream: AudioStream) -> bool:
 	return true
 
 func play_voice(dialogue_id: StringName) -> bool:
+	_load_manifest()
 	if not _voice_enabled:
 		return false
 	if dialogue_id not in VOICE_IDS or not _voice_registry.has(dialogue_id):
@@ -104,8 +167,153 @@ func stop_voice() -> void:
 		_voice_player.stop()
 		_voice_player.stream = null
 
+func toggle_voice(dialogue_id: StringName) -> bool:
+	if not dialogue_id.is_empty() and _current_voice_id == dialogue_id:
+		stop_voice()
+		return true
+	return play_voice(dialogue_id)
+
 func current_voice_id() -> StringName:
 	return _current_voice_id
+
+func dialogue_for_activity(activity: Dictionary) -> StringName:
+	_load_manifest()
+	var raw_activity_id: Variant = activity.get("activity_id")
+	if not raw_activity_id is String or raw_activity_id.is_empty():
+		return &""
+	var dialogue_id: Variant = _activity_dialogue_map.get(raw_activity_id)
+	if not dialogue_id is StringName or dialogue_id not in VOICE_IDS:
+		return &""
+	return dialogue_id
+
+func dialogue_for_policy(policy: StringName, context: Dictionary = {}) -> StringName:
+	_load_manifest()
+	if policy == &"first_activity_entry":
+		return dialogue_for_activity(context)
+	var dialogue_id: Variant = _policy_dialogue_map.get(policy)
+	return dialogue_id if dialogue_id is StringName and dialogue_id in VOICE_IDS else &""
+
+func play_policy_voice(policy: StringName, context: Dictionary = {}, autoplay_authorized := false) -> bool:
+	if not autoplay_authorized:
+		return false
+	var dialogue_id := dialogue_for_policy(policy, context)
+	if dialogue_id.is_empty():
+		return false
+	var consumption_key := String(policy)
+	if policy == &"first_activity_entry":
+		consumption_key = "%s:%s" % [policy, String(context.get("activity_id", ""))]
+	if policy in [&"first_home", &"first_activity_entry"] and _consumed_automatic_voice.has(consumption_key):
+		return false
+	if not play_voice(dialogue_id):
+		return false
+	if policy in [&"first_home", &"first_activity_entry"]:
+		_consumed_automatic_voice[consumption_key] = true
+	return true
+
+func audio_asset_counts() -> Dictionary:
+	_load_manifest()
+	return {
+		"music": _music_registry.size(),
+		"sfx": _sfx_registry.size(),
+		"voice": _voice_registry.size(),
+	}
+
+func instruction_voice_requires_speaker() -> bool:
+	_load_manifest()
+	return _instruction_voice_requires_speaker
+
+func voice_blocks_input() -> bool:
+	_load_manifest()
+	return _voice_blocks_input
+
+func _load_manifest() -> void:
+	if _manifest_loaded:
+		return
+	_manifest_loaded = true
+	if not FileAccess.file_exists(MANIFEST_PATH):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH))
+	if not parsed is Dictionary:
+		return
+	var policy: Variant = parsed.get("instructionVoice")
+	if (
+		not policy is Dictionary
+		or policy.get("trigger") != "speaker_control_only"
+		or policy.get("contentScope") != "activity_tutorial"
+		or policy.get("blocksInput") != false
+		or not policy.get("activityDialogueMap") is Dictionary
+	):
+		return
+	_instruction_voice_requires_speaker = true
+	_voice_blocks_input = false
+	for activity_id in policy.activityDialogueMap:
+		var raw_dialogue_id: Variant = policy.activityDialogueMap[activity_id]
+		if not activity_id is String or activity_id.is_empty() or not raw_dialogue_id is String:
+			continue
+		var dialogue_id := StringName(raw_dialogue_id)
+		if dialogue_id in VOICE_IDS:
+			_activity_dialogue_map[activity_id] = dialogue_id
+	_register_manifest_entries(parsed.get("music"), &"music", MUSIC_IDS, _music_registry)
+	_register_manifest_entries(parsed.get("sfx"), &"sfx", SFX_IDS, _sfx_registry)
+	_register_manifest_entries(parsed.get("voice"), &"voice", VOICE_IDS, _voice_registry)
+	_register_voice_policies(parsed.get("voice"))
+
+func _register_voice_policies(raw_entries: Variant) -> void:
+	if not raw_entries is Array:
+		return
+	for raw_entry in raw_entries:
+		if not raw_entry is Dictionary:
+			continue
+		var raw_id: Variant = raw_entry.get("id")
+		var raw_policy: Variant = raw_entry.get("autoplay")
+		if not raw_id is String or not raw_policy is String:
+			continue
+		var dialogue_id := StringName(raw_id)
+		var policy_id := StringName(raw_policy)
+		if dialogue_id not in VOICE_IDS or policy_id not in [&"first_home", &"first_activity_entry", &"reward_event", &"level_up_event"]:
+			continue
+		if policy_id != &"first_activity_entry" and not _policy_dialogue_map.has(policy_id):
+			_policy_dialogue_map[policy_id] = dialogue_id
+
+func _register_manifest_entries(
+	raw_entries: Variant,
+	expected_kind: StringName,
+	allowed_ids: Array[StringName],
+	registry: Dictionary
+) -> void:
+	if not raw_entries is Array:
+		return
+	for raw_entry in raw_entries:
+		if not raw_entry is Dictionary:
+			continue
+		var raw_id: Variant = raw_entry.get("id")
+		var raw_path: Variant = raw_entry.get("path")
+		if not raw_id is String or not raw_path is String or raw_entry.get("kind") != String(expected_kind):
+			continue
+		var asset_id := StringName(raw_id)
+		var relative_path := String(raw_path)
+		if asset_id not in allowed_ids or not _is_safe_audio_path(relative_path):
+			continue
+		var resource_path := "res://%s" % relative_path
+		var stream: Variant
+		if OS.has_feature("editor"):
+			stream = AudioStreamOggVorbis.load_from_file(resource_path)
+		elif ResourceLoader.exists(resource_path):
+			stream = ResourceLoader.load(resource_path)
+		if not stream is AudioStream:
+			continue
+		if expected_kind == &"music" and stream is AudioStreamOggVorbis:
+			stream.loop = true
+		registry[asset_id] = stream
+
+func _is_safe_audio_path(relative_path: String) -> bool:
+	return (
+		relative_path.begins_with("assets/audio/")
+		and relative_path.ends_with(".ogg")
+		and not relative_path.contains("..")
+		and not relative_path.contains("\\")
+		and not relative_path.contains(":")
+	)
 
 func _ensure_players() -> bool:
 	if _music_player != null and _sfx_player != null and _voice_player != null:

@@ -170,6 +170,7 @@ func _start_activity() -> void:
 	_state = started.state.duplicate(true)
 	_started = true
 	_present_question(_question, false)
+	_offer_activity_intro_voice()
 	_bind_lifecycle()
 	_update_status()
 	_update_interaction()
@@ -261,6 +262,7 @@ func _present_question(question: Dictionary, prepare_controls := true) -> void:
 	if _prompt_label != null:
 		_prompt_label.text = _formatted_prompt(_question)
 	_question_presented_at_ms = _now_ms()
+	_update_activity_music()
 	question_presented.emit(_question.duplicate(true))
 
 func _on_board_answer(answer: Variant) -> void:
@@ -310,15 +312,30 @@ func _on_persistence_failed(code: String) -> void:
 	_show_error(code)
 
 func _play_answer_presentation(event: Dictionary, transition: Dictionary, correctness: bool) -> void:
-	if _audio_service != null and _audio_service.has_method("play_sfx"):
-		_audio_service.play_sfx(&"correct" if correctness else &"wrong")
 	var effect_names: Variant = transition.get("effect_names", [])
+	if _audio_service != null and _audio_service.has_method("play_sfx"):
+		_audio_service.play_sfx(_answer_sfx_id(transition, effect_names, correctness))
 	if effect_names is Array:
 		for effect_name in effect_names:
 			_play_effect(StringName(effect_name), size * 0.5)
 	var reward_delta: Variant = event.get("reward_delta", {})
-	if reward_delta is Dictionary and int(reward_delta.get("apples", 0)) > 0:
-		_show_reward("reward", int(reward_delta.apples))
+	var reward_amount := int(reward_delta.get("apples", 0)) if reward_delta is Dictionary else 0
+	if effect_names is Array and "level_up" in effect_names:
+		_show_reward("level_up", reward_amount, &"level_up_event")
+	elif reward_amount > 0:
+		_show_reward("reward", reward_amount, &"reward_event")
+
+func _answer_sfx_id(transition: Dictionary, effect_names: Variant, correctness: bool) -> StringName:
+	if not correctness and int(transition.get("health_delta", 0)) < 0:
+		return &"heart_loss"
+	if effect_names is Array and "boss" in effect_names:
+		return &"boss"
+	var primary := StringName(transition.get("effect_name", ""))
+	if primary in [&"combo_1", &"combo_2", &"combo_3"]:
+		return primary
+	if effect_names is Array and "level_up" in effect_names:
+		return &"level_up"
+	return &"correct" if correctness else &"wrong"
 
 func present_persisted_reward_event(event: Dictionary) -> bool:
 	if not LearningEventV1Script.validate(event).is_empty() or event.get("profile_id", "") != _profile_id:
@@ -336,7 +353,7 @@ func present_persisted_reward_event(event: Dictionary) -> bool:
 	_show_reward(kind, 0)
 	return true
 
-func _show_reward(kind: String, amount: int) -> void:
+func _show_reward(kind: String, amount: int, voice_policy: StringName = &"reward_event") -> void:
 	if is_instance_valid(_reward_overlay):
 		_reward_overlay.queue_free()
 	_reward_overlay = RewardOverlayScene.instantiate()
@@ -345,6 +362,9 @@ func _show_reward(kind: String, amount: int) -> void:
 		"amount": amount,
 		"effects_service": _effects_service,
 		"ui_policy": _ui_policy,
+		"audio_service": _audio_service,
+		"voice_autoplay_allowed": _voice_autoplay_allowed(),
+		"voice_policy": voice_policy,
 	})
 	_reward_overlay.dismissed.connect(func():
 		if is_instance_valid(_reward_overlay):
@@ -354,11 +374,24 @@ func _show_reward(kind: String, amount: int) -> void:
 	add_child(_reward_overlay)
 
 func _replay_voice() -> void:
-	if _audio_service == null or not _audio_service.has_method("play_voice"):
+	if _audio_service == null or not _audio_service.has_method("toggle_voice") or not _audio_service.has_method("dialogue_for_activity"):
 		return
-	var dialogue_id: Variant = DIALOGUE_BY_GENERATOR.get(String(_question.get("generator_id", "")))
-	if dialogue_id is StringName:
-		_audio_service.play_voice(dialogue_id)
+	var dialogue_id: Variant = _audio_service.dialogue_for_activity(_activity)
+	if dialogue_id is StringName and not dialogue_id.is_empty():
+		_audio_service.toggle_voice(dialogue_id)
+
+func _offer_activity_intro_voice() -> void:
+	if _audio_service != null and _audio_service.has_method("play_policy_voice"):
+		_audio_service.play_policy_voice(&"first_activity_entry", _activity, _voice_autoplay_allowed())
+
+func _update_activity_music() -> void:
+	if _audio_service == null or not _audio_service.has_method("play_music"):
+		return
+	_audio_service.play_music(&"boss_loop" if bool(_state.get("boss_state", false)) else &"concentration_loop")
+
+func _voice_autoplay_allowed() -> bool:
+	var value: Variant = _params.get("voice_autoplay_allowed", false)
+	return value if value is bool else false
 
 func _build_ui() -> void:
 	var ui := MathlandUiScript.scaffold(self, "activity.run.title", "", true)
@@ -401,11 +434,12 @@ func _build_ui() -> void:
 	_build_introduction()
 
 func _register_tactile_descendants(parent: Node) -> void:
-	if _ui_policy == null or not _ui_policy.has_method("register_tactile"):
-		return
 	for child in parent.get_children():
 		if child is Control and child.has_signal("accepted") and "reduced_motion" in child:
-			_ui_policy.register_tactile(child)
+			if _ui_policy != null and _ui_policy.has_method("register_tactile"):
+				_ui_policy.register_tactile(child)
+			if _audio_service != null and _audio_service.has_method("play_sfx") and child.has_signal("sfx_requested"):
+				child.sfx_requested.connect(func(sfx_id: StringName): _audio_service.play_sfx(sfx_id))
 		_register_tactile_descendants(child)
 
 func _build_introduction() -> void:
