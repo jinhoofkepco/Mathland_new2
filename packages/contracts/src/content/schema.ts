@@ -23,12 +23,27 @@ const NonNegativeIntegerSchema = z.int().nonnegative();
 const SemanticVersionSchema = z.string().regex(SEMANTIC_VERSION_PATTERN, "Expected a semantic version");
 const ChecksumSchema = z.string().regex(SHA256_CHECKSUM_PATTERN, "Expected a lowercase SHA-256 checksum");
 
+function hasAtMostCodePoints(value: string, maximum: number): boolean {
+  let count = 0;
+  for (const _codePoint of value) {
+    count += 1;
+    if (count > maximum) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function trimmedText(maxLength: number) {
   return z
     .string()
     .min(1)
-    .max(maxLength)
-    .regex(NONEMPTY_TRIMMED_PATTERN, "Text must not have leading or trailing whitespace");
+    .regex(NONEMPTY_TRIMMED_PATTERN, "Text must not have leading or trailing whitespace")
+    .refine(
+      (value) => hasAtMostCodePoints(value, maxLength),
+      `Text must be at most ${maxLength} Unicode code points`,
+    )
+    .meta({ maxLength });
 }
 
 const AnswerValueV1Schema = z.discriminatedUnion("kind", [

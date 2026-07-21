@@ -46,14 +46,14 @@
             "title": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 80,
-              "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+              "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+              "maxLength": 80
             },
             "description": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 500,
-              "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+              "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+              "maxLength": 500
             },
             "tutorial_steps": {
               "minItems": 1,
@@ -62,8 +62,8 @@
               "items": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 240,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "maxLength": 240
               }
             }
           },
@@ -395,8 +395,8 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "maxLength": 128
                   },
                   {
                     "maxItems": 128,
@@ -442,8 +442,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -497,8 +497,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -532,8 +532,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -608,8 +608,8 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "maxLength": 128
                   },
                   {
                     "maxItems": 128,
@@ -655,8 +655,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -710,8 +710,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -745,8 +745,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -821,8 +821,8 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "maxLength": 128
                   },
                   {
                     "maxItems": 128,
@@ -868,8 +868,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -923,8 +923,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -958,8 +958,8 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 128,
-                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "maxLength": 128
                       },
                       {
                         "maxItems": 128,
@@ -1006,14 +1006,14 @@
         "min_band_id": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 32,
-          "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "maxLength": 32
         },
         "max_band_id": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 32,
-          "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "maxLength": 32
         },
         "window_size": {
           "type": "integer",

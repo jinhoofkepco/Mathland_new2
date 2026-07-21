@@ -164,4 +164,25 @@ describe("checked-in JSON Schemas", () => {
     expect(validate(validPackage), validationErrors(validate)).toBe(true);
     expect(validate(invalidPackage), validationErrors(validate)).toBe(false);
   });
+
+  it.each([
+    [40, true],
+    [41, true],
+    [80, true],
+    [81, false],
+  ] as const)(
+    "keeps Zod and Draft 2020-12 maxLength parity for %i astral characters",
+    async (characterCount, expectedValid) => {
+      const validate = await compileCheckedInActivitySchema();
+      const packageWithAstralTitle = makePublished();
+      packageWithAstralTitle.localizations["ko-KR"].title = "😀".repeat(characterCount);
+
+      const zodValid = ActivityPackageV1Schema.safeParse(packageWithAstralTitle).success;
+      const jsonSchemaValid = validate(packageWithAstralTitle) as boolean;
+
+      expect(zodValid).toBe(expectedValid);
+      expect(jsonSchemaValid, validationErrors(validate)).toBe(expectedValid);
+      expect(zodValid).toBe(jsonSchemaValid);
+    },
+  );
 });
