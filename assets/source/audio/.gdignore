@@ -1,0 +1,1 @@
+# Build provenance only. Godot must not import the dialogue delivery CSV as translations.

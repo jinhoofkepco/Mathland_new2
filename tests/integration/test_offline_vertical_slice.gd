@@ -33,11 +33,14 @@ class RecordingRouter extends RefCounted:
 		return true
 
 class TestAudioService extends Node:
+	var played_sfx: Array[StringName] = []
+
 	func apply_settings(_settings: Dictionary) -> bool:
 		return true
 
-	func play_sfx(_sfx_id: StringName) -> bool:
-		return false
+	func play_sfx(sfx_id: StringName) -> bool:
+		played_sfx.append(sfx_id)
+		return true
 
 	func play_voice(_dialogue_id: StringName) -> bool:
 		return false
@@ -133,6 +136,9 @@ func run(tree: SceneTree) -> void:
 		if index == 1:
 			await _assert_persisted_reward_presets(tree, activity, journal, progress)
 
+	var played_sfx: Array[StringName] = (shell.get_node("AudioService") as TestAudioService).played_sfx
+	assert_true(&"combo_1" in played_sfx, "combo feedback did not select the stronger combo sound")
+	assert_true(&"heart_loss" in played_sfx, "wrong answers did not select the heart-loss sound")
 	assert_eq(activity.current_state().health, 0)
 	assert_eq(activity.current_state().completion_reason, "health_depleted")
 	assert_eq(progress.snapshot().apples, 4)

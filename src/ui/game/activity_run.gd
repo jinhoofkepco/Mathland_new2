@@ -269,15 +269,27 @@ func _on_persistence_failed(code: String) -> void:
 	_show_error(code)
 
 func _play_answer_presentation(event: Dictionary, transition: Dictionary, correctness: bool) -> void:
-	if _audio_service != null and _audio_service.has_method("play_sfx"):
-		_audio_service.play_sfx(&"correct" if correctness else &"wrong")
 	var effect_names: Variant = transition.get("effect_names", [])
+	if _audio_service != null and _audio_service.has_method("play_sfx"):
+		_audio_service.play_sfx(_answer_sfx_id(transition, effect_names, correctness))
 	if effect_names is Array:
 		for effect_name in effect_names:
 			_play_effect(StringName(effect_name), size * 0.5)
 	var reward_delta: Variant = event.get("reward_delta", {})
 	if reward_delta is Dictionary and int(reward_delta.get("apples", 0)) > 0:
 		_show_reward("reward", int(reward_delta.apples))
+
+func _answer_sfx_id(transition: Dictionary, effect_names: Variant, correctness: bool) -> StringName:
+	if not correctness and int(transition.get("health_delta", 0)) < 0:
+		return &"heart_loss"
+	if effect_names is Array and "boss" in effect_names:
+		return &"boss"
+	var primary := StringName(transition.get("effect_name", ""))
+	if primary in [&"combo_1", &"combo_2", &"combo_3"]:
+		return primary
+	if effect_names is Array and "level_up" in effect_names:
+		return &"level_up"
+	return &"correct" if correctness else &"wrong"
 
 func present_persisted_reward_event(event: Dictionary) -> bool:
 	if not LearningEventV1Script.validate(event).is_empty() or event.get("profile_id", "") != _profile_id:
