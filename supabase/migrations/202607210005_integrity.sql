@@ -727,6 +727,13 @@ begin
     return new;
   end if;
 
+  if old.status = 'pending'
+    and new.status = 'active'
+    and new.effective_at > pg_catalog.statement_timestamp() then
+    raise exception 'publication status does not match its effective time'
+      using errcode = '23514';
+  end if;
+
   if old.status = 'pending' and new.status in ('active', 'cancelled') then
     return new;
   end if;

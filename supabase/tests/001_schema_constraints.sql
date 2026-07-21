@@ -1097,6 +1097,17 @@ select throws_ok(
 
 select throws_ok(
   $test$
+    update public.content_publications
+    set status = 'active'
+    where id = '90000000-0000-4000-8000-000000000005'
+  $test$,
+  '23514',
+  null,
+  'a pending publication cannot activate before its effective time'
+);
+
+select throws_ok(
+  $test$
     do $block$
     begin
       update public.content_publications
