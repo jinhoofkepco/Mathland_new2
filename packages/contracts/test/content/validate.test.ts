@@ -108,7 +108,6 @@ describe("activity semantic validation", () => {
       }),
     );
   });
-
   it("enforces generator-specific answer layouts on the public draft validator", () => {
     const primeDraft = makeValidDraft("prime_factorization");
     primeDraft.difficulty_bands[1]!.answer_layout = { id: "numeric_keypad" };

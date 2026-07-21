@@ -3,6 +3,7 @@ extends "res://tests/support/test_case.gd"
 const ContentContractV1 = preload("res://src/content/generated/content_contract_v1.gd")
 const ContentValidatorScript = preload("res://src/content/content_validator.gd")
 const NUMBER_VECTOR_PATH := "res://tests/fixtures/contracts/ecmascript_number_vectors.json"
+const STRICT_NUMBER_VECTOR_PATH := "res://tests/fixtures/contracts/strict_json_number_vectors.json"
 const STRING_VECTOR_PATH := "res://tests/fixtures/contracts/ecmascript_string_vectors.json"
 const PUBLISHED_PACKAGE_PATH := "res://tests/content/fixtures/minimal_valid_activity.json"
 
@@ -55,9 +56,11 @@ func run(_tree: SceneTree) -> void:
 	_test_ecmascript_unicode_corpus()
 	_test_published_package_checksum_regression()
 	_test_canonical_json_and_checksum_match_typescript()
+	_test_omitted_root_checksum_is_not_preflighted()
 	_test_ecmascript_number_to_string_regression()
 	_test_ecmascript_number_property_corpus()
 	_test_strict_json_boundary_rejects_duplicate_and_unsafe_numbers()
+	_test_strict_number_boundary_fixture()
 	_test_utf16_source_length_nesting_and_long_string_scanner()
 	_test_large_json_scan_has_linear_runtime()
 	_test_lone_surrogates_fail_closed()
@@ -232,6 +235,14 @@ func _test_canonical_json_and_checksum_match_typescript() -> void:
 	)
 	assert_eq(validator.canonical_json({"n": 9007199254740992.0}), "")
 
+func _test_omitted_root_checksum_is_not_preflighted() -> void:
+	var validator := ContentValidatorScript.new()
+	var value := {"value": 1}
+	value["checksum"] = value
+	assert_eq(validator.canonical_json(value, true), '{"value":1}')
+	assert_eq(validator.content_checksum(value), validator.content_checksum({"value": 1}))
+	assert_eq(validator.canonical_json(value), "")
+
 func _test_ecmascript_number_to_string_regression() -> void:
 	var validator := ContentValidatorScript.new()
 	var number := _float_from_hex_bits("3b1d8e556da8dd77")
@@ -256,6 +267,14 @@ func _test_ecmascript_number_property_corpus() -> void:
 			vector["canonical"],
 			"IEEE-754 bits %s" % vector["bits"]
 		)
+		var parsed: Variant = validator.parse_json('{"value":%s}' % vector["canonical"])
+		assert_true(parsed.ok, "decimal %s issues=%s" % [vector["canonical"], parsed.issues])
+		if parsed.ok:
+			assert_eq(
+				validator.canonical_json(parsed.value),
+				'{"value":%s}' % vector["canonical"],
+				"decimal %s" % vector["canonical"]
+			)
 
 func _float_from_hex_bits(bits: String) -> float:
 	var bytes := PackedByteArray()
@@ -275,6 +294,28 @@ func _test_strict_json_boundary_rejects_duplicate_and_unsafe_numbers() -> void:
 	assert_false(validator.parse_json('{"a":01}').ok)
 	assert_true(validator.parse_json('{"a":[true,null,-1.25e2],"한글":"값"}').ok)
 
+func _test_strict_number_boundary_fixture() -> void:
+	var validator := ContentValidatorScript.new()
+	var vectors: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string(STRICT_NUMBER_VECTOR_PATH)
+	)
+	assert_true(vectors is Array)
+	for vector_value in vectors:
+		var vector: Dictionary = vector_value
+		var result: Variant = validator.parse_json('{"value":%s}' % vector["source"])
+		if vector.has("error"):
+			assert_false(result.ok, vector["source"])
+			assert_eq(result.first_error_code(), vector["error"], vector["source"])
+			assert_eq(result.issues[0]["path"], ["value"], vector["source"])
+		else:
+			assert_true(result.ok, "%s issues=%s" % [vector["source"], result.issues])
+			var actual_canonical := validator.canonical_json(result.value)
+			assert_eq(
+				actual_canonical,
+				vector["canonical"],
+				"%s canonical=%s" % [vector["source"], actual_canonical]
+			)
+
 func _test_utf16_source_length_nesting_and_long_string_scanner() -> void:
 	var validator := ContentValidatorScript.new()
 	assert_eq(validator._utf16_length("A😀"), 3)
@@ -288,6 +329,17 @@ func _test_utf16_source_length_nesting_and_long_string_scanner() -> void:
 	var parsed: Variant = validator.parse_json(JSON.stringify(long_value))
 	assert_true(parsed.ok)
 	assert_eq(parsed.value, long_value)
+	var direct_value := {}
+	var cursor: Dictionary = direct_value
+	for _depth in 64:
+		var child := {}
+		cursor["child"] = child
+		cursor = child
+	assert_false(validator.canonical_json(direct_value).is_empty())
+	var too_deep_child := {}
+	cursor["child"] = too_deep_child
+	assert_eq(validator.canonical_json(direct_value), "")
+	assert_eq(validator.content_checksum(direct_value), "")
 
 func _test_large_json_scan_has_linear_runtime() -> void:
 	var validator := ContentValidatorScript.new()

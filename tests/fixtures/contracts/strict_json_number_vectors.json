@@ -1,0 +1,23 @@
+[
+  { "source": "9007199254740991", "canonical": "{\"value\":9007199254740991}" },
+  { "source": "-9007199254740991", "canonical": "{\"value\":-9007199254740991}" },
+  { "source": "9007199254740992", "error": "UNSAFE_INTEGER" },
+  { "source": "-9007199254740992", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740993", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740991.0", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740991.1", "error": "UNSAFE_INTEGER" },
+  { "source": "1.0000000000000001", "error": "UNSAFE_INTEGER" },
+  { "source": "0.9999999999999999", "canonical": "{\"value\":0.9999999999999999}" },
+  { "source": "1.5", "canonical": "{\"value\":1.5}" },
+  { "source": "123456789012345.67", "canonical": "{\"value\":123456789012345.67}" },
+  { "source": "9.007199254740991e15", "error": "UNSAFE_INTEGER" },
+  { "source": "9.007199254740992e15", "error": "UNSAFE_INTEGER" },
+  { "source": "1e309", "error": "NON_FINITE_NUMBER" },
+  { "source": "-1e309", "error": "NON_FINITE_NUMBER" },
+  { "source": "1e-324", "error": "UNSAFE_INTEGER" },
+  { "source": "5e-324", "canonical": "{\"value\":5e-324}" },
+  { "source": "2.225073858507201e-308", "canonical": "{\"value\":2.225073858507201e-308}" },
+  { "source": "2.2250738585072014e-308", "canonical": "{\"value\":2.2250738585072014e-308}" },
+  { "source": "0e999999", "canonical": "{\"value\":0}" },
+  { "source": "0.0e309", "canonical": "{\"value\":0}" }
+]

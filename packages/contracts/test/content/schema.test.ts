@@ -46,6 +46,18 @@ describe("content package schemas", () => {
     expect(ActivityPackageV1Schema.parse(published)).toEqual(published);
   });
 
+  it.each([
+    ["smallest subnormal", Number.MIN_VALUE],
+    ["largest subnormal", 2.225073858507201e-308],
+    ["smallest normal", 2.2250738585072014e-308],
+  ])("accepts the finite binary64 %s probability boundary", (_label, boundary) => {
+    const draft = makeValidDraft();
+    draft.adaptive_policy!.demote_correctness = 0;
+    draft.adaptive_policy!.promote_correctness = boundary;
+
+    expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(true);
+  });
+
   it("rejects unknown fields at every authored object boundary", () => {
     const draft = makeValidDraft() as unknown as Record<string, unknown>;
     const run = draft.run as Record<string, unknown>;
@@ -109,14 +121,25 @@ describe("content package schemas", () => {
     },
   );
 
-  it("rejects U+0000 in authored string values and parameter keys", () => {
+  it.each([
+    ["U+0000", "\u0000"],
+    ["lone high surrogate", String.fromCharCode(0xd800)],
+    ["lone low surrogate", String.fromCharCode(0xdc00)],
+    ["U+FFFD", "\ufffd"],
+  ])("rejects %s through exported draft and published Zod schemas", (_label, invalid) => {
     const valueDraft = makeValidDraft();
-    valueDraft.localizations["ko-KR"].description = "설명\u0000숨김";
+    valueDraft.localizations["ko-KR"].description = `설명${invalid}숨김`;
     const keyDraft = structuredClone(makeValidDraft());
-    keyDraft.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+    keyDraft.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = `설명${invalid}숨김`;
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
 
     expect(ActivityPackageDraftV1Schema.safeParse(valueDraft).success).toBe(false);
     expect(ActivityPackageDraftV1Schema.safeParse(keyDraft).success).toBe(false);
+    expect(ActivityPackageV1Schema.safeParse(valuePackage).success).toBe(false);
+    expect(ActivityPackageV1Schema.safeParse(keyPackage).success).toBe(false);
   });
 
   it("limits authored validation seeds to the generator uint32 domain", () => {
@@ -221,6 +244,22 @@ describe("checked-in JSON Schemas", () => {
     valuePackage.localizations["ko-KR"].description = "설명\u0000숨김";
     const keyPackage = makePublished();
     keyPackage.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(validate(valuePackage), validationErrors(validate)).toBe(false);
+    expect(validate(keyPackage), validationErrors(validate)).toBe(false);
+  });
+
+  it.each([
+    ["U+0000", "\u0000"],
+    ["lone high surrogate", String.fromCharCode(0xd800)],
+    ["lone low surrogate", String.fromCharCode(0xdc00)],
+    ["U+FFFD", "\ufffd"],
+  ])("rejects %s values and parameter keys through public Ajv schemas", async (_label, invalid) => {
+    const validate = await compileCheckedInActivitySchema();
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = `설명${invalid}숨김`;
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
 
     expect(validate(valuePackage), validationErrors(validate)).toBe(false);
     expect(validate(keyPackage), validationErrors(validate)).toBe(false);
