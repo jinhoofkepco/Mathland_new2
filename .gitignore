@@ -1,0 +1,25 @@
+# Godot generated state
+.godot/
+
+# Local builds and signing material
+builds/
+*.keystore
+*.jks
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# JavaScript dependencies and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Local Visual Companion sessions
+.superpowers/
+
+# Operating system files
+.DS_Store
