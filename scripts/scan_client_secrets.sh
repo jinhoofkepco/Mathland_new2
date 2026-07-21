@@ -4,6 +4,12 @@ set -euo pipefail
 MATHLAND_SCAN_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 MATHLAND_SCAN_REPO_ROOT="$(CDPATH= cd -- "$MATHLAND_SCAN_SCRIPT_DIR/.." && pwd)"
 MATHLAND_SCAN_TARGET="${1:-$MATHLAND_SCAN_REPO_ROOT/web/dist}"
+MATHLAND_RG_BIN="${MATHLAND_RG_BIN:-rg}"
+
+if ! command -v "$MATHLAND_RG_BIN" >/dev/null 2>&1; then
+  echo "FAIL: ripgrep is required for the client bundle scan" >&2
+  exit 1
+fi
 
 if [[ ! -e "$MATHLAND_SCAN_TARGET" ]]; then
   echo "FAIL: client bundle scan target does not exist: $MATHLAND_SCAN_TARGET" >&2
@@ -14,13 +20,13 @@ MATHLAND_SECRET_PATTERN='sb_secret_[A-Za-z0-9._-]{8,}|service[_-]?role[._-][A-Za
 MATHLAND_TOKEN_PATTERN='eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}'
 MATHLAND_DEVELOPMENT_HOST_PATTERN='https?://(?:localhost|127(?:\.[0-9]{1,3}){3}|0\.0\.0\.0|\[::1\])(?::[0-9]+)?'
 
-MATHLAND_SECRET_FINDINGS="$(rg --files-with-matches --hidden --no-ignore-vcs --pcre2 \
+MATHLAND_SECRET_FINDINGS="$("$MATHLAND_RG_BIN" --files-with-matches --hidden --no-ignore-vcs --pcre2 \
   --glob '!*.license' \
   --glob '!*.md' \
   --glob '!*.map' \
   -e "$MATHLAND_SECRET_PATTERN" \
   "$MATHLAND_SCAN_TARGET" || true)"
-MATHLAND_FIRST_PARTY_FINDINGS="$(rg --files-with-matches --hidden --no-ignore-vcs --pcre2 \
+MATHLAND_FIRST_PARTY_FINDINGS="$("$MATHLAND_RG_BIN" --files-with-matches --hidden --no-ignore-vcs --pcre2 \
   --glob '!*.license' \
   --glob '!*.md' \
   --glob '!*.map' \

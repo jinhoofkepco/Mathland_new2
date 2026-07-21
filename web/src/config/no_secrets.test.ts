@@ -30,6 +30,17 @@ describe("client secret scanner", () => {
     expect(() => execFileSync("bash", [scanner, root], { stdio: "pipe" })).not.toThrow();
   });
 
+  it("fails closed when the required scanner is unavailable", () => {
+    const root = fixture('const key="sb_publishable_example123";');
+
+    expect(() =>
+      execFileSync("bash", [scanner, root], {
+        env: { ...process.env, MATHLAND_RG_BIN: "/definitely/missing/rg" },
+        stdio: "pipe",
+      }),
+    ).toThrow();
+  });
+
   it.each([
     "sb_secret_accidental-browser-key",
     "service_role.accidental-browser-key",

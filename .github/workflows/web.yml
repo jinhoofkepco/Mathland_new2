@@ -37,8 +37,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Install audio inspection tools
-        run: sudo apt-get update && sudo apt-get install --yes ffmpeg
+      - name: Install media and bundle inspection tools
+        run: sudo apt-get update && sudo apt-get install --yes ffmpeg ripgrep
       - name: Install locked dependencies
         run: npm ci
       - name: Test shared contracts
