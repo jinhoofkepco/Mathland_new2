@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_version": "1.0.0",
+  "activity_id": "addition_ones",
+  "localizations": {"ko-KR": {"title": "덧셈 탐험", "description": "한 자리부터 큰 수까지 덧셈 감각을 키워요.", "tutorial_steps": ["식을 살펴보고 답을 입력해요.", "틀려도 하트가 남아 있으면 다시 도전할 수 있어요."]}},
+  "icon_id": "addition_ones",
+  "scene_id": "activity_run",
+  "run": {"starting_hearts": 3, "goal": {"kind": "correct_answers", "target": 10}, "timer": {"enabled": true, "seconds": 60, "profile_can_disable": true}, "rewards": {"apples_per_correct": 2, "completion_apples": 5}, "combo_thresholds": [2, 4, 7], "boss_every_correct": 5, "effects": {"correct": "correct", "wrong": "wrong", "combo": "combo_1", "boss": "boss", "level_up": "level_up", "reward": "reward", "health_loss": "health_loss"}},
+  "difficulty_bands": [
+    {"band_id": "intro", "generator_id": "addition_v1", "generator_parameters": {"operand_count": 2, "operand_min": 0, "operand_max": 9, "place_mode": "ones_digit", "carry": "forbid"}, "answer_layout": {"id": "numeric_keypad"}, "manipulative": {"id": "none", "config": {}, "initial_state": {}}},
+    {"band_id": "practice", "generator_id": "addition_v1", "generator_parameters": {"operand_count": 2, "operand_min": 10, "operand_max": 99, "place_mode": "full", "carry": "allow"}, "answer_layout": {"id": "numeric_keypad"}, "manipulative": {"id": "none", "config": {}, "initial_state": {}}},
+    {"band_id": "challenge", "generator_id": "addition_v1", "generator_parameters": {"operand_count": 3, "operand_min": 100, "operand_max": 99999, "place_mode": "full", "carry": "allow"}, "answer_layout": {"id": "numeric_keypad"}, "manipulative": {"id": "none", "config": {}, "initial_state": {}}}
+  ],
+  "adaptive_policy": {"enabled_by_default": false, "min_band_id": "intro", "max_band_id": "challenge", "window_size": 5, "promote_correctness": 0.8, "demote_correctness": 0.4},
+  "validation_samples": [
+    {"band_id":"intro","seed":1,"expected_answer":{"kind":"integer","value":6}}, {"band_id":"intro","seed":7,"expected_answer":{"kind":"integer","value":8}}, {"band_id":"intro","seed":42,"expected_answer":{"kind":"integer","value":4}}, {"band_id":"intro","seed":20260721,"expected_answer":{"kind":"integer","value":3}},
+    {"band_id":"practice","seed":1,"expected_answer":{"kind":"integer","value":78}}, {"band_id":"practice","seed":7,"expected_answer":{"kind":"integer","value":108}}, {"band_id":"practice","seed":42,"expected_answer":{"kind":"integer","value":150}}, {"band_id":"practice","seed":20260721,"expected_answer":{"kind":"integer","value":93}},
+    {"band_id":"challenge","seed":1,"expected_answer":{"kind":"integer","value":158719}}, {"band_id":"challenge","seed":7,"expected_answer":{"kind":"integer","value":246245}}, {"band_id":"challenge","seed":42,"expected_answer":{"kind":"integer","value":158239}}, {"band_id":"challenge","seed":20260721,"expected_answer":{"kind":"integer","value":167476}}
+  ]
+}
