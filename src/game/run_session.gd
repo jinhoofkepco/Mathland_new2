@@ -135,6 +135,9 @@ func snapshot() -> Dictionary:
 func session_id() -> String:
 	return _session_id
 
+func is_blocked() -> bool:
+	return _blocked
+
 func _persist_transition(transition: Variant) -> Dictionary:
 	var prepared: Variant = _controller.prepare_commit(transition)
 	if not _successful_result(prepared) or not prepared.has("event") or not prepared.event is Object or not prepared.event.has_method("to_dict"):

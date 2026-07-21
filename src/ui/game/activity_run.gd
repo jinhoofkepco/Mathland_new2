@@ -6,12 +6,16 @@ signal presentation_failed(code: String)
 const AppRouteScript = preload("res://src/app/app_route.gd")
 const RunSessionScript = preload("res://src/game/run_session.gd")
 const QuestionEngineScript = preload("res://src/content/vertical_slice_question_engine.gd")
+const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
+const SystemClockScript = preload("res://src/core/system_clock.gd")
 const TenRodBoardScene = preload("res://scenes/game/manipulatives/ten_rod_board.tscn")
 const RewardOverlayScene = preload("res://scenes/game/reward_overlay.tscn")
+const MAX_RESPONSE_DURATION_MS := 86_400_000
 
 var _journal: Variant
 var _question_engine: Variant
 var _run_session: Variant
+var _response_clock: Variant = SystemClockScript.new()
 var _activity: Dictionary = {}
 var _question: Dictionary = {}
 var _state: Dictionary = {}
@@ -21,6 +25,8 @@ var _starting_apples := 0
 var _started := false
 var _introduction_open := true
 var _submitting := false
+var _persistence_blocked := false
+var _question_presented_at_ms := -1
 var _board: Control
 var _heart_label: Label
 var _score_label: Label
@@ -33,6 +39,9 @@ func configure(params: Dictionary) -> void:
 	_journal = params.get("journal")
 	_question_engine = params.get("question_engine")
 	_run_session = params.get("run_session")
+	var response_clock: Variant = params.get("response_clock")
+	if response_clock is Object and response_clock.has_method("now_ms"):
+		_response_clock = response_clock
 	var seed_value: Variant = params.get("seed", 42)
 	_initial_seed = int(seed_value) if seed_value is int and seed_value >= 0 else 42
 	_next_seed = _initial_seed
@@ -57,6 +66,7 @@ func can_answer() -> bool:
 		_started
 		and not _introduction_open
 		and not _submitting
+		and not _persistence_blocked
 		and _state.get("status") == "running"
 		and _state.get("awaiting_answer", false)
 	)
@@ -69,10 +79,13 @@ func submit_answer(answer: Variant, response_ms: int, hints: int = 0) -> Diction
 	var result: Variant = _run_session.submit_answer(answer, response_ms, hints)
 	if not result is Dictionary:
 		_submitting = false
+		_persistence_blocked = true
 		_update_interaction()
 		return {"ok": false, "error": "invalid_session_result"}
 	if not result.get("ok", false):
 		_submitting = false
+		var explicitly_retry_safe: bool = result.get("retry_safe", null) is bool and result.retry_safe
+		_persistence_blocked = not explicitly_retry_safe or _session_is_blocked()
 		_show_error(String(result.get("error", "persistence_failed")))
 		_update_interaction()
 	return result.duplicate(false)
@@ -107,6 +120,7 @@ func _start_activity() -> void:
 		_show_error("persistence_unavailable")
 		return
 	_starting_apples = int(_snapshot().get("apples", 0))
+	_persistence_blocked = false
 	_question = _generate_question(_next_seed)
 	if _question.is_empty():
 		_show_error("question_unavailable")
@@ -137,10 +151,11 @@ func _generate_question(seed: int) -> Dictionary:
 func _present_question(question: Dictionary) -> void:
 	_question = question.duplicate(true)
 	_board.configure({"maximum": 99}, _question)
+	_question_presented_at_ms = _now_ms()
 	question_presented.emit(_question.duplicate(true))
 
 func _on_board_answer(answer: Variant) -> void:
-	submit_answer(answer, 0)
+	submit_answer(answer, _measured_response_ms())
 
 func _on_answer_committed(event: Dictionary, transition: RefCounted) -> void:
 	_state = _run_session.snapshot()
@@ -148,7 +163,7 @@ func _on_answer_committed(event: Dictionary, transition: RefCounted) -> void:
 	var transition_data: Dictionary = transition.to_dict() if transition != null and transition.has_method("to_dict") else {}
 	var correctness := bool(event.get("correctness", false))
 	_board.show_feedback(correctness)
-	_play_answer_presentation(transition_data, correctness)
+	_play_answer_presentation(event, transition_data, correctness)
 	_update_status()
 	if _state.get("status") == "running":
 		_next_seed += 1
@@ -184,16 +199,32 @@ func _on_run_completed(event: Dictionary, state: Dictionary) -> void:
 func _on_persistence_failed(code: String) -> void:
 	_show_error(code)
 
-func _play_answer_presentation(transition: Dictionary, correctness: bool) -> void:
+func _play_answer_presentation(event: Dictionary, transition: Dictionary, correctness: bool) -> void:
 	if _audio_service != null and _audio_service.has_method("play_sfx"):
 		_audio_service.play_sfx(&"correct" if correctness else &"wrong")
 	var effect_names: Variant = transition.get("effect_names", [])
 	if effect_names is Array:
 		for effect_name in effect_names:
 			_play_effect(StringName(effect_name), size * 0.5)
-	var reward_delta: Variant = transition.get("reward_delta", {})
+	var reward_delta: Variant = event.get("reward_delta", {})
 	if reward_delta is Dictionary and int(reward_delta.get("apples", 0)) > 0:
 		_show_reward("reward", int(reward_delta.apples))
+
+func present_persisted_reward_event(event: Dictionary) -> bool:
+	if not LearningEventV1Script.validate(event).is_empty() or event.get("profile_id", "") != _profile_id:
+		return false
+	var kind := ""
+	match String(event.get("event_type", "")):
+		"collection_unlocked":
+			kind = "collection"
+		"coupon_earned":
+			kind = "coupon"
+		_:
+			return false
+	if not _event_is_durable(event) or not _reward_event_is_reduced(event):
+		return false
+	_show_reward(kind, 0)
+	return true
 
 func _show_reward(kind: String, amount: int) -> void:
 	if is_instance_valid(_reward_overlay):
@@ -280,6 +311,46 @@ func _update_status() -> void:
 func _update_interaction() -> void:
 	if _board != null:
 		_board.set_interaction_enabled(can_answer())
+
+func _session_is_blocked() -> bool:
+	return _run_session != null and _run_session.has_method("is_blocked") and bool(_run_session.is_blocked())
+
+func _now_ms() -> int:
+	if _response_clock != null and _response_clock.has_method("now_ms"):
+		var value: Variant = _response_clock.now_ms()
+		if value is int and value >= 0:
+			return value
+	return maxi(Time.get_ticks_msec(), 0)
+
+func _measured_response_ms() -> int:
+	if _question_presented_at_ms < 0:
+		return 1
+	return clampi(maxi(_now_ms() - _question_presented_at_ms, 1), 1, MAX_RESPONSE_DURATION_MS)
+
+func _event_is_durable(event: Dictionary) -> bool:
+	if _journal == null or not _journal.has_method("replay"):
+		return false
+	var replayed: Variant = _journal.replay()
+	if not replayed is Dictionary or not replayed.get("ok", false) or not replayed.get("events", null) is Array:
+		return false
+	for persisted_event in replayed.events:
+		if persisted_event is Dictionary and _events_equal(persisted_event, event):
+			return true
+	return false
+
+func _reward_event_is_reduced(event: Dictionary) -> bool:
+	var progress := _snapshot()
+	match String(event.event_type):
+		"collection_unlocked":
+			return progress.get("collections", null) is Array and event.collection_id in progress.collections
+		"coupon_earned":
+			return progress.get("coupons", null) is Array and event.coupon_id in progress.coupons
+	return false
+
+func _events_equal(left: Dictionary, right: Dictionary) -> bool:
+	var normalized_left: Variant = JSON.parse_string(JSON.stringify(left))
+	var normalized_right: Variant = JSON.parse_string(JSON.stringify(right))
+	return normalized_left is Dictionary and normalized_right is Dictionary and normalized_left == normalized_right
 
 func _show_error(code: String) -> void:
 	if _error_label != null:

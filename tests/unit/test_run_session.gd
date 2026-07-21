@@ -64,6 +64,9 @@ func _test_answer_is_journaled_then_reduced_then_signalled() -> void:
 
 func _test_journal_failure_leaves_state_unchanged_and_retryable() -> void:
 	var fixture := _fixture()
+	assert_true(fixture.session.has_method("is_blocked"), "RunSession must expose its fail-stop state")
+	if fixture.session.has_method("is_blocked"):
+		assert_false(fixture.session.is_blocked())
 	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
 	fixture.operations.clear()
 	var committed_count := [0]
@@ -79,6 +82,8 @@ func _test_journal_failure_leaves_state_unchanged_and_retryable() -> void:
 	assert_eq(fixture.operations, ["journal.append"])
 	assert_eq(committed_count[0], 0)
 	assert_eq(failures, ["disk_full"])
+	if fixture.session.has_method("is_blocked"):
+		assert_false(fixture.session.is_blocked(), "an explicitly retry-safe failure blocked the session")
 	fixture.operations.clear()
 	var retry: Dictionary = fixture.session.submit_answer(999, 250, 0)
 	assert_true(retry.ok)
@@ -88,6 +93,7 @@ func _test_journal_failure_leaves_state_unchanged_and_retryable() -> void:
 
 func _test_uncertain_journal_result_is_fail_stopped() -> void:
 	var fixture := _fixture()
+	assert_true(fixture.session.has_method("is_blocked"), "RunSession must expose its fail-stop state")
 	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
 	var before: Dictionary = fixture.controller.snapshot()
 	var failures: Array[String] = []
@@ -99,6 +105,8 @@ func _test_uncertain_journal_result_is_fail_stopped() -> void:
 	assert_eq(fixture.journal.events.size(), 2, "uncertain append did not preserve its durable artifact")
 	assert_eq(fixture.controller.snapshot(), before)
 	assert_eq(failures, ["invalid_journal_result"])
+	if fixture.session.has_method("is_blocked"):
+		assert_true(fixture.session.is_blocked(), "an uncertain durable append was not marked fail-stopped")
 	assert_eq(fixture.session.submit_answer(fixture.question.correct_answer, 100, 0).get("error", ""), "persistence_blocked")
 
 func _test_fail_stop_blocks_reentrant_and_later_run_start() -> void:
