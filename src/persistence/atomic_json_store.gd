@@ -79,10 +79,14 @@ func load(path: String) -> Dictionary:
 	if json.parse(content) != OK:
 		var quarantine_path := "%s.corrupt" % final_path
 		if FileAccess.file_exists(quarantine_path):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(quarantine_path))
-		DirAccess.rename_absolute(
+			var remove_quarantine_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(quarantine_path))
+			if remove_quarantine_error != OK:
+				return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
+		var quarantine_error := DirAccess.rename_absolute(
 			ProjectSettings.globalize_path(final_path), ProjectSettings.globalize_path(quarantine_path)
 		)
+		if quarantine_error != OK:
+			return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
 		return {"ok": false, "error": "invalid_json", "quarantine_path": quarantine_path}
 	return {"ok": true, "value": json.data}
 
