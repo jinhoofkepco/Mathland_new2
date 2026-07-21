@@ -27,9 +27,9 @@ export interface CreatePairingRepository {
 export type PairingClaimOutcome =
   | {
     outcome: "paired";
-    deviceId: string;
+    deviceBindingId: string;
     familyId: string;
-    profileId: string;
+    cloudProfileId: string;
     profileLocalId: string;
   }
   | {
@@ -47,7 +47,9 @@ export type ClaimChallengeInput = {
   digest: Uint8Array;
   deviceAuthUserId: string;
   deviceIdentifier: string;
+  profileLocalId: string;
   displayName: string;
+  networkDigest: Uint8Array;
 };
 
 export interface PairDeviceRepository {
@@ -279,7 +281,9 @@ export class SupabaseFunctionRepository
       challenge_digest: `\\x${hex(input.digest)}`,
       device_auth_user_id: input.deviceAuthUserId,
       device_identifier: input.deviceIdentifier,
+      profile_local_identifier: input.profileLocalId,
       device_display_name: input.displayName,
+      network_fingerprint: `\\x${hex(input.networkDigest)}`,
     });
     const row = result[0];
     if (row === undefined || typeof row.outcome !== "string") {
@@ -294,9 +298,9 @@ export class SupabaseFunctionRepository
       }
       return {
         outcome: "paired",
-        deviceId: row.device_id,
+        deviceBindingId: row.device_id,
         familyId: row.family_id,
-        profileId: row.profile_id,
+        cloudProfileId: row.profile_id,
         profileLocalId: row.profile_local_id,
       };
     }

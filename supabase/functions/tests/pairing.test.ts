@@ -4,6 +4,11 @@ import {
 } from "../create-pairing-code/index.ts";
 import { pairDevice, type PairDeviceDependencies } from "../pair-device/index.ts";
 import { SupabaseAuthVerifier } from "../_shared/auth.ts";
+import { pairingNetworkDigest } from "../_shared/network.ts";
+import {
+  DevicePairingResultSchema,
+  PairingCodeResultSchema,
+} from "../../../packages/contracts/src/cloud/wire.ts";
 
 const ORIGIN = "https://jinhoofkepco.github.io";
 const NOW = new Date("2026-07-22T03:00:00.000Z");
@@ -13,6 +18,8 @@ const PROFILE_ID = "20000000-0000-4000-8000-000000000101";
 const FAMILY_ID = "10000000-0000-4000-8000-000000000101";
 const PAIRING_ID = "30000000-0000-4000-8000-000000000101";
 const DEVICE_ROW_ID = "40000000-0000-4000-8000-000000000101";
+const PROFILE_LOCAL_ID = "profile-pairing";
+const CLIENT_IP = "203.0.113.42";
 const SECRET = "test-only-pairing-hmac-secret-at-least-32-bytes";
 
 function assert(condition: unknown, message = "assertion failed"): asserts condition {
@@ -36,8 +43,11 @@ function bearerRequest(path: string, body: unknown, origin = ORIGIN): Request {
     method: "POST",
     headers: {
       authorization: "Bearer valid-token",
+      apikey: "sb_publishable_test",
       "content-type": "application/json",
+      "cf-connecting-ip": CLIENT_IP,
       origin,
+      "x-client-info": "supabase-js-web/2.test",
     },
     body: JSON.stringify(body),
   });
@@ -83,10 +93,10 @@ function deviceDependencies(
       claimChallenge: () =>
         Promise.resolve({
           outcome: "paired" as const,
-          deviceId: DEVICE_ROW_ID,
+          deviceBindingId: DEVICE_ROW_ID,
           familyId: FAMILY_ID,
-          profileId: PROFILE_ID,
-          profileLocalId: "profile-pairing",
+          cloudProfileId: PROFILE_ID,
+          profileLocalId: PROFILE_LOCAL_ID,
         }),
     },
     requestId: () => "request-pair",
@@ -161,7 +171,7 @@ Deno.test("create pairing code requires a bearer token", async () => {
     new Request("http://localhost/functions/v1/create-pairing-code", {
       method: "POST",
       headers: { "content-type": "application/json", origin: ORIGIN },
-      body: JSON.stringify({ profile_id: PROFILE_ID }),
+      body: JSON.stringify({ profileId: PROFILE_ID }),
     }),
     deps,
   );
@@ -176,7 +186,7 @@ Deno.test("create pairing code requires a bearer token", async () => {
 
 Deno.test("create pairing code rejects anonymous device identities", async () => {
   const response = await createPairingCode(
-    bearerRequest("create-pairing-code", { profile_id: PROFILE_ID }),
+    bearerRequest("create-pairing-code", { profileId: PROFILE_ID }),
     guardianDependencies({
       auth: {
         verifyBearer: () => Promise.resolve({ id: DEVICE_USER_ID, isAnonymous: true }),
@@ -198,7 +208,7 @@ Deno.test("create pairing code stores only an HMAC digest and expires in ten min
     }
     | undefined;
   const response = await createPairingCode(
-    bearerRequest("create-pairing-code", { profile_id: PROFILE_ID }),
+    bearerRequest("create-pairing-code", { profileId: PROFILE_ID }),
     guardianDependencies({
       repository: {
         createChallenge: (input) => {
@@ -211,9 +221,9 @@ Deno.test("create pairing code stores only an HMAC digest and expires in ten min
   const payload = await json(response);
 
   assertEquals(response.status, 201);
-  assertEquals(payload.code, "123456");
-  assertEquals(payload.expires_at, "2026-07-22T03:10:00.000Z");
-  assertEquals(payload.request_id, "request-create");
+  assertEquals(payload, { code: "123456", expiresAt: "2026-07-22T03:10:00.000Z" });
+  assert(PairingCodeResultSchema.safeParse(payload).success);
+  assertEquals(response.headers.get("x-request-id"), "request-create");
   assert(captured !== undefined);
   assertEquals(captured.profileId, PROFILE_ID);
   assertEquals(captured.actorUserId, GUARDIAN_ID);
@@ -236,7 +246,7 @@ Deno.test("create pairing code stores only an HMAC digest and expires in ten min
 
 Deno.test("create pairing code returns a permission diagnostic without database detail", async () => {
   const response = await createPairingCode(
-    bearerRequest("create-pairing-code", { profile_id: PROFILE_ID }),
+    bearerRequest("create-pairing-code", { profileId: PROFILE_ID }),
     guardianDependencies({
       repository: {
         createChallenge: () => Promise.reject({ code: "42501", message: "secret row detail" }),
@@ -255,8 +265,9 @@ Deno.test("pair device requires an anonymous Auth identity", async () => {
   const response = await pairDevice(
     bearerRequest("pair-device", {
       code: "123456",
-      device_id: "device-pairing",
-      display_name: "MathLand Android",
+      deviceId: "device-pairing",
+      profileLocalId: PROFILE_LOCAL_ID,
+      displayName: "MathLand Android",
     }),
     deviceDependencies({
       auth: {
@@ -277,8 +288,9 @@ Deno.test("pair device rejects a blank display name before repository access", a
   const response = await pairDevice(
     bearerRequest("pair-device", {
       code: "123456",
-      device_id: "device-pairing",
-      display_name: "   ",
+      deviceId: "device-pairing",
+      profileLocalId: PROFILE_LOCAL_ID,
+      displayName: "   ",
     }),
     deviceDependencies({
       repository: {
@@ -304,14 +316,17 @@ Deno.test("pair device hashes the code and returns only non-sensitive binding id
       digest: Uint8Array;
       deviceAuthUserId: string;
       deviceIdentifier: string;
+      profileLocalId: string;
       displayName: string;
+      networkDigest: Uint8Array;
     }
     | undefined;
   const response = await pairDevice(
     bearerRequest("pair-device", {
       code: "123456",
-      device_id: "device-pairing",
-      display_name: "My phone",
+      deviceId: "device-pairing",
+      profileLocalId: PROFILE_LOCAL_ID,
+      displayName: "My phone",
     }),
     deviceDependencies({
       repository: {
@@ -319,10 +334,10 @@ Deno.test("pair device hashes the code and returns only non-sensitive binding id
           captured = input;
           return Promise.resolve({
             outcome: "paired",
-            deviceId: DEVICE_ROW_ID,
+            deviceBindingId: DEVICE_ROW_ID,
             familyId: FAMILY_ID,
-            profileId: PROFILE_ID,
-            profileLocalId: "profile-pairing",
+            cloudProfileId: PROFILE_ID,
+            profileLocalId: PROFILE_LOCAL_ID,
           });
         },
       },
@@ -332,25 +347,39 @@ Deno.test("pair device hashes the code and returns only non-sensitive binding id
 
   assertEquals(response.status, 200);
   assertEquals(payload, {
-    device_id: DEVICE_ROW_ID,
-    family_id: FAMILY_ID,
-    profile_id: PROFILE_ID,
-    profile_local_id: "profile-pairing",
-    request_id: "request-pair",
+    deviceBindingId: DEVICE_ROW_ID,
+    familyId: FAMILY_ID,
+    cloudProfileId: PROFILE_ID,
+    profileLocalId: PROFILE_LOCAL_ID,
   });
+  assert(DevicePairingResultSchema.safeParse(payload).success);
+  assertEquals(response.headers.get("x-request-id"), "request-pair");
   assert(captured !== undefined);
   assertEquals(captured.deviceAuthUserId, DEVICE_USER_ID);
   assertEquals(captured.deviceIdentifier, "device-pairing");
+  assertEquals(captured.profileLocalId, PROFILE_LOCAL_ID);
   assertEquals(captured.displayName, "My phone");
   assertEquals(captured.digest.byteLength, 32);
+  assertEquals(captured.networkDigest.byteLength, 32);
+  assert(!new TextDecoder().decode(captured.networkDigest).includes(CLIENT_IP));
 });
 
-for (const outcome of ["missing", "expired", "used", "wrong"] as const) {
+for (
+  const outcome of [
+    "missing",
+    "expired",
+    "used",
+    "wrong",
+    "pairing_code_invalid",
+    "device_already_paired",
+  ] as const
+) {
   Deno.test(`pair device hides the ${outcome} code state`, async () => {
     const response = await pairDevice(
       bearerRequest("pair-device", {
         code: "123456",
-        device_id: "device-pairing",
+        deviceId: "device-pairing",
+        profileLocalId: PROFILE_LOCAL_ID,
       }),
       deviceDependencies({
         repository: {
@@ -362,30 +391,19 @@ for (const outcome of ["missing", "expired", "used", "wrong"] as const) {
 
     assertEquals(response.status, 400);
     assertEquals((payload.error as Record<string, unknown>).code, "pairing_code_invalid");
-    assert(!JSON.stringify(payload).includes(outcome));
+    if (outcome !== "pairing_code_invalid") {
+      assert(!JSON.stringify(payload).includes(outcome));
+    }
   });
 }
 
-Deno.test("pair device rejects a second profile binding", async () => {
-  const response = await pairDevice(
-    bearerRequest("pair-device", { code: "123456", device_id: "device-pairing" }),
-    deviceDependencies({
-      repository: {
-        claimChallenge: () => Promise.resolve({ outcome: "device_already_paired" }),
-      },
-    }),
-  );
-
-  assertEquals(response.status, 409);
-  assertEquals(
-    ((await json(response)).error as Record<string, unknown>).code,
-    "device_already_paired",
-  );
-});
-
 Deno.test("pair device returns a stable rate-limit diagnostic", async () => {
   const response = await pairDevice(
-    bearerRequest("pair-device", { code: "123456", device_id: "device-pairing" }),
+    bearerRequest("pair-device", {
+      code: "123456",
+      deviceId: "device-pairing",
+      profileLocalId: PROFILE_LOCAL_ID,
+    }),
     deviceDependencies({
       repository: {
         claimChallenge: () => Promise.resolve({ outcome: "rate_limited" }),
@@ -403,7 +421,11 @@ Deno.test("pair device returns a stable rate-limit diagnostic", async () => {
 
 Deno.test("pair device fails closed when the persistent claim boundary is unavailable", async () => {
   const response = await pairDevice(
-    bearerRequest("pair-device", { code: "123456", device_id: "device-pairing" }),
+    bearerRequest("pair-device", {
+      code: "123456",
+      deviceId: "device-pairing",
+      profileLocalId: PROFILE_LOCAL_ID,
+    }),
     deviceDependencies({
       repository: {
         claimChallenge: () => Promise.reject(new Error("database offline\nsecret stack")),
@@ -423,7 +445,7 @@ Deno.test("pairing handlers deny an origin outside the explicit allowlist", asyn
   const response = await createPairingCode(
     bearerRequest(
       "create-pairing-code",
-      { profile_id: PROFILE_ID },
+      { profileId: PROFILE_ID },
       "https://attacker.invalid",
     ),
     guardianDependencies(),
@@ -441,12 +463,120 @@ Deno.test("pairing preflight reflects only an explicitly allowed origin", async 
   const response = await pairDevice(
     new Request("http://localhost/functions/v1/pair-device", {
       method: "OPTIONS",
-      headers: { origin: ORIGIN, "access-control-request-method": "POST" },
+      headers: {
+        origin: ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers":
+          "authorization, apikey, content-type, x-client-info, x-request-id",
+      },
     }),
     deviceDependencies(),
   );
 
   assertEquals(response.status, 204);
   assertEquals(response.headers.get("access-control-allow-origin"), ORIGIN);
+  assertEquals(
+    response.headers.get("access-control-allow-headers"),
+    "authorization, apikey, content-type, x-client-info, x-request-id",
+  );
   assertEquals(response.headers.get("vary"), "Origin");
+});
+
+Deno.test("pairing request bodies reject legacy snake_case aliases", async () => {
+  const guardian = await createPairingCode(
+    bearerRequest("create-pairing-code", { profile_id: PROFILE_ID }),
+    guardianDependencies(),
+  );
+  const device = await pairDevice(
+    bearerRequest("pair-device", {
+      code: "123456",
+      device_id: "device-pairing",
+      profile_local_id: PROFILE_LOCAL_ID,
+    }),
+    deviceDependencies(),
+  );
+
+  assertEquals(guardian.status, 400);
+  assertEquals(device.status, 400);
+});
+
+Deno.test("pair device fails closed without the gateway client address", async () => {
+  let called = false;
+  const response = await pairDevice(
+    new Request("http://localhost/functions/v1/pair-device", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer valid-token",
+        "content-type": "application/json",
+        origin: ORIGIN,
+      },
+      body: JSON.stringify({
+        code: "123456",
+        deviceId: "device-pairing",
+        profileLocalId: PROFILE_LOCAL_ID,
+      }),
+    }),
+    deviceDependencies({
+      repository: {
+        claimChallenge: () => {
+          called = true;
+          return Promise.reject(new Error("must not be called"));
+        },
+      },
+    }),
+  );
+
+  assertEquals(response.status, 503);
+  assertEquals(called, false);
+  assertEquals(
+    ((await json(response)).error as Record<string, unknown>).code,
+    "pairing_network_unavailable",
+  );
+});
+
+Deno.test("network fingerprint trusts the gateway address and ignores forwarded spoofing", async () => {
+  const spoofed = await pairingNetworkDigest(
+    SECRET,
+    new Request("http://localhost", {
+      headers: {
+        "cf-connecting-ip": CLIENT_IP,
+        "x-forwarded-for": "198.51.100.9",
+      },
+    }),
+  );
+  const direct = await pairingNetworkDigest(
+    SECRET,
+    new Request("http://localhost", {
+      headers: {
+        "cf-connecting-ip": CLIENT_IP,
+        "x-forwarded-for": "192.0.2.7",
+      },
+    }),
+  );
+  const other = await pairingNetworkDigest(
+    SECRET,
+    new Request("http://localhost", {
+      headers: { "cf-connecting-ip": "198.51.100.9" },
+    }),
+  );
+
+  assertEquals(Array.from(spoofed), Array.from(direct));
+  assert(JSON.stringify(Array.from(spoofed)) !== JSON.stringify(Array.from(other)));
+});
+
+Deno.test("network fingerprint rejects a caller-provided forwarded address without gateway metadata", async () => {
+  let code = "";
+  try {
+    await pairingNetworkDigest(
+      SECRET,
+      new Request("http://localhost", {
+        headers: { "x-forwarded-for": CLIENT_IP },
+      }),
+    );
+  } catch (error) {
+    code = typeof error === "object" && error !== null && "diagnostic" in error
+      ? String((error.diagnostic as Record<string, unknown>).code)
+      : "unexpected";
+  }
+  assertEquals(code, "pairing_network_unavailable");
 });

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   CloudUuidSchema,
+  CreatePairingCodeRequestSchema,
+  DevicePairingRequestSchema,
   PublicationReasonSchema,
   SaveDraftInputSchema,
 } from "../../../packages/contracts/src/cloud/wire.ts";
@@ -10,19 +12,11 @@ import {
 } from "../../../packages/contracts/src/events/learning_event_v1.ts";
 import { HttpDiagnosticError } from "./http.ts";
 
-const nonemptyBoundedText = (maximum: number) => z.string().trim().min(1).max(maximum);
-
-export const CreatePairingCodeRequestSchema = z.strictObject({
-  profile_id: z.string().uuid(),
-});
-
-export const PairDeviceRequestSchema = z.strictObject({
-  code: z.string().regex(/^\d{6}$/),
-  device_id: nonemptyBoundedText(128),
-  display_name: nonemptyBoundedText(80).optional(),
-});
-
-export { SaveDraftInputSchema };
+export {
+  CreatePairingCodeRequestSchema,
+  DevicePairingRequestSchema as PairDeviceRequestSchema,
+  SaveDraftInputSchema,
+};
 
 export const ValidateDraftRequestSchema = z.strictObject({
   draftId: CloudUuidSchema,

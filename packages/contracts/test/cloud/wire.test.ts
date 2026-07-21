@@ -4,6 +4,9 @@ import {
   ChildProfileRowSchema,
   ContentPublicationHistoryItemSchema,
   CreateGuardianRewardInputSchema,
+  CreatePairingCodeRequestSchema,
+  DevicePairingRequestSchema,
+  DevicePairingResultSchema,
   DuePublicationBatchLimitSchema,
   FamilyMembershipRowSchema,
   GuardianRewardProjectionRowSchema,
@@ -13,6 +16,37 @@ import {
 } from "../../src/cloud/wire.js";
 
 describe("cloud wire contracts", () => {
+  it("keeps guardian and device pairing identities explicit and camelCase", () => {
+    expect(
+      CreatePairingCodeRequestSchema.parse({
+        profileId: "20000000-0000-4000-8000-000000000001",
+      }),
+    ).toEqual({ profileId: "20000000-0000-4000-8000-000000000001" });
+    expect(
+      DevicePairingRequestSchema.parse({
+        code: "123456",
+        deviceId: "android-installation-1",
+        profileLocalId: "local-child-1",
+        displayName: "아이 휴대폰",
+      }),
+    ).toHaveProperty("profileLocalId", "local-child-1");
+    expect(
+      DevicePairingResultSchema.parse({
+        deviceBindingId: "40000000-0000-4000-8000-000000000001",
+        familyId: "10000000-0000-4000-8000-000000000001",
+        cloudProfileId: "20000000-0000-4000-8000-000000000001",
+        profileLocalId: "local-child-1",
+      }),
+    ).toHaveProperty("cloudProfileId", "20000000-0000-4000-8000-000000000001");
+    expect(() =>
+      DevicePairingRequestSchema.parse({
+        code: "123456",
+        device_id: "android-installation-1",
+        profile_id: "local-child-1",
+      })
+    ).toThrow();
+  });
+
   it("accepts a strict family membership projection", () => {
     expect(
       FamilyMembershipRowSchema.parse({
@@ -32,7 +66,7 @@ describe("cloud wire contracts", () => {
         family_id: "different-family",
         nickname: null,
         devices: [{ last_sync_at: 7 }],
-      }),
+      })
     ).toThrow();
   });
 
@@ -42,7 +76,7 @@ describe("cloud wire contracts", () => {
         status: "authenticated",
         userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
         role: "admin",
-      }),
+      })
     ).toThrow();
   });
 
@@ -68,7 +102,7 @@ describe("cloud wire contracts", () => {
         created_at: "2026-07-22T01:02:03Z",
         claimed_at: null,
         created_by: "00000000-0000-4000-8000-000000000001",
-      }),
+      })
     ).toThrow();
 
     expect(
@@ -85,7 +119,7 @@ describe("cloud wire contracts", () => {
         title: "현금",
         requiredApples: Number.MAX_SAFE_INTEGER + 1,
         status: "claimed",
-      }),
+      })
     ).toThrow();
   });
 
@@ -116,6 +150,7 @@ describe("cloud wire contracts", () => {
     };
     expect(ContentPublicationHistoryItemSchema.parse(row)).toEqual(row);
     expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, package: {} })).toThrow();
-    expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, checksum: "sha256:bad" })).toThrow();
+    expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, checksum: "sha256:bad" }))
+      .toThrow();
   });
 });

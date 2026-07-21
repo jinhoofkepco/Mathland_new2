@@ -6,9 +6,10 @@ import {
   knownDiagnostic,
   prepareRequest,
   readJson,
-  successResponse,
   unexpectedError,
+  wireResponse,
 } from "../_shared/http.ts";
+import { pairingNetworkDigest } from "../_shared/network.ts";
 import { createSupabaseFunctionRuntime, type PairDeviceRepository } from "../_shared/supabase.ts";
 
 export type PairDeviceDependencies = {
@@ -45,21 +46,23 @@ export async function pairDevice(
     }
 
     const digest = await hmacPairingCode(dependencies.pairingSecret, parsed.data.code);
+    const networkDigest = await pairingNetworkDigest(dependencies.pairingSecret, request);
     const result = await dependencies.repository.claimChallenge({
       digest,
       deviceAuthUserId: identity.id,
-      deviceIdentifier: parsed.data.device_id,
-      displayName: parsed.data.display_name ?? "MathLand Android",
+      deviceIdentifier: parsed.data.deviceId,
+      profileLocalId: parsed.data.profileLocalId,
+      displayName: parsed.data.displayName ?? "MathLand Android",
+      networkDigest,
     });
     if (result.outcome === "paired") {
-      return successResponse(
-        context.requestId,
+      return wireResponse(
         200,
         {
-          device_id: result.deviceId,
-          family_id: result.familyId,
-          profile_id: result.profileId,
-          profile_local_id: result.profileLocalId,
+          deviceBindingId: result.deviceBindingId,
+          familyId: result.familyId,
+          cloudProfileId: result.cloudProfileId,
+          profileLocalId: result.profileLocalId,
         },
         context.headers,
       );
@@ -72,18 +75,6 @@ export async function pairDevice(
           code: "pairing_rate_limited",
           message: "잠시 후 다시 시도해 주세요.",
           retryable: true,
-        },
-        context.headers,
-      );
-    }
-    if (result.outcome === "device_already_paired") {
-      return errorResponse(
-        context.requestId,
-        409,
-        {
-          code: "device_already_paired",
-          message: "이 기기는 이미 다른 프로필과 연결되어 있습니다.",
-          retryable: false,
         },
         context.headers,
       );

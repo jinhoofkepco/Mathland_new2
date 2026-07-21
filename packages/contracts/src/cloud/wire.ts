@@ -156,6 +156,27 @@ export const PairingCodeResultSchema = z.strictObject({
 });
 export type PairingCodeResult = z.infer<typeof PairingCodeResultSchema>;
 
+export const CreatePairingCodeRequestSchema = z.strictObject({
+  profileId: CloudUuidSchema,
+});
+export type CreatePairingCodeRequest = z.infer<typeof CreatePairingCodeRequestSchema>;
+
+export const DevicePairingRequestSchema = z.strictObject({
+  code: z.string().regex(/^[0-9]{6}$/),
+  deviceId: z.string().trim().min(1).max(128),
+  profileLocalId: z.string().trim().min(1).max(128),
+  displayName: z.string().trim().min(1).max(80).optional(),
+});
+export type DevicePairingRequest = z.infer<typeof DevicePairingRequestSchema>;
+
+export const DevicePairingResultSchema = z.strictObject({
+  deviceBindingId: CloudUuidSchema,
+  familyId: CloudUuidSchema,
+  cloudProfileId: CloudUuidSchema,
+  profileLocalId: z.string().min(1).max(128),
+});
+export type DevicePairingResult = z.infer<typeof DevicePairingResultSchema>;
+
 export const GuardianRewardStatusSchema = z.enum([
   "available",
   "claimed",

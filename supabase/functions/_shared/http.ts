@@ -60,7 +60,10 @@ export function prepareRequest(
     }
     headers.set("access-control-allow-origin", origin);
     headers.set("access-control-allow-methods", "POST, OPTIONS");
-    headers.set("access-control-allow-headers", "authorization, content-type, x-request-id");
+    headers.set(
+      "access-control-allow-headers",
+      "authorization, apikey, content-type, x-client-info, x-request-id",
+    );
     headers.set("access-control-max-age", "600");
     headers.set("vary", "Origin");
   }

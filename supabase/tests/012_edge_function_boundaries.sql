@@ -53,7 +53,7 @@ select results_eq(
       decode(repeat('00', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('pairing_code_invalid'::text)$$,
   'first wrong code returns a generic invalid result'
@@ -64,7 +64,7 @@ select results_eq(
       decode(repeat('01', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('pairing_code_invalid'::text)$$,
   'second wrong code remains generic'
@@ -75,7 +75,7 @@ select results_eq(
       decode(repeat('02', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('pairing_code_invalid'::text)$$,
   'third wrong code remains generic'
@@ -86,7 +86,7 @@ select results_eq(
       decode(repeat('03', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('pairing_code_invalid'::text)$$,
   'fourth wrong code remains generic'
@@ -97,7 +97,7 @@ select results_eq(
       decode(repeat('04', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('pairing_code_invalid'::text)$$,
   'fifth wrong code remains generic'
@@ -108,7 +108,7 @@ select results_eq(
       decode(repeat('ab', 32), 'hex'),
       '00000000-0000-4000-8000-000000000202',
       'rate-limited-device',
-      'Rate limited device'
+      'edge-profile-one', 'Rate limited device', decode(repeat('10', 32), 'hex')
     )$$,
   $$values ('rate_limited'::text)$$,
   'the sixth claim fails closed even when the code is correct'
@@ -121,8 +121,8 @@ select is(
     where actor_id = '00000000-0000-4000-8000-000000000202'
       and action = 'pairing_claim_attempted'
   ),
-  6::bigint,
-  'every rate-limit decision is persisted as an audit fact'
+  5::bigint,
+  'only bounded admitted attempts are persisted as audit facts'
 );
 set local role service_role;
 
@@ -136,7 +136,7 @@ select results_eq(
       decode(repeat('ab', 32), 'hex'),
       '00000000-0000-4000-8000-000000000203',
       'edge-device',
-      'MathLand Android'
+      'edge-profile-one', 'MathLand Android', decode(repeat('20', 32), 'hex')
     )$$,
   $$values (
     'paired'::text,
@@ -162,10 +162,10 @@ select results_eq(
       decode(repeat('cd', 32), 'hex'),
       '00000000-0000-4000-8000-000000000203',
       'edge-device-two',
-      'Second profile attempt'
+      'edge-profile-two', 'Second profile attempt', decode(repeat('21', 32), 'hex')
     )$$,
-  $$values ('device_already_paired'::text)$$,
-  'one anonymous identity cannot bind a second profile'
+  $$values ('pairing_code_invalid'::text)$$,
+  'one anonymous identity cannot bind a second profile or reveal a code match'
 );
 
 select is(
@@ -199,7 +199,7 @@ reset role;
 select function_privs_are(
   'public',
   'claim_device_pairing_for_service',
-  array['bytea', 'uuid', 'text', 'text'],
+  array['bytea', 'uuid', 'text', 'text', 'text', 'bytea'],
   'service_role',
   array['EXECUTE'],
   'service role alone receives the atomic claim boundary'
@@ -207,7 +207,7 @@ select function_privs_are(
 select function_privs_are(
   'public',
   'claim_device_pairing_for_service',
-  array['bytea', 'uuid', 'text', 'text'],
+  array['bytea', 'uuid', 'text', 'text', 'text', 'bytea'],
   'anon',
   array[]::text[],
   'anonymous SQL role cannot execute the service boundary directly'

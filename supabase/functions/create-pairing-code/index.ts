@@ -10,8 +10,8 @@ import {
   knownDiagnostic,
   prepareRequest,
   readJson,
-  successResponse,
   unexpectedError,
+  wireResponse,
 } from "../_shared/http.ts";
 import {
   type CreatePairingRepository,
@@ -71,18 +71,13 @@ export async function createPairingCode(
     const digest = await hmacPairingCode(dependencies.pairingSecret, code);
     const expiresAt = new Date(dependencies.clock.now().getTime() + 10 * 60 * 1000);
     await dependencies.repository.createChallenge({
-      profileId: parsed.data.profile_id,
+      profileId: parsed.data.profileId,
       digest,
       expiresAt,
       actorUserId: identity.id,
     });
 
-    return successResponse(
-      context.requestId,
-      201,
-      { code, expires_at: expiresAt.toISOString() },
-      context.headers,
-    );
+    return wireResponse(201, { code, expiresAt: expiresAt.toISOString() }, context.headers);
   } catch (error) {
     const diagnostic = knownDiagnostic(error);
     if (diagnostic !== undefined) {
