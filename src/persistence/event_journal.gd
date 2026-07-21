@@ -26,8 +26,9 @@ func configure(profile_id: String, device_id: String, path: String) -> Dictionar
 	_next_sequence = 1
 	if _recover_interrupted_corrupt_artifact() != OK:
 		return {"ok": false, "error": "tail_recovery_failed"}
-	if _recover_interrupted_quarantine() != OK:
-		return {"ok": false, "error": "tail_recovery_failed"}
+	var interrupted_recovery := _recover_interrupted_quarantine()
+	if not interrupted_recovery.get("ok", false):
+		return interrupted_recovery
 	var replayed := replay()
 	if not replayed.get("ok", false):
 		return replayed
@@ -183,9 +184,9 @@ func _quarantine_tail(events: Array[Dictionary], prefix: PackedByteArray, tail: 
 		return {"ok": false, "error": "tail_quarantine_failed"}
 	return {"ok": true, "events": events, "quarantined_tail": true}
 
-func _recover_interrupted_quarantine() -> Error:
+func _recover_interrupted_quarantine() -> Dictionary:
 	if _path.is_empty():
-		return OK
+		return {"ok": true}
 	var auxiliary_paths := [
 		"%s%s" % [_path, RECOVERY_TEMP_SUFFIX],
 		"%s%s" % [_path, RECOVERY_BACKUP_SUFFIX],
@@ -200,11 +201,12 @@ func _recover_interrupted_quarantine() -> Error:
 			has_auxiliary = true
 			break
 	if not has_auxiliary:
-		return OK
+		return {"ok": true}
 	var ordered_paths: Array[String] = [_path]
 	for path in auxiliary_paths:
 		ordered_paths.append(path)
 	var selected := {}
+	var has_scope_mismatch := false
 	for precedence in ordered_paths.size():
 		var path := ordered_paths[precedence]
 		if not _file_exists(path):
@@ -212,11 +214,17 @@ func _recover_interrupted_quarantine() -> Error:
 		var candidate := _journal_candidate(path)
 		candidate["path"] = path
 		candidate["precedence"] = precedence
+		if candidate.get("error", "") == "scope_mismatch":
+			has_scope_mismatch = true
 		if _candidate_is_better(candidate, selected):
 			selected = candidate
 	if not selected.get("valid", false):
-		return FAILED
-	return _promote_journal_candidate(selected.path, auxiliary_paths)
+		return {"ok": false, "error": "tail_recovery_failed"}
+	if selected.get("event_count", 0) == 0 and has_scope_mismatch:
+		return {"ok": false, "error": "scope_mismatch"}
+	if _promote_journal_candidate(selected.path, auxiliary_paths) != OK:
+		return {"ok": false, "error": "tail_recovery_failed"}
+	return {"ok": true}
 
 func _recover_interrupted_corrupt_artifact() -> Error:
 	if _path.is_empty():
@@ -269,7 +277,7 @@ func _journal_candidate(path: String) -> Dictionary:
 		return {"valid": true, "event_count": 0, "last_sequence": 0, "complete": true}
 	var inspected := _replay_bytes(content, false)
 	if not inspected.get("ok", false):
-		return {"valid": false}
+		return {"valid": false, "error": inspected.get("error", "invalid_candidate")}
 	var events: Array[Dictionary] = inspected.events
 	var last_sequence := 0 if events.is_empty() else int(events[-1].sequence)
 	return {
@@ -340,6 +348,11 @@ func _reconcile_failed_append(before: PackedByteArray, output: PackedByteArray, 
 	if actual == committed:
 		_next_sequence += 1
 		return {"ok": true, "event": event}
+	if not output.is_empty() and output[-1] == 0x0a:
+		var committed_without_newline := committed.slice(0, committed.size() - 1)
+		if actual == committed_without_newline:
+			_next_sequence += 1
+			return {"ok": true, "event": event}
 	if actual == before:
 		return {"ok": false, "error": "journal_write_failed"}
 	if _bytes_start_with(actual, before):
