@@ -108,6 +108,28 @@ describe("activity semantic validation", () => {
       }),
     );
   });
+
+  it("enforces generator-specific answer layouts on the public draft validator", () => {
+    const primeDraft = makeValidDraft("prime_factorization");
+    primeDraft.difficulty_bands[1]!.answer_layout = { id: "numeric_keypad" };
+    const primeReport = validateActivityDraft(primeDraft);
+    expect(primeReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 1, "answer_layout", "id"],
+      }),
+    );
+
+    const lcmDraft = makeValidDraft("common_multiples_lcm");
+    lcmDraft.difficulty_bands[2]!.answer_layout = { id: "factor_slots" };
+    const lcmReport = validateActivityDraft(lcmDraft);
+    expect(lcmReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 2, "answer_layout", "id"],
+      }),
+    );
+  });
 });
 
 describe("published package validation", () => {

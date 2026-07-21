@@ -21,6 +21,20 @@ func validate_parameters(parameters: Dictionary) -> PackedStringArray:
 		issues.append("RIGHT_RANGE")
 	if parameters.get("display") not in ["horizontal", "column"]:
 		issues.append("DISPLAY")
+	if (
+		_is_nonnegative_safe_integer(parameters.get("left_min"))
+		and _is_nonnegative_safe_integer(parameters.get("left_max"))
+		and int(parameters["left_max"]) >= int(parameters["left_min"])
+		and not _is_supported_rng_range(parameters["left_min"], parameters["left_max"])
+	):
+		issues.append("LEFT_RANGE_WIDTH")
+	if (
+		_is_nonnegative_safe_integer(parameters.get("right_min"))
+		and _is_nonnegative_safe_integer(parameters.get("right_max"))
+		and int(parameters["right_max"]) >= int(parameters["right_min"])
+		and not _is_supported_rng_range(parameters["right_min"], parameters["right_max"])
+	):
+		issues.append("RIGHT_RANGE_WIDTH")
 	var left_maximum: Variant = parameters.get("left_max")
 	var right_maximum: Variant = parameters.get("right_max")
 	if _is_nonnegative_safe_integer(left_maximum) and _is_nonnegative_safe_integer(right_maximum):
@@ -34,7 +48,9 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 	var parameters: Variant = _parameters(band)
 	if not parameters is Dictionary or not validate_parameters(parameters).is_empty():
 		return _invalid()
-	var rng := SeededRngScript.new(seed)
+	var rng: Variant = _rng(seed)
+	if rng == null:
+		return {}
 	var operands: Array[int] = [
 		rng.range_int(parameters["left_min"], parameters["left_max"]),
 		rng.range_int(parameters["right_min"], parameters["right_max"]),

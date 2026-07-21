@@ -1,6 +1,9 @@
 class_name AdaptiveBandSelector
 extends RefCounted
 
+const Contract = preload("res://src/content/generated/content_contract_v1.gd")
+const UINT32_MAX := 0xFFFFFFFF
+
 func select(
 	activity: Dictionary,
 	fixed_band_id: StringName,
@@ -28,6 +31,7 @@ func select(
 		or maximum_index < minimum_index
 		or typeof(window_size_value) != TYPE_INT
 		or int(window_size_value) < 1
+		or int(window_size_value) > Contract.SAFE_INTEGER_MAX
 	):
 		return fixed_band_id
 	var window_size := int(window_size_value)
@@ -80,8 +84,13 @@ func _is_eligible(event: Dictionary, activity_id: String, content_version: Strin
 		and event.get("activity_id") == activity_id
 		and event.get("content_version") == content_version
 		and typeof(event.get("sequence")) == TYPE_INT
+		and int(event["sequence"]) > 0
+		and int(event["sequence"]) <= Contract.SAFE_INTEGER_MAX
 		and typeof(event.get("question_seed")) == TYPE_INT
+		and int(event["question_seed"]) >= 0
+		and int(event["question_seed"]) <= UINT32_MAX
 		and event.get("correctness") is bool
 		and typeof(event.get("hints")) == TYPE_INT
 		and int(event["hints"]) >= 0
+		and int(event["hints"]) <= Contract.SAFE_INTEGER_MAX
 	)

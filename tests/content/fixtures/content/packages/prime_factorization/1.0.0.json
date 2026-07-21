@@ -54,7 +54,7 @@
         "carry": "forbid"
       },
       "answer_layout": {
-        "id": "numeric_keypad"
+        "id": "factor_slots"
       },
       "manipulative": {
         "id": "none",
@@ -71,7 +71,7 @@
         "carry": "allow"
       },
       "answer_layout": {
-        "id": "numeric_keypad"
+        "id": "factor_slots"
       },
       "manipulative": {
         "id": "none",
@@ -88,7 +88,7 @@
         "carry": "allow"
       },
       "answer_layout": {
-        "id": "numeric_keypad"
+        "id": "factor_slots"
       },
       "manipulative": {
         "id": "none",
@@ -203,5 +203,5 @@
       }
     }
   ],
-  "checksum": "sha256:74488e59acce1019b02b314d1383d6cd15d6b11d0ba151c41c19e5861ff5f866"
+  "checksum": "sha256:4749eece3405596eb7731283458288daec0c4a30ce8a0e1e20bf6440558e1fe7"
 }

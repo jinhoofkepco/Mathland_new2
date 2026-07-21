@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+const UINT32_MAX = 0xffff_ffff;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const CANONICAL_UTC_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/;
 
@@ -11,6 +12,7 @@ const safeInteger = z
   .max(MAX_SAFE_INTEGER);
 const nonnegativeSafeInteger = safeInteger.min(0);
 const positiveSafeInteger = safeInteger.min(1);
+const unsigned32Integer = nonnegativeSafeInteger.max(UINT32_MAX);
 const nonemptyString = z.string().min(1);
 const finiteSafeNumber = z.number().min(-MAX_SAFE_INTEGER).max(MAX_SAFE_INTEGER);
 
@@ -91,7 +93,7 @@ const AnswerSubmittedEventV1Schema = z.strictObject({
   event_type: z.literal("answer_submitted"),
   activity_id: nonemptyString,
   content_version: nonemptyString,
-  question_seed: nonnegativeSafeInteger,
+  question_seed: unsigned32Integer,
   generator_id: nonemptyString,
   band_id: nonemptyString,
   resolved_parameters: resolvedParameters,

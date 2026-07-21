@@ -9,6 +9,7 @@ func run(_tree: SceneTree) -> void:
 	_test_subtraction_properties()
 	_test_multiplication_properties()
 	_test_unsatisfiable_parameters_fail_closed()
+	_test_sampled_range_widths_and_seed_fail_closed()
 
 func _test_fixed_seed_parity() -> void:
 	var fixtures: Array = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_PATH))
@@ -110,6 +111,43 @@ func _test_unsatisfiable_parameters_fail_closed() -> void:
 	)
 	assert_eq(generated, {})
 	assert_eq(generator.last_error, "UNSATISFIABLE_PARAMETERS")
+
+func _test_sampled_range_widths_and_seed_fail_closed() -> void:
+	var addition: Variant = GeneratorRegistryScript.new().create("addition_v1")
+	var huge_addition := {
+		"operand_count":2,"operand_min":0,"operand_max":0x100000000,
+		"place_mode":"full","carry":"allow",
+	}
+	assert_true("OPERAND_RANGE_WIDTH" in addition.validate_parameters(huge_addition))
+	assert_eq(addition.generate({}, {"generator_parameters":huge_addition}, 1), {})
+	assert_eq(addition.last_error, "INVALID_PARAMETERS")
+
+	var subtraction: Variant = GeneratorRegistryScript.new().create("subtraction_v1")
+	var huge_subtraction := {
+		"operand_count":2,"operand_min":1,"operand_max":0x100000001,
+		"place_mode":"full","borrow":"allow","allow_negative":false,
+	}
+	assert_true("OPERAND_RANGE_WIDTH" in subtraction.validate_parameters(huge_subtraction))
+	assert_eq(subtraction.generate({}, {"generator_parameters":huge_subtraction}, 1), {})
+
+	var multiplication: Variant = GeneratorRegistryScript.new().create("multiplication_v1")
+	var huge_left := {
+		"left_min":0,"left_max":0x100000000,"right_min":0,"right_max":0,
+		"display":"horizontal",
+	}
+	assert_true("LEFT_RANGE_WIDTH" in multiplication.validate_parameters(huge_left))
+	assert_eq(multiplication.generate({}, {"generator_parameters":huge_left}, 1), {})
+	var huge_right := huge_left.duplicate(true)
+	huge_right["left_max"] = 0
+	huge_right["right_max"] = 0x100000000
+	assert_true("RIGHT_RANGE_WIDTH" in multiplication.validate_parameters(huge_right))
+
+	var valid := {
+		"operand_count":2,"operand_min":0,"operand_max":9,
+		"place_mode":"ones_digit","carry":"allow",
+	}
+	assert_eq(addition.generate({}, {"generator_parameters":valid}, 0x100000000), {})
+	assert_eq(addition.last_error, "INVALID_SEED")
 
 func _addition_carries(source_operands: Array, ones_only: bool) -> bool:
 	var operands: Array = source_operands.duplicate()

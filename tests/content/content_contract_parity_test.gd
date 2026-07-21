@@ -62,6 +62,55 @@ func run(_tree: SceneTree) -> void:
 	_test_large_json_scan_has_linear_runtime()
 	_test_lone_surrogates_fail_closed()
 	_test_object_keys_sort_by_utf16_code_units()
+	_test_answer_layout_generator_semantics()
+	_test_validation_seed_uint32_boundary()
+
+func _test_answer_layout_generator_semantics() -> void:
+	var validator := ContentValidatorScript.new()
+	var prime: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(
+		"res://tests/content/fixtures/content/packages/prime_factorization/1.0.0.json"
+	))
+	for band_value in prime["difficulty_bands"]:
+		band_value["answer_layout"] = {"id":"factor_slots"}
+	prime["difficulty_bands"][1]["answer_layout"] = {"id":"numeric_keypad"}
+	prime["checksum"] = validator.content_checksum(prime)
+	var prime_result: Variant = validator.validate_package(prime)
+	assert_false(prime_result.ok)
+	assert_true(_has_issue(
+		prime_result.issues,
+		"ANSWER_LAYOUT_GENERATOR_MISMATCH",
+		["difficulty_bands", 1, "answer_layout", "id"]
+	))
+
+	var lcm: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(
+		"res://tests/content/fixtures/content/packages/common_multiples_lcm/1.0.0.json"
+	))
+	lcm["difficulty_bands"][2]["answer_layout"] = {"id":"factor_slots"}
+	lcm["checksum"] = validator.content_checksum(lcm)
+	var lcm_result: Variant = validator.validate_package(lcm)
+	assert_false(lcm_result.ok)
+	assert_true(_has_issue(
+		lcm_result.issues,
+		"ANSWER_LAYOUT_GENERATOR_MISMATCH",
+		["difficulty_bands", 2, "answer_layout", "id"]
+	))
+
+func _has_issue(issues: Array[Dictionary], code: String, path: Array) -> bool:
+	for issue in issues:
+		if issue.get("code") == code and issue.get("path") == path:
+			return true
+	return false
+
+func _test_validation_seed_uint32_boundary() -> void:
+	var validator := ContentValidatorScript.new()
+	var package: Dictionary = JSON.parse_string(
+		FileAccess.get_file_as_string(PUBLISHED_PACKAGE_PATH)
+	)
+	package["validation_samples"][0]["seed"] = 0x100000000
+	package["checksum"] = validator.content_checksum(package)
+	var result: Variant = validator.validate_package(package)
+	assert_false(result.ok)
+	assert_true(_has_issue(result.issues, "SCHEMA_RANGE", ["validation_samples", 0, "seed"]))
 
 func _test_ecmascript_c0_string_escaping() -> void:
 	var validator := ContentValidatorScript.new()

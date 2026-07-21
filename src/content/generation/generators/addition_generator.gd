@@ -19,6 +19,13 @@ func validate_parameters(parameters: Dictionary) -> PackedStringArray:
 		issues.append("PLACE_MODE")
 	if parameters.get("carry") not in ["allow", "forbid", "require"]:
 		issues.append("CARRY_POLICY")
+	if (
+		_is_nonnegative_safe_integer(parameters.get("operand_min"))
+		and _is_nonnegative_safe_integer(parameters.get("operand_max"))
+		and int(parameters["operand_max"]) >= int(parameters["operand_min"])
+		and not _is_supported_rng_range(parameters["operand_min"], parameters["operand_max"])
+	):
+		issues.append("OPERAND_RANGE_WIDTH")
 	var count: Variant = parameters.get("operand_count")
 	var maximum: Variant = parameters.get("operand_max")
 	if count in [2, 3] and _is_nonnegative_safe_integer(maximum):
@@ -31,7 +38,9 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 	var parameters: Variant = _parameters(band)
 	if not parameters is Dictionary or not validate_parameters(parameters).is_empty():
 		return _invalid()
-	var rng := SeededRngScript.new(seed)
+	var rng: Variant = _rng(seed)
+	if rng == null:
+		return {}
 	for _attempt in MAX_ATTEMPTS:
 		var operands: Array[int] = []
 		for _index in int(parameters["operand_count"]):

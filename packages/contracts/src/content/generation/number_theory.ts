@@ -1,6 +1,6 @@
 import type { GeneratorId } from "../ids.js";
 import type { ResolvedParametersV1 } from "../types.js";
-import { SeededRng } from "./rng.js";
+import { isSupportedRngRange, isUint32, SeededRng } from "./rng.js";
 import type {
   GeneratedQuestionFields,
   GeneratorValidationResult,
@@ -9,8 +9,10 @@ import type {
 
 const MAX_ATTEMPTS = 128;
 const SAFE_INTEGER_MAX = Number.MAX_SAFE_INTEGER;
-const UINT32_RANGE = 0x1_0000_0000;
 const MAX_SAFE_FACTOR_SLOTS = 52;
+const MAX_AUTHORED_PRIMES = 128;
+// This fixed witness set is deterministic over every 64-bit integer, so it is
+// an exact primality decision over MathLand's smaller safe-integer domain.
 const MILLER_RABIN_BASES = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
 
 type Parameters = Readonly<Record<string, unknown>>;
@@ -108,6 +110,14 @@ abstract class NumberTheoryGenerator implements QuestionGeneratorContract {
     this.lastError = "UNSATISFIABLE_PARAMETERS";
     return null;
   }
+
+  protected rng(seed: number): SeededRng | null {
+    if (!isUint32(seed)) {
+      this.lastError = "INVALID_SEED";
+      return null;
+    }
+    return new SeededRng(seed);
+  }
 }
 
 export class CommonMultipleGenerator extends NumberTheoryGenerator {
@@ -124,7 +134,7 @@ export class CommonMultipleGenerator extends NumberTheoryGenerator {
       (values.operand_max as number) < (values.operand_min as number)
     ) {
       issues.push("OPERAND_RANGE");
-    } else if ((values.operand_max as number) - (values.operand_min as number) + 1 > UINT32_RANGE) {
+    } else if (!isSupportedRngRange(values.operand_min, values.operand_max)) {
       issues.push("OPERAND_RANGE_WIDTH");
     }
     if (typeof values.require_distinct !== "boolean") issues.push("REQUIRE_DISTINCT");
@@ -138,7 +148,8 @@ export class CommonMultipleGenerator extends NumberTheoryGenerator {
   ): GeneratedQuestionFields | null {
     const parameters = this.parameters(band);
     if (parameters === null || !this.validateParameters(parameters as ResolvedParametersV1).valid) return this.invalid();
-    const rng = new SeededRng(seed);
+    const rng = this.rng(seed);
+    if (rng === null) return null;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       const operands = Array.from({ length: parameters.operand_count as number }, () =>
         rng.rangeInt(parameters.operand_min as number, parameters.operand_max as number),
@@ -192,6 +203,7 @@ export class PrimeFactorizationGenerator extends NumberTheoryGenerator {
       issues.push("ALLOWED_PRIMES");
     } else {
       const primes = values.allowed_primes as unknown[];
+      if (primes.length > MAX_AUTHORED_PRIMES) issues.push("ALLOWED_PRIMES_SIZE");
       if (primes.some((prime) => !isPrime(prime as number))) issues.push("ALLOWED_PRIMES");
       if (new Set(primes).size !== primes.length) issues.push("DUPLICATE_PRIMES");
     }
@@ -206,7 +218,8 @@ export class PrimeFactorizationGenerator extends NumberTheoryGenerator {
     const parameters = this.parameters(band);
     if (parameters === null || !this.validateParameters(parameters as ResolvedParametersV1).valid) return this.invalid();
     const allowedPrimes = [...(parameters.allowed_primes as number[])];
-    const rng = new SeededRng(seed);
+    const rng = this.rng(seed);
+    if (rng === null) return null;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       const factorCount = rng.rangeInt(
         parameters.factor_count_min as number,
@@ -226,6 +239,14 @@ export class PrimeFactorizationGenerator extends NumberTheoryGenerator {
       }
       if (overflowed || value < (parameters.value_min as number) || value > (parameters.value_max as number)) continue;
       factors.sort((left, right) => left - right);
+      const independentlyFactored = factorByAuthoredPrimes(value, allowedPrimes);
+      if (
+        independentlyFactored === null ||
+        independentlyFactored.length !== factors.length ||
+        independentlyFactored.some((factor, index) => factor !== factors[index])
+      ) {
+        continue;
+      }
       this.lastError = "";
       return {
         resolved_parameters: {
@@ -240,4 +261,17 @@ export class PrimeFactorizationGenerator extends NumberTheoryGenerator {
     }
     return this.unsatisfiable();
   }
+}
+
+function factorByAuthoredPrimes(value: number, allowedPrimes: readonly number[]): number[] | null {
+  let remainder = value;
+  const factors: number[] = [];
+  const sortedPrimes = [...allowedPrimes].sort((left, right) => left - right);
+  for (const prime of sortedPrimes) {
+    while (remainder % prime === 0) {
+      factors.push(prime);
+      remainder /= prime;
+    }
+  }
+  return remainder === 1 ? factors : null;
 }

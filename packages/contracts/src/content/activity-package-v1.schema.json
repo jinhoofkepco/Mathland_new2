@@ -5,6 +5,7 @@
   "$comment": "Cross-field rules are enforced by the exported semantic validators.",
   "x-mathland-semantic-validation": [
     "activity generator matches activity_id",
+    "number-theory generators require their registered answer layouts",
     "combo thresholds strictly increase",
     "adaptive bounds reference ordered bands and default off",
     "each band includes validation seeds 1, 7, 42, and 20260721",
@@ -1071,7 +1072,7 @@
           "seed": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9007199254740991
+            "maximum": 4294967295
           },
           "expected_answer": {
             "oneOf": [

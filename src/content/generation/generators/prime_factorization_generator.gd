@@ -5,6 +5,9 @@ const KEYS: Array[String] = [
 	"value_min", "value_max", "factor_count_min", "factor_count_max", "allowed_primes"
 ]
 const MAX_SAFE_FACTOR_SLOTS := 52
+const MAX_AUTHORED_PRIMES := 128
+# The matching fixed witness set is deterministic for the complete 64-bit
+# domain; modular multiplication below stays exact without signed overflow.
 const MILLER_RABIN_BASES: Array[int] = [2, 325, 9375, 28178, 450775, 9780504, 1795265022]
 
 func validate_parameters(parameters: Dictionary) -> PackedStringArray:
@@ -36,6 +39,8 @@ func validate_parameters(parameters: Dictionary) -> PackedStringArray:
 	else:
 		var seen := {}
 		var has_nonprime := false
+		if allowed.size() > MAX_AUTHORED_PRIMES:
+			issues.append("ALLOWED_PRIMES_SIZE")
 		for candidate in allowed:
 			if not _is_prime(candidate):
 				has_nonprime = true
@@ -51,7 +56,9 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 	if not parameters is Dictionary or not validate_parameters(parameters).is_empty():
 		return _invalid()
 	var allowed_primes: Array = parameters["allowed_primes"].duplicate()
-	var rng := SeededRngScript.new(seed)
+	var rng: Variant = _rng(seed)
+	if rng == null:
+		return {}
 	for _attempt in MAX_ATTEMPTS:
 		var factor_count: int = rng.range_int(
 			parameters["factor_count_min"], parameters["factor_count_max"]
@@ -70,6 +77,8 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 		if overflowed or value < parameters["value_min"] or value > parameters["value_max"]:
 			continue
 		factors.sort()
+		if _factor_by_authored_primes(value, allowed_primes) != factors:
+			continue
 		last_error = ""
 		return {
 			"resolved_parameters": {
@@ -84,6 +93,19 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 			},
 		}
 	return _unsatisfiable()
+
+func _factor_by_authored_primes(value: int, allowed_primes: Array) -> Array[int]:
+	var sorted_primes: Array = allowed_primes.duplicate()
+	sorted_primes.sort()
+	var remainder := value
+	var factors: Array[int] = []
+	for prime_value in sorted_primes:
+		var prime := int(prime_value)
+		while remainder % prime == 0:
+			factors.append(prime)
+			@warning_ignore("integer_division")
+			remainder /= prime
+	return factors if remainder == 1 else []
 
 func _is_prime(value: Variant) -> bool:
 	if not _is_nonnegative_safe_integer(value) or int(value) < 2:

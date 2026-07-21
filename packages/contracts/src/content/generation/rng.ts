@@ -1,15 +1,28 @@
-const UINT32_MAX = 0xffff_ffff;
+export const UINT32_MAX = 0xffff_ffff;
+export const UINT32_RANGE = 0x1_0000_0000;
 const ZERO_SEED_STATE = 0x6d2b_79f5;
+
+export function isUint32(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= UINT32_MAX;
+}
+
+export function isSupportedRngRange(minimum: unknown, maximum: unknown): boolean {
+  return (
+    Number.isSafeInteger(minimum) &&
+    Number.isSafeInteger(maximum) &&
+    (maximum as number) >= (minimum as number) &&
+    (maximum as number) - (minimum as number) < UINT32_RANGE
+  );
+}
 
 export class SeededRng {
   #state: number;
 
   constructor(seed: number) {
-    if (!Number.isSafeInteger(seed) || seed < 0) {
-      throw new RangeError("RNG seed must be a nonnegative safe integer");
+    if (!isUint32(seed)) {
+      throw new RangeError("RNG seed must be an unsigned 32-bit integer");
     }
-    const normalized = seed >>> 0;
-    this.#state = normalized === 0 ? ZERO_SEED_STATE : normalized;
+    this.#state = seed === 0 ? ZERO_SEED_STATE : seed;
   }
 
   get state(): number {
@@ -26,13 +39,10 @@ export class SeededRng {
   }
 
   rangeInt(minimum: number, maximum: number): number {
-    if (!Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum) || maximum < minimum) {
-      throw new RangeError("RNG range must contain ordered safe integers");
-    }
-    const span = maximum - minimum + 1;
-    if (!Number.isSafeInteger(span) || span < 1 || span > UINT32_MAX + 1) {
+    if (!isSupportedRngRange(minimum, maximum)) {
       throw new RangeError("RNG range exceeds one unsigned 32-bit draw");
     }
+    const span = maximum - minimum + 1;
     return minimum + (this.nextU32() % span);
   }
 
@@ -44,7 +54,7 @@ export class SeededRng {
       return -1;
     }
     const total = weights.reduce((sum, weight) => sum + weight, 0);
-    if (!Number.isSafeInteger(total) || total > UINT32_MAX + 1) return -1;
+    if (!Number.isSafeInteger(total) || total > UINT32_RANGE) return -1;
     const target = this.nextU32() % total;
     let cursor = 0;
     for (let index = 0; index < weights.length; index += 1) {

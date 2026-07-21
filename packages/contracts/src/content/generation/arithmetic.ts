@@ -1,6 +1,6 @@
 import type { GeneratorId } from "../ids.js";
 import type { ResolvedParametersV1 } from "../types.js";
-import { SeededRng } from "./rng.js";
+import { isSupportedRngRange, isUint32, SeededRng } from "./rng.js";
 import type {
   GeneratedQuestionFields,
   GeneratorValidationResult,
@@ -81,6 +81,14 @@ abstract class ArithmeticGenerator implements QuestionGeneratorContract {
     return null;
   }
 
+  protected rng(seed: number): SeededRng | null {
+    if (!isUint32(seed)) {
+      this.lastError = "INVALID_SEED";
+      return null;
+    }
+    return new SeededRng(seed);
+  }
+
   protected fields(
     promptKey: string,
     operands: number[],
@@ -108,6 +116,14 @@ export class AdditionGenerator extends ArithmeticGenerator {
     if (!PLACE_MODES.has(values.place_mode as string)) issues.push("PLACE_MODE");
     if (!POLICIES.has(values.carry as string)) issues.push("CARRY_POLICY");
     if (
+      isNonnegativeSafeInteger(values.operand_min) &&
+      isNonnegativeSafeInteger(values.operand_max) &&
+      values.operand_max >= values.operand_min &&
+      !isSupportedRngRange(values.operand_min, values.operand_max)
+    ) {
+      issues.push("OPERAND_RANGE_WIDTH");
+    }
+    if (
       isNonnegativeSafeInteger(values.operand_max) &&
       (values.operand_count === 2 || values.operand_count === 3) &&
       values.operand_max > Math.floor(SAFE_INTEGER_MAX / values.operand_count)
@@ -124,7 +140,8 @@ export class AdditionGenerator extends ArithmeticGenerator {
   ): GeneratedQuestionFields | null {
     const parameters = this.parameters(band);
     if (parameters === null || !this.validateParameters(parameters as ResolvedParametersV1).valid) return this.invalid();
-    const rng = new SeededRng(seed);
+    const rng = this.rng(seed);
+    if (rng === null) return null;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       const operands = Array.from({ length: parameters.operand_count as number }, () =>
         rng.rangeInt(parameters.operand_min as number, parameters.operand_max as number),
@@ -156,6 +173,14 @@ export class SubtractionGenerator extends ArithmeticGenerator {
     if (!POLICIES.has(values.borrow as string)) issues.push("BORROW_POLICY");
     if (values.allow_negative !== false) issues.push("ALLOW_NEGATIVE");
     if (
+      isNonnegativeSafeInteger(values.operand_min) &&
+      isNonnegativeSafeInteger(values.operand_max) &&
+      values.operand_max >= values.operand_min &&
+      !isSupportedRngRange(values.operand_min, values.operand_max)
+    ) {
+      issues.push("OPERAND_RANGE_WIDTH");
+    }
+    if (
       isNonnegativeSafeInteger(values.operand_max) &&
       (values.operand_count === 2 || values.operand_count === 3) &&
       values.operand_max > Math.floor(SAFE_INTEGER_MAX / values.operand_count)
@@ -172,7 +197,8 @@ export class SubtractionGenerator extends ArithmeticGenerator {
   ): GeneratedQuestionFields | null {
     const parameters = this.parameters(band);
     if (parameters === null || !this.validateParameters(parameters as ResolvedParametersV1).valid) return this.invalid();
-    const rng = new SeededRng(seed);
+    const rng = this.rng(seed);
+    if (rng === null) return null;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       const operands = Array.from({ length: parameters.operand_count as number }, () =>
         rng.rangeInt(parameters.operand_min as number, parameters.operand_max as number),
@@ -208,6 +234,22 @@ export class MultiplicationGenerator extends ArithmeticGenerator {
     if (!isNonnegativeSafeInteger(values.right_min) || !isNonnegativeSafeInteger(values.right_max) || (values.right_max as number) < (values.right_min as number)) issues.push("RIGHT_RANGE");
     if (!DISPLAYS.has(values.display as string)) issues.push("DISPLAY");
     if (
+      isNonnegativeSafeInteger(values.left_min) &&
+      isNonnegativeSafeInteger(values.left_max) &&
+      values.left_max >= values.left_min &&
+      !isSupportedRngRange(values.left_min, values.left_max)
+    ) {
+      issues.push("LEFT_RANGE_WIDTH");
+    }
+    if (
+      isNonnegativeSafeInteger(values.right_min) &&
+      isNonnegativeSafeInteger(values.right_max) &&
+      values.right_max >= values.right_min &&
+      !isSupportedRngRange(values.right_min, values.right_max)
+    ) {
+      issues.push("RIGHT_RANGE_WIDTH");
+    }
+    if (
       isNonnegativeSafeInteger(values.left_max) &&
       isNonnegativeSafeInteger(values.right_max) &&
       values.left_max !== 0 &&
@@ -225,7 +267,8 @@ export class MultiplicationGenerator extends ArithmeticGenerator {
   ): GeneratedQuestionFields | null {
     const parameters = this.parameters(band);
     if (parameters === null || !this.validateParameters(parameters as ResolvedParametersV1).valid) return this.invalid();
-    const rng = new SeededRng(seed);
+    const rng = this.rng(seed);
+    if (rng === null) return null;
     const operands = [
       rng.rangeInt(parameters.left_min as number, parameters.left_max as number),
       rng.rangeInt(parameters.right_min as number, parameters.right_max as number),

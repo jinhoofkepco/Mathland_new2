@@ -4,6 +4,7 @@ extends RefCounted
 const UuidV4Script = preload("res://src/core/uuid_v4.gd")
 
 const MAX_SAFE_INTEGER := 9007199254740991
+const UINT32_MAX := 0xFFFFFFFF
 const COMMON_REQUIRED := ["contract_version", "event_id", "profile_id", "device_id", "sequence", "client_timestamp", "event_type"]
 const COMMON_OPTIONAL := ["session_id"]
 const RUN_STARTED := ["activity_id", "content_version"]
@@ -85,6 +86,7 @@ static func _validate_type_fields(value: Dictionary, event_type: String) -> bool
 				_is_nonempty_string(value.activity_id)
 				and _is_nonempty_string(value.content_version)
 				and _is_nonnegative_safe_integer(value.question_seed)
+				and value.question_seed <= UINT32_MAX
 				and _is_nonempty_string(value.generator_id)
 				and _is_nonempty_string(value.band_id)
 				and _is_resolved_parameters(value.resolved_parameters)

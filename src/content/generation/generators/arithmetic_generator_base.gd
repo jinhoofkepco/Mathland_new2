@@ -4,6 +4,7 @@ extends "res://src/content/generation/question_generator.gd"
 const Contract = preload("res://src/content/generated/content_contract_v1.gd")
 const SeededRngScript = preload("res://src/content/generation/seeded_rng.gd")
 const MAX_ATTEMPTS := 128
+const UINT32_MAX := 0xFFFFFFFF
 
 func _parameters(band: Dictionary) -> Variant:
 	var value: Variant = band.get("generator_parameters")
@@ -24,6 +25,20 @@ func _is_nonnegative_safe_integer(value: Variant) -> bool:
 		and int(value) >= 0
 		and int(value) <= Contract.SAFE_INTEGER_MAX
 	)
+
+func _is_supported_rng_range(minimum: Variant, maximum: Variant) -> bool:
+	return (
+		_is_nonnegative_safe_integer(minimum)
+		and _is_nonnegative_safe_integer(maximum)
+		and int(maximum) >= int(minimum)
+		and int(maximum) - int(minimum) <= UINT32_MAX
+	)
+
+func _rng(seed: int) -> Variant:
+	if seed < 0 or seed > UINT32_MAX:
+		last_error = "INVALID_SEED"
+		return null
+	return SeededRngScript.new(seed)
 
 func _policy_accepts(policy: String, condition: bool) -> bool:
 	return policy == "allow" or condition == (policy == "require")

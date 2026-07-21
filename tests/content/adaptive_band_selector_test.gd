@@ -22,6 +22,7 @@ func run(_tree: SceneTree) -> void:
 		&"practice"
 	)
 	_test_window_filters_penalties_bounds_and_immutability(selector)
+	_test_unsafe_event_integers_are_ignored(selector)
 
 func _test_window_filters_penalties_bounds_and_immutability(selector: Variant) -> void:
 	var activity := _activity()
@@ -43,6 +44,20 @@ func _test_window_filters_penalties_bounds_and_immutability(selector: Variant) -
 		),
 		&"practice"
 	)
+
+func _test_unsafe_event_integers_are_ignored(selector: Variant) -> void:
+	var invalid_events := [
+		_answer(0, true),
+		_answer(9007199254740992, true),
+		_answer(2, true, 0, 0x100000000),
+		_answer(3, true, 9007199254740992),
+	]
+	var valid_but_incomplete := [_answer(10, true), _answer(11, true), _answer(12, true)]
+	for invalid_event in invalid_events:
+		assert_eq(
+			selector.select(_activity(), &"intro", [invalid_event] + valid_but_incomplete, true),
+			&"intro"
+		)
 
 func _activity(with_policy: bool = true) -> Dictionary:
 	var activity := {

@@ -22,6 +22,10 @@ const SAFE_TUNING_KEY = /^[a-z][a-z0-9_]{0,63}$/;
 const SAFE_TUNING_VALUE = /^[a-z][a-z0-9_]{0,63}$/;
 const SAFE_OPERATOR_VALUES = new Set(["+", "-", "*", "/", "%"]);
 const FORBIDDEN_OBJECT_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+const GENERATOR_ANSWER_LAYOUT_IDS = {
+  common_multiple_v1: "numeric_keypad",
+  prime_factorization_v1: "factor_slots",
+} as const;
 
 export type ContentPackageCollection =
   | readonly unknown[]
@@ -166,6 +170,17 @@ function validateDraftSemantics(draft: ActivityPackageDraftV1, issues: Validatio
         code: "GENERATOR_ACTIVITY_MISMATCH",
         path: ["difficulty_bands", index, "generator_id"],
         message: `${draft.activity_id} requires generator ${expectedGenerator}`,
+      });
+    }
+    const requiredLayout =
+      GENERATOR_ANSWER_LAYOUT_IDS[
+        band.generator_id as keyof typeof GENERATOR_ANSWER_LAYOUT_IDS
+      ];
+    if (requiredLayout !== undefined && band.answer_layout.id !== requiredLayout) {
+      issues.push({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", index, "answer_layout", "id"],
+        message: `${band.generator_id} requires answer layout ${requiredLayout}`,
       });
     }
     validateTuningParameters(

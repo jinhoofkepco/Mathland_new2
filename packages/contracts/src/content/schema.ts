@@ -151,7 +151,7 @@ const AdaptivePolicySchema = z.strictObject({
 
 const ValidationSampleSchema = z.strictObject({
   band_id: z.enum(["intro", "practice", "challenge"]),
-  seed: NonNegativeIntegerSchema,
+  seed: NonNegativeIntegerSchema.max(0xffff_ffff),
   expected_answer: AnswerValueV1Schema,
 });
 

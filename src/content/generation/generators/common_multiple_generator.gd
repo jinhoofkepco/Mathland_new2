@@ -2,8 +2,6 @@ class_name CommonMultipleGenerator
 extends "res://src/content/generation/generators/arithmetic_generator_base.gd"
 
 const KEYS: Array[String] = ["operand_count", "operand_min", "operand_max", "require_distinct"]
-const UINT32_RANGE := 0x100000000
-
 func validate_parameters(parameters: Dictionary) -> PackedStringArray:
 	var issues := PackedStringArray()
 	if not _has_exact_keys(parameters, KEYS):
@@ -19,7 +17,7 @@ func validate_parameters(parameters: Dictionary) -> PackedStringArray:
 		or int(maximum) < int(minimum)
 	):
 		issues.append("OPERAND_RANGE")
-	elif int(maximum) - int(minimum) + 1 > UINT32_RANGE:
+	elif not _is_supported_rng_range(minimum, maximum):
 		issues.append("OPERAND_RANGE_WIDTH")
 	if typeof(parameters.get("require_distinct")) != TYPE_BOOL:
 		issues.append("REQUIRE_DISTINCT")
@@ -29,7 +27,9 @@ func generate(_activity: Dictionary, band: Dictionary, seed: int) -> Dictionary:
 	var parameters: Variant = _parameters(band)
 	if not parameters is Dictionary or not validate_parameters(parameters).is_empty():
 		return _invalid()
-	var rng := SeededRngScript.new(seed)
+	var rng: Variant = _rng(seed)
+	if rng == null:
+		return {}
 	for _attempt in MAX_ATTEMPTS:
 		var operands: Array[int] = []
 		var seen := {}

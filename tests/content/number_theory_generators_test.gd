@@ -8,6 +8,8 @@ func run(_tree: SceneTree) -> void:
 	_test_lcm_properties()
 	_test_prime_factor_properties()
 	_test_invalid_and_unsatisfiable_fail_closed()
+	_test_prime_pool_size_and_seed_fail_closed()
+	_test_lcm_range_width_fails_closed()
 
 func _test_fixed_seed_parity() -> void:
 	var fixtures: Array = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_PATH))
@@ -56,6 +58,8 @@ func _test_prime_factor_properties() -> void:
 		"factor_count_max": 5,
 		"allowed_primes": [2, 3, 5, 7],
 	}
+	for prime in parameters["allowed_primes"]:
+		assert_true(_is_prime_by_trial_division(prime))
 	var generator: Variant = GeneratorRegistryScript.new().create("prime_factorization_v1")
 	for seed in range(1, 1001):
 		var generated: Dictionary = generator.generate({}, {"generator_parameters": parameters}, seed)
@@ -76,6 +80,10 @@ func _test_prime_factor_properties() -> void:
 				assert_true(factors[index - 1] <= factors[index])
 			product *= int(factors[index])
 		assert_eq(resolved["value"], product)
+		assert_eq(
+			_factor_by_authored_primes(resolved["value"], parameters["allowed_primes"]),
+			factors
+		)
 		assert_eq(resolved["allowed_primes"], parameters["allowed_primes"])
 		assert_eq(
 			generated["correct_answer"],
@@ -98,6 +106,10 @@ func _test_invalid_and_unsatisfiable_fail_closed() -> void:
 		"value_min":2,"value_max":9007199254740992,"factor_count_min":1,
 		"factor_count_max":2,"allowed_primes":[2,4,2]
 	}).is_empty())
+	assert_true("ALLOWED_PRIMES" in factor_generator.validate_parameters({
+		"value_min":4,"value_max":100,"factor_count_min":2,
+		"factor_count_max":3,"allowed_primes":[341,561,1105]
+	}))
 	var impossible: Dictionary = factor_generator.generate(
 		{},
 		{"generator_parameters":{"value_min":17,"value_max":17,"factor_count_min":2,"factor_count_max":2,"allowed_primes":[2,3]}},
@@ -105,6 +117,35 @@ func _test_invalid_and_unsatisfiable_fail_closed() -> void:
 	)
 	assert_eq(impossible, {})
 	assert_eq(factor_generator.last_error, "UNSATISFIABLE_PARAMETERS")
+
+func _test_prime_pool_size_and_seed_fail_closed() -> void:
+	var generator: Variant = GeneratorRegistryScript.new().create("prime_factorization_v1")
+	var oversized_pool: Array[int] = []
+	for value in range(2, 131):
+		oversized_pool.append(value)
+	var oversized := {
+		"value_min":4,"value_max":100,"factor_count_min":2,"factor_count_max":3,
+		"allowed_primes":oversized_pool,
+	}
+	assert_true("ALLOWED_PRIMES_SIZE" in generator.validate_parameters(oversized))
+	assert_eq(generator.generate({}, {"generator_parameters":oversized}, 1), {})
+
+	var valid := {
+		"value_min":4,"value_max":100,"factor_count_min":2,"factor_count_max":3,
+		"allowed_primes":[2,3,5],
+	}
+	assert_eq(generator.generate({}, {"generator_parameters":valid}, 0x100000000), {})
+	assert_eq(generator.last_error, "INVALID_SEED")
+
+func _test_lcm_range_width_fails_closed() -> void:
+	var generator: Variant = GeneratorRegistryScript.new().create("common_multiple_v1")
+	var huge_range := {
+		"operand_count":2,"operand_min":1,"operand_max":0x100000001,
+		"require_distinct":false,
+	}
+	assert_true("OPERAND_RANGE_WIDTH" in generator.validate_parameters(huge_range))
+	assert_eq(generator.generate({}, {"generator_parameters":huge_range}, 1), {})
+	assert_eq(generator.last_error, "INVALID_PARAMETERS")
 
 func _gcd(left: int, right: int) -> int:
 	var a := left
@@ -120,6 +161,28 @@ func _lcm(operands: Array) -> int:
 	for operand in operands:
 		answer = (answer / _gcd(answer, int(operand))) * int(operand)
 	return answer
+
+func _is_prime_by_trial_division(value: int) -> bool:
+	if value < 2:
+		return false
+	var divisor := 2
+	while divisor <= value / divisor:
+		if value % divisor == 0:
+			return false
+		divisor += 1
+	return true
+
+func _factor_by_authored_primes(value: int, allowed_primes: Array) -> Array[int]:
+	var sorted_primes: Array = allowed_primes.duplicate()
+	sorted_primes.sort()
+	var remainder := value
+	var factors: Array[int] = []
+	for prime_value in sorted_primes:
+		var prime := int(prime_value)
+		while remainder % prime == 0:
+			factors.append(prime)
+			remainder /= prime
+	return factors if remainder == 1 else []
 
 func _normalize_numbers(value: Variant) -> Variant:
 	if typeof(value) == TYPE_FLOAT and value == floor(value):

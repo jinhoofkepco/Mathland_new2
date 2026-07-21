@@ -34,6 +34,17 @@ describe("xorshift32 content RNG", () => {
     expect(() => rng.rangeInt(5, 2)).toThrow(RangeError);
   });
 
+  it("accepts only explicit unsigned 32-bit seeds and one-draw ranges", () => {
+    expect(() => new SeededRng(0xffff_ffff)).not.toThrow();
+    expect(() => new SeededRng(0x1_0000_0000)).toThrow(RangeError);
+    expect(() => new SeededRng(-1)).toThrow(RangeError);
+    expect(() => new SeededRng(1.5)).toThrow(RangeError);
+
+    const rng = new SeededRng(1);
+    expect(() => rng.rangeInt(0, 0xffff_ffff)).not.toThrow();
+    expect(() => rng.rangeInt(0, 0x1_0000_0000)).toThrow(RangeError);
+  });
+
   it("uses deterministic integer weighted picks and rejects invalid weights", () => {
     const rng = new SeededRng(FIXTURE.seed);
     expect(FIXTURE.weighted_indices_1_3_2.map(() => rng.weightedIndex([1, 3, 2]))).toEqual(

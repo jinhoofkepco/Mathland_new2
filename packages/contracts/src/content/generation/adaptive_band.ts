@@ -25,6 +25,7 @@ interface AnswerHistoryInput {
 
 const HINTED_ANSWER_PENALTY = 1.25;
 const REPEATED_ERROR_PENALTY = 0.25;
+const UINT32_MAX = 0xffff_ffff;
 
 function isEligibleAnswer(
   event: AnswerHistoryInput,
@@ -41,7 +42,10 @@ function isEligibleAnswer(
     event.activity_id === activityId &&
     event.content_version === contentVersion &&
     Number.isSafeInteger(event.sequence) &&
+    (event.sequence as number) > 0 &&
     Number.isSafeInteger(event.question_seed) &&
+    (event.question_seed as number) >= 0 &&
+    (event.question_seed as number) <= UINT32_MAX &&
     typeof event.correctness === "boolean" &&
     Number.isSafeInteger(event.hints) &&
     (event.hints as number) >= 0

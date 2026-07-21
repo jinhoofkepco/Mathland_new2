@@ -42,6 +42,26 @@ function lcm(operands: readonly number[]): number {
   return operands.reduce((answer, operand) => (answer / gcd(answer, operand)) * operand, 1);
 }
 
+function isPrimeByTrialDivision(value: number): boolean {
+  if (!Number.isSafeInteger(value) || value < 2) return false;
+  for (let divisor = 2; divisor <= Math.floor(Math.sqrt(value)); divisor += 1) {
+    if (value % divisor === 0) return false;
+  }
+  return true;
+}
+
+function factorByAuthoredPrimes(value: number, allowedPrimes: readonly number[]): number[] | null {
+  let remainder = value;
+  const factors: number[] = [];
+  for (const prime of [...allowedPrimes].sort((left, right) => left - right)) {
+    while (remainder % prime === 0) {
+      factors.push(prime);
+      remainder /= prime;
+    }
+  }
+  return remainder === 1 ? factors : null;
+}
+
 describe("number theory generator parity fixtures", () => {
   it.each(CASES)("matches $name", (fixture) => {
     const generator = create(fixture.generator_id);
@@ -112,6 +132,20 @@ describe("common multiple generator", () => {
     ).toBeNull();
     expect(generator.lastError).toBe("UNSATISFIABLE_PARAMETERS");
   });
+
+  it("rejects a common-multiple draw range wider than uint32 before sampling", () => {
+    const generator = create("common_multiple_v1");
+    const hugeRange = {
+      operand_count: 2,
+      operand_min: 1,
+      operand_max: 0x1_0000_0001,
+      require_distinct: false,
+    };
+    expect(generator.validateParameters(hugeRange).issues).toContain("OPERAND_RANGE_WIDTH");
+    expect(() => generator.generate({}, { generator_parameters: hugeRange }, 1)).not.toThrow();
+    expect(generator.generate({}, { generator_parameters: hugeRange }, 1)).toBeNull();
+    expect(generator.lastError).toBe("INVALID_PARAMETERS");
+  });
 });
 
 describe("prime factorization generator", () => {
@@ -123,6 +157,7 @@ describe("prime factorization generator", () => {
       factor_count_max: 5,
       allowed_primes: [2, 3, 5, 7],
     };
+    expect(parameters.allowed_primes.every(isPrimeByTrialDivision)).toBe(true);
     const generator = create("prime_factorization_v1");
     for (let seed = 1; seed <= 1_000; seed += 1) {
       const generated = generator.generate({}, { generator_parameters: parameters }, seed)!;
@@ -142,6 +177,9 @@ describe("prime factorization generator", () => {
       expect(resolved.factors.every((factor) => parameters.allowed_primes.includes(factor))).toBe(true);
       expect(resolved.factors).toEqual([...resolved.factors].sort((a, b) => a - b));
       expect(resolved.value).toBe(resolved.factors.reduce((product, factor) => product * factor, 1));
+      expect(factorByAuthoredPrimes(resolved.value, parameters.allowed_primes)).toEqual(
+        resolved.factors,
+      );
       expect(resolved.allowed_primes).toEqual(parameters.allowed_primes);
       expect(generated.correct_answer).toEqual({
         kind: "integer_list",
@@ -162,6 +200,15 @@ describe("prime factorization generator", () => {
         allowed_primes: [2, 4, 2],
       }),
     ).toMatchObject({ valid: false });
+    expect(
+      generator.validateParameters({
+        value_min: 4,
+        value_max: 100,
+        factor_count_min: 2,
+        factor_count_max: 3,
+        allowed_primes: [341, 561, 1105],
+      }).issues,
+    ).toContain("ALLOWED_PRIMES");
 
     expect(
       generator.generate(
@@ -179,5 +226,32 @@ describe("prime factorization generator", () => {
       ),
     ).toBeNull();
     expect(generator.lastError).toBe("UNSATISFIABLE_PARAMETERS");
+  });
+
+  it("rejects oversized sampled prime pools and non-uint32 seeds before drawing", () => {
+    const generator = create("prime_factorization_v1");
+    const oversizedPool = {
+      value_min: 4,
+      value_max: 100,
+      factor_count_min: 2,
+      factor_count_max: 3,
+      allowed_primes: Array.from({ length: 129 }, (_value, index) => index + 2),
+    };
+    expect(generator.validateParameters(oversizedPool).issues).toContain("ALLOWED_PRIMES_SIZE");
+    expect(() => generator.generate({}, { generator_parameters: oversizedPool }, 1)).not.toThrow();
+    expect(generator.generate({}, { generator_parameters: oversizedPool }, 1)).toBeNull();
+
+    const parameters = {
+      value_min: 4,
+      value_max: 100,
+      factor_count_min: 2,
+      factor_count_max: 3,
+      allowed_primes: [2, 3, 5],
+    };
+    expect(() =>
+      generator.generate({}, { generator_parameters: parameters }, 0x1_0000_0000),
+    ).not.toThrow();
+    expect(generator.generate({}, { generator_parameters: parameters }, 0x1_0000_0000)).toBeNull();
+    expect(generator.lastError).toBe("INVALID_SEED");
   });
 });

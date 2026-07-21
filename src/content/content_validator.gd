@@ -251,6 +251,23 @@ func _validate_bands(value: Variant, activity_id: String, issues: Array[Dictiona
 			_add_issue(issues, "GENERATOR_ACTIVITY_MISMATCH", path + ["generator_id"], "Generator does not belong to this activity")
 		_validate_parameters(band.get("generator_parameters"), path + ["generator_parameters"], issues)
 		_validate_answer_layout(band.get("answer_layout"), path + ["answer_layout"], issues)
+		var required_layout := ""
+		if generator_id == "common_multiple_v1":
+			required_layout = "numeric_keypad"
+		elif generator_id == "prime_factorization_v1":
+			required_layout = "factor_slots"
+		var answer_layout: Variant = band.get("answer_layout")
+		if (
+			not required_layout.is_empty()
+			and answer_layout is Dictionary
+			and answer_layout.get("id") != required_layout
+		):
+			_add_issue(
+				issues,
+				"ANSWER_LAYOUT_GENERATOR_MISMATCH",
+				path + ["answer_layout", "id"],
+				"%s requires answer layout %s" % [generator_id, required_layout]
+			)
 		_validate_manipulative(band.get("manipulative"), path + ["manipulative"], issues)
 
 func _validate_answer_layout(value: Variant, path: Array, issues: Array[Dictionary]) -> void:
@@ -354,8 +371,8 @@ func _validate_samples(value: Variant, issues: Array[Dictionary]) -> void:
 		if band_id not in Contract.BAND_IDS:
 			_add_issue(issues, "UNKNOWN_BAND_ID", path + [index, "band_id"], "Validation sample band is unknown")
 		var seed_value: Variant = sample.get("seed")
-		if not _is_nonnegative_integer(seed_value):
-			_add_issue(issues, "SCHEMA_RANGE", path + [index, "seed"], "Validation seed must be a nonnegative safe integer")
+		if not _is_nonnegative_integer(seed_value) or int(seed_value) > 0xFFFFFFFF:
+			_add_issue(issues, "SCHEMA_RANGE", path + [index, "seed"], "Validation seed must be an unsigned 32-bit integer")
 		else:
 			seen["%s:%d" % [band_id, int(seed_value)]] = true
 		_validate_answer_value(sample.get("expected_answer"), path + [index, "expected_answer"], issues)

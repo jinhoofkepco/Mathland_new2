@@ -153,4 +153,63 @@ describe("arithmetic generator properties", () => {
       }),
     ).toMatchObject({ valid: false });
   });
+
+  it("rejects every sampled range wider than one uint32 draw before generation", () => {
+    const addition = new GeneratorRegistry().create("addition_v1")!;
+    const hugeAddition = {
+      operand_count: 2,
+      operand_min: 0,
+      operand_max: 0x1_0000_0000,
+      place_mode: "full",
+      carry: "allow",
+    };
+    expect(addition.validateParameters(hugeAddition).issues).toContain("OPERAND_RANGE_WIDTH");
+    expect(() => addition.generate({}, { generator_parameters: hugeAddition }, 1)).not.toThrow();
+    expect(addition.generate({}, { generator_parameters: hugeAddition }, 1)).toBeNull();
+    expect(addition.lastError).toBe("INVALID_PARAMETERS");
+
+    const subtraction = new GeneratorRegistry().create("subtraction_v1")!;
+    const hugeSubtraction = {
+      operand_count: 2,
+      operand_min: 1,
+      operand_max: 0x1_0000_0001,
+      place_mode: "full",
+      borrow: "allow",
+      allow_negative: false,
+    };
+    expect(subtraction.validateParameters(hugeSubtraction).issues).toContain("OPERAND_RANGE_WIDTH");
+    expect(() => subtraction.generate({}, { generator_parameters: hugeSubtraction }, 1)).not.toThrow();
+    expect(subtraction.generate({}, { generator_parameters: hugeSubtraction }, 1)).toBeNull();
+
+    const multiplication = new GeneratorRegistry().create("multiplication_v1")!;
+    const hugeLeft = {
+      left_min: 0,
+      left_max: 0x1_0000_0000,
+      right_min: 0,
+      right_max: 0,
+      display: "horizontal",
+    };
+    expect(multiplication.validateParameters(hugeLeft).issues).toContain("LEFT_RANGE_WIDTH");
+    expect(() => multiplication.generate({}, { generator_parameters: hugeLeft }, 1)).not.toThrow();
+    expect(multiplication.generate({}, { generator_parameters: hugeLeft }, 1)).toBeNull();
+
+    const hugeRight = { ...hugeLeft, left_max: 0, right_max: 0x1_0000_0000 };
+    expect(multiplication.validateParameters(hugeRight).issues).toContain("RIGHT_RANGE_WIDTH");
+  });
+
+  it("rejects generator seeds outside the unsigned 32-bit contract without throwing", () => {
+    const generator = new GeneratorRegistry().create("addition_v1")!;
+    const parameters = {
+      operand_count: 2,
+      operand_min: 0,
+      operand_max: 9,
+      place_mode: "ones_digit",
+      carry: "allow",
+    };
+    expect(() =>
+      generator.generate({}, { generator_parameters: parameters }, 0x1_0000_0000),
+    ).not.toThrow();
+    expect(generator.generate({}, { generator_parameters: parameters }, 0x1_0000_0000)).toBeNull();
+    expect(generator.lastError).toBe("INVALID_SEED");
+  });
 });

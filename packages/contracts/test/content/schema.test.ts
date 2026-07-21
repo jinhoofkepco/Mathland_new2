@@ -118,6 +118,16 @@ describe("content package schemas", () => {
     expect(ActivityPackageDraftV1Schema.safeParse(valueDraft).success).toBe(false);
     expect(ActivityPackageDraftV1Schema.safeParse(keyDraft).success).toBe(false);
   });
+
+  it("limits authored validation seeds to the generator uint32 domain", () => {
+    const maximumSeed = makeValidDraft();
+    maximumSeed.validation_samples[0]!.seed = 0xffff_ffff;
+    expect(ActivityPackageDraftV1Schema.safeParse(maximumSeed).success).toBe(true);
+
+    const oversizedSeed = makeValidDraft();
+    oversizedSeed.validation_samples[0]!.seed = 0x1_0000_0000;
+    expect(ActivityPackageDraftV1Schema.safeParse(oversizedSeed).success).toBe(false);
+  });
 });
 
 describe("checked-in JSON Schemas", () => {

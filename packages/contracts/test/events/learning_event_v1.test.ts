@@ -169,6 +169,15 @@ describe("LearningEventV1 Godot parity", () => {
     ).toBe(false);
   });
 
+  it("uses the same unsigned 32-bit question-seed contract as the generators", () => {
+    expect(
+      LearningEventV1Schema.safeParse({ ...fixture, question_seed: 0xffff_ffff }).success,
+    ).toBe(true);
+    expect(
+      LearningEventV1Schema.safeParse({ ...fixture, question_seed: 0x1_0000_0000 }).success,
+    ).toBe(false);
+  });
+
   it.each(["final_score", "final_health"] as const)(
     "rejects negative and unsafe run-completed %s values",
     (field) => {
