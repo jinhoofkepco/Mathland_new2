@@ -1,0 +1,49 @@
+﻿[title],곱하기[enter]게임[enter]
+[icon],multiple
+
+[level],1
+[gametype],+,+
+[keypad],phone3
+[description],곱하기~~~!!!
+[questiontype],game1
+[time for each quiz,1,60],26
+[time for each quiz,61,100],38-Quotient[(sub_level)~5]
+[apples per quiz],5+Quotient[(sub_level)~5]
+[sub level increasement],5
+[sub level decreasement],10
+[question number for next level],1000
+[TargetNumber],10
+[row of question display],6
+[row of question display_for button],6
+[component A,1,10],2,3,4
+[component B,1,10],2,3,4,5,6,7
+[component C,1,10],0
+[component D,1,10],3,4,5,6
+[component E],(answer)Quotient[(10*A+B)*(10*C+D)~1000]
+[question format],[_][_][_][component A][component B][_][_][_][x][component#1 C][component D][__][__][___][___][___][___][__][_][component#? E][?][?][?][_]
+[answer equation],(10*A+B)*(10*C+D)
+[log1],A B * C D=(10*A+B)*(10*C+D)=answer
+[component A,11,20],2,3,4,5,6,7
+[component B,11,20],4,5,6,7,8,9
+[component C,11,20],0
+[component D,11,20],3,4,5,6,7,8,9
+[component A,21,30],2,3,4,5,6,7
+[component B,21,30],4,5,6,7,8,9
+[component C,21,30],1
+[component D,21,30],3,4,5,6,7,8,9
+[component A,31,40],2,3,4
+[component B,31,40],4,5,6,7,8,9
+[component C,31,40],1,2,3
+[component D,31,40],3,4,5,6,7,8,9
+[component A,41,50],2,3,4,5,6,7
+[component B,41,50],4,5,6,7
+[component C,41,50],2,3,4,5,6
+[component D,41,50],3,4,5,6,7
+[component A,51,60],3,4,5,6,7,8
+[component B,51,60],5,6,7,8
+[component C,51,60],3,4,5,6,7,8
+[component D,51,60],4,5,6,7,8
+[component A,61,100],2,3,4,5,6,7,8,9
+[component B,61,100],1,2,3,4,5,6,7,8,9
+[component C,61,100],0,3,4,5,6,7,8,9
+[component D,61,100],1,2,3,4,5,6,7,8,9

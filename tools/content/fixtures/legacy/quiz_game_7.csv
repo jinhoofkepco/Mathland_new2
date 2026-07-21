@@ -1,0 +1,103 @@
+﻿[title],빼기[enter]게임[enter]-New 1-
+[icon],minus
+
+[level],1
+[gametype],+,+
+[keypad],phone3
+[description],빼서 1의자리!!
+[questiontype],game1
+[time for each quiz],20
+[apples per quiz],1
+[question number for next level],2
+[TargetNumber],10
+[row of question display],11
+[row of question display_for button],8
+[component E],1,2,3,4,5
+[component F],1,2,3,4,5
+[component G],1,2,3,4,5
+[component H],1,2,3,4,5
+[component J],1,2,3,4,5
+[component K],1,2,3,4,5,6
+[component L],1,2,3,4,5,6
+[component P],1,2,3,4,5,6
+[component N],1,2,3,4,5,6
+[component O],1,2,3,4,5,6
+[component A],(answer)Mod[E+K~10]
+[component B],(answer)Mod[F+L~10]
+[component C],(answer)Mod[G+P~10]
+[component D],(answer)Mod[H+N~10]
+[component I],(answer)Mod[J+O~10]
+[question format],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][-][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation],K*10000+L*1000+P*100+N*10+O
+
+[level],2
+[gametype],+,+
+[keypad],phone3
+[description],빼서 1의자리!!
+[questiontype],game1
+[time for each quiz],25
+[apples per quiz],5
+[question number for next level],5
+[TargetNumber],10
+[row of question display],11
+[row of question display_for button],8
+[component E],1,2,3,4,5,6,7,8,9
+[component F],1,2,3,4,5,6,7,8,9
+[component G],1,2,3,4,5,6,7,8,9
+[component H],1,2,3,4,5,6,7,8,9
+[component J],1,2,3,4,5,6,7,8,9
+[component K],1,2,3,4,5,6,7
+[component L],1,2,3,4,5,6,7
+[component P],1,2,3,4,5,6,7
+[component N],1,2,3,4,5,6,7
+[component O],1,2,3,4,5,6,7
+[component A],(answer)Mod[E+K~10]
+[component B],(answer)Mod[F+L~10]
+[component C],(answer)Mod[G+P~10]
+[component D],(answer)Mod[H+N~10]
+[component I],(answer)Mod[J+O~10]
+[question format],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][-][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation],K*10000+L*1000+P*100+N*10+O
+
+[level],3
+[gametype],+,+
+[keypad],phone3
+[description],2자리수 빼기!!
+[questiontype],game1
+[time for each quiz],25
+[apples per quiz],10
+[question number for next level],10
+[TargetNumber],10
+[row of question display],7
+[row of question display_for button],7
+[component C],1,2,3,4
+[component D],1,2,3,4,5,6,7,8,9
+[component E],1,2,3,4
+[component F],1,2,3,4,5,6,7,8,9
+[component A],(answer)Quotient[(E+C)*10+F+D~10]
+[component B],(answer)Mod[(E+C)*10+F+D~10]
+[question format],[_][_][_][_][component A][component B][_][_][_][_][-][component C][component D][_][__][__][__][___][___][___][__][_][_][_][_][?][?][_]
+[answer equation],10*E+F
+
+[level],4
+[gametype],+,+
+[keypad],phone3
+[description],3자리수 빼기!!
+[questiontype],game1
+[time for each quiz],35
+[apples per quiz],30
+[question number for next level],1000
+[TargetNumber],10
+[row of question display],8
+[row of question display_for button],8
+[component D],1,2,3,4
+[component E],1,2,3,4,5,6,7,8,9
+[component F],1,2,3,4,5,6,7,8,9
+[component A],1,2,3,4
+[component B],1,2,3,4,5,6,7,8,9
+[component C],1,2,3,4,5,6,7,8,9
+[component G],(answer)Quotient[(D+A)*100+(E+B)*10+F+C~100]
+[component H],(answer)Quotient[Mod[(D+A)*100+(E+B)*10+F+C~100]~10]
+[component I],(answer)Mod[(D+A)*100+(E+B)*10+F+C~10]
+[question format],[_][_][_][_][component G][component H][component I][_][_][_][_][-][component D][component E][component F][_][__][__][__][___][___][___][___][__][_][_][_][?][?][?][?][_]
+[answer equation],100*A+10*B+C
