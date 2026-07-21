@@ -43,6 +43,12 @@ jobs:
         run: npm run test:contracts -- --run
       - name: Test dashboard
         run: npm run test:web -- --run
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Test phone and tablet journeys
+        env:
+          VITE_MATHLAND_CLOUD_MODE: fake
+        run: npm run test:e2e
       - name: Build credential-free Pages demo
         env:
           VITE_MATHLAND_CLOUD_MODE: fake
