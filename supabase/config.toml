@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.rollback-publication]
 verify_jwt = false
+
+[functions.activate-publications]
+verify_jwt = false

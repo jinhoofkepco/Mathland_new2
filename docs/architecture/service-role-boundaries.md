@@ -10,12 +10,12 @@ grants to `service_role` is prohibited.
 | Boundary | RPCs | Purpose |
 | --- | --- | --- |
 | Content validation | `get_content_draft_for_validation` | Read one draft's ID, activity, revision, and package without raw table access. |
-| Publish/rollback | `get_content_publication_for_rollback`, `commit_validated_content_publication` | Read one retired immutable source and atomically commit a validated publish or rollback with a required 1–500 character human reason. |
+| Publish/rollback | `get_content_publication_for_rollback`, `commit_validated_content_publication_v2` | Read one retired immutable source and atomically commit a validated publish or rollback with a required 1–500 character human reason and database-authoritative lifecycle timestamps. |
 | Scheduled worker | `get_due_content_publication_ids`, `activate_due_content_publication` | Read an explicitly bounded due queue and atomically activate a newer pointer or cancel a stale one. |
 | Pairing | `create_pairing_challenge_for_service`, `get_pairing_challenge_for_service`, `commit_device_pairing_for_service` | Create a guardian-authorized digest-only challenge, resolve its minimal active metadata, and atomically consume it into one device binding. Creation serializes on the profile and a partial unique index enforces one current challenge per profile. |
 | Event ingestion | `ingest_learning_events_for_service` | Validate a non-null batch of 1–100 `LearningEventV1` objects, derive family/profile identity from the bound device, and acknowledge exact retries idempotently. |
 
-All nine RPCs have an empty `search_path`; only `service_role` receives execute
+All allowlisted service RPCs have an empty `search_path`; only `service_role` receives execute
 permission. The content draft reader is intentionally read-only. Publication
 versions, active pointers, and audit facts can be written only inside the atomic
 commit/activation RPCs. Pairing and ingestion derive protected columns inside

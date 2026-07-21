@@ -34,7 +34,7 @@ application. For every publish or rollback request it must:
    validators.
 4. Construct the published package, canonicalize it with
    `@mathland/contracts`, and compute its canonical SHA-256 checksum.
-5. Call `commit_validated_content_publication(...)` once with the locked draft
+5. Call `commit_validated_content_publication_v2(...)` once with the locked draft
    revision, published package, checksum, complete successful validation report,
    actor UUID, effective time, request UUID, a human-entered reason of 1–500
    characters, and optional rollback publication.
@@ -88,22 +88,28 @@ Inserting a `pending` publication does not make PostgreSQL run work when
 `effective_at` arrives. Time passing alone has no automatic activation guarantee,
 and devices continue to receive the prior active package.
 
-Deployment must configure a trusted scheduler or Edge worker to call
-`activate_due_content_publication(publication_id, request_id)` with the
-service-role credential for due rows. Queue reads require an explicit limit from
-1 through 100; `NULL` never means unbounded. The activation RPC takes an activity
-advisory lock and publication row lock, rejects early activation, and compares
-the pending version with the current active version. It cancels and audits a
-stale equal/lower schedule instead of replacing a newer active publication.
-Otherwise it retires the prior active pointer, changes the pending row to active,
-and appends its audit fact in one transaction. Concurrent or repeated calls
-return the already-active or already-cancelled publication without applying the
-transition or audit twice. Worker failures are retried with a new request UUID;
-the publication ID remains the idempotency identity.
+The deployed `activate-publications` Edge Function is the scheduler boundary. It
+accepts only a dedicated `MATHLAND_SCHEDULER_SECRET` bearer value, reads at most
+1–100 due IDs through `get_due_content_publication_ids(batch_limit)`, and calls
+`activate_due_content_publication(publication_id, request_id)` with a fresh
+operation UUID for each ID. It creates its service-role repository without the
+browser publishable key, CORS allowlist, human authentication, or pairing
+secrets. The scheduler secret and service-role credential remain server-only.
+
+The activation RPC takes an activity advisory lock and publication row lock,
+rejects early activation, and compares the pending version with the current
+active version. It cancels and audits a stale equal/lower schedule instead of
+replacing a newer active publication. Otherwise it retires the prior active
+pointer, changes the pending row to active, and appends its audit fact in one
+transaction. Concurrent or repeated calls return the already-active or
+already-cancelled publication without applying the transition or audit twice.
+Worker failures are retried with a new request UUID; the publication ID remains
+the idempotency identity. Deployment and recovery steps are in
+`docs/operations/scheduled-content-activation.md`.
 
 Scheduled activation and rollback must use these service-role boundaries.
 Deployment automation must verify that only `service_role` can execute
-`commit_validated_content_publication(...)` and
+`commit_validated_content_publication_v2(...)` and
 `activate_due_content_publication(...)`. `get_active_content_packages()` is
 executable only by `authenticated`, which also covers signed-in anonymous
 devices; `service_role` has no execute grant on that device-facing RPC.

@@ -5,6 +5,7 @@ import type {
   SaveDraftInput,
 } from "../../../packages/contracts/src/cloud/wire.ts";
 import { SupabaseAuthVerifier } from "./auth.ts";
+import type { PublicationActivationRepository } from "./scheduler.ts";
 import type {
   CommitPublicationInput,
   CommitPublicationResult,
@@ -238,6 +239,10 @@ type PublicationCommitRow = {
   status?: unknown;
 };
 
+type DuePublicationRow = {
+  publication_id?: unknown;
+};
+
 const DRAFT_SELECT = "id,activityId:activity_id,title,revision,updatedAt:updated_at,package";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -267,11 +272,19 @@ export class SupabaseFunctionRepository
     CreatePairingRepository,
     PairDeviceRepository,
     IngestionRepository,
-    ContentStudioRepository {
+    ContentStudioRepository,
+    PublicationActivationRepository {
   constructor(
     private readonly rpc: ServiceRpcClient,
-    private readonly caller: CallerRestClient,
+    private readonly caller?: CallerRestClient,
   ) {}
+
+  private callerClient(): CallerRestClient {
+    if (this.caller === undefined) {
+      throw new SupabaseRpcError("rpc_unavailable", 503);
+    }
+    return this.caller;
+  }
 
   async createChallenge(input: CreateChallengeInput): Promise<string> {
     const result = await this.rpc.call<unknown>("create_pairing_challenge_for_service", {
@@ -349,7 +362,7 @@ export class SupabaseFunctionRepository
   }
 
   async hasRole(accessToken: string, role: StudioRole): Promise<boolean> {
-    const result = await this.caller.call<unknown>("has_global_studio_role", accessToken, {
+    const result = await this.callerClient().call<unknown>("has_global_studio_role", accessToken, {
       required_role: role,
     });
     if (typeof result !== "boolean") throw new SupabaseRpcError("rpc_invalid_response", 503);
@@ -384,7 +397,7 @@ export class SupabaseFunctionRepository
     const query = new URLSearchParams({ select: DRAFT_SELECT });
     let rows: DraftWireRow[];
     if (input.draftId === undefined) {
-      rows = await this.caller.request<DraftWireRow[]>(
+      rows = await this.callerClient().request<DraftWireRow[]>(
         `content_drafts?${query}`,
         accessToken,
         {
@@ -400,7 +413,7 @@ export class SupabaseFunctionRepository
     } else {
       query.set("id", `eq.${input.draftId}`);
       query.set("revision", `eq.${input.expectedRevision}`);
-      rows = await this.caller.request<DraftWireRow[]>(
+      rows = await this.callerClient().request<DraftWireRow[]>(
         `content_drafts?${query}`,
         accessToken,
         {
@@ -485,7 +498,7 @@ export class SupabaseFunctionRepository
     accessToken: string,
     activityId?: string,
   ): Promise<ContentPublicationHistoryItem[]> {
-    const rows = await this.caller.call<PublicationHistoryRow[]>(
+    const rows = await this.callerClient().call<PublicationHistoryRow[]>(
       "get_content_publication_history",
       accessToken,
       { target_activity_id: activityId ?? null },
@@ -520,6 +533,29 @@ export class SupabaseFunctionRepository
         validationValid: row.validation_valid,
       };
     });
+  }
+
+  async listDuePublicationIds(batchLimit: number): Promise<string[]> {
+    const rows = await this.rpc.call<DuePublicationRow[]>(
+      "get_due_content_publication_ids",
+      { batch_limit: batchLimit },
+    );
+    if (
+      !Array.isArray(rows) ||
+      !rows.every((row) => typeof row.publication_id === "string")
+    ) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    return rows.map((row) => row.publication_id as string);
+  }
+
+  async activatePublication(publicationId: string, requestId: string): Promise<string> {
+    const result = await this.rpc.call<unknown>("activate_due_content_publication", {
+      target_publication_id: publicationId,
+      activation_request_id: requestId,
+    });
+    if (typeof result !== "string") throw new SupabaseRpcError("rpc_invalid_response", 503);
+    return result;
   }
 }
 
@@ -567,5 +603,23 @@ export function createSupabaseFunctionRuntime(): SupabaseFunctionRuntime {
     auth: new SupabaseAuthVerifier(supabaseUrl, publishableKey),
     pairingSecret,
     repository: new SupabaseFunctionRepository(rpc, caller),
+  };
+}
+
+export type SupabaseSchedulerRuntime = {
+  schedulerSecret: string;
+  repository: SupabaseFunctionRepository;
+};
+
+export function createSupabaseSchedulerRuntime(): SupabaseSchedulerRuntime {
+  const supabaseUrl = requiredEnvironment("SUPABASE_URL").replace(/\/$/, "");
+  const serviceRoleKey = requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY");
+  const schedulerSecret = requiredEnvironment("MATHLAND_SCHEDULER_SECRET");
+  if (schedulerSecret.length < 32) throw new Error("scheduler secret is too short");
+  return {
+    schedulerSecret,
+    repository: new SupabaseFunctionRepository(
+      new ServiceRpcClient(supabaseUrl, serviceRoleKey),
+    ),
   };
 }
