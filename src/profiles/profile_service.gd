@@ -9,14 +9,12 @@ const UuidV4Script = preload("res://src/core/uuid_v4.gd")
 signal profiles_changed
 signal selection_changed
 
-# Variant keeps injected test stores usable when this script is parsed headlessly
-# before the AtomicJsonStore global class has been registered.
-var _store: Variant
+var _store: RefCounted
 var _profiles: Array[Dictionary] = []
 var _selected_profile_id := ""
 
-func _init(store: Variant = null) -> void:
-	_store = store if store != null else AtomicJsonStoreScript.new("user://.")
+func _init(store: RefCounted = null) -> void:
+	_store = store if _is_store_usable(store) else AtomicJsonStoreScript.new("user://.")
 	_load_index()
 
 func create_profile(nickname: Variant, avatar_id: Variant, pin: Variant) -> Dictionary:
@@ -107,6 +105,13 @@ func _load_index() -> void:
 	if not loaded.get("ok", false) or not loaded.get("value", null) is Dictionary:
 		return
 	var index: Dictionary = loaded.value
+	if index.size() != 3 or not index.has("schema_version") or not index.has("selected_profile_id") or not index.has("profiles"):
+		return
+	if not (index.schema_version is int or index.schema_version is float) or index.schema_version != 1:
+		return
+	var selected: Variant = index.selected_profile_id
+	if not selected is String:
+		return
 	var records: Variant = index.get("profiles", [])
 	if not records is Array:
 		return
@@ -116,8 +121,7 @@ func _load_index() -> void:
 		if profile.is_empty() or _contains_profile(loaded_profiles, profile.profile_id):
 			return
 		loaded_profiles.append(profile)
-	var selected: Variant = index.get("selected_profile_id", "")
-	if selected is String and _contains_profile(loaded_profiles, selected):
+	if _contains_profile(loaded_profiles, selected):
 		_selected_profile_id = selected
 	_profiles = loaded_profiles
 
@@ -153,3 +157,6 @@ func _public_profile(profile: Dictionary) -> Dictionary:
 		"settings": profile.settings.duplicate(true),
 		"created_at": profile.created_at,
 	}
+
+func _is_store_usable(store: RefCounted) -> bool:
+	return store != null and store.has_method("load") and store.has_method("save")

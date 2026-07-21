@@ -56,7 +56,8 @@ static func from_dictionary(value: Variant) -> Dictionary:
 	var created_at: Variant = record.get("created_at", null)
 	if not profile_id is String or not UuidV4Script.is_valid(profile_id):
 		return {}
-	if normalize_nickname(nickname) != nickname or not is_valid_avatar(avatar_id):
+	var normalized_nickname := normalize_nickname(nickname)
+	if normalized_nickname.is_empty() or normalized_nickname != nickname or not is_valid_avatar(avatar_id):
 		return {}
 	if not pin_salt is String or not pin_verifier is String:
 		return {}
@@ -71,12 +72,17 @@ static func from_dictionary(value: Variant) -> Dictionary:
 	var settings := normalized_settings(record.get("settings", null))
 	if settings.is_empty():
 		return {}
-	var serialized := record.duplicate(true)
-	serialized.failed_attempts = int(failed_attempts)
-	serialized.locked_until = int(locked_until)
-	serialized.created_at = int(created_at)
-	serialized.settings = settings
-	return serialized
+	return {
+		"profile_id": profile_id,
+		"nickname": normalized_nickname,
+		"avatar_id": avatar_id,
+		"pin_salt": pin_salt,
+		"pin_verifier": pin_verifier,
+		"failed_attempts": int(failed_attempts),
+		"locked_until": int(locked_until),
+		"settings": settings,
+		"created_at": int(created_at),
+	}
 
 static func normalize_nickname(value: Variant) -> String:
 	if not value is String:
@@ -128,4 +134,6 @@ static func _is_valid_setting(key: Variant, value: Variant) -> bool:
 	return false
 
 static func _is_nonnegative_integer(value: Variant) -> bool:
-	return (value is int or value is float) and value >= 0 and is_equal_approx(value, round(value))
+	if value is int:
+		return value >= 0
+	return value is float and is_finite(value) and value >= 0.0 and value == floor(value)
