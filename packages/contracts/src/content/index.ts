@@ -14,3 +14,4 @@ export * from "./generation/registry.js";
 export * from "./generation/adaptive_band.js";
 export * from "./generation/arithmetic.js";
 export * from "./generation/number_theory.js";
+export * from "./generation/foundations.js";

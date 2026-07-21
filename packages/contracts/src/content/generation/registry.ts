@@ -1,28 +1,15 @@
 import { GENERATOR_IDS, type GeneratorId } from "../ids.js";
-import type {
-  GeneratedQuestionFields,
-  GeneratorValidationResult,
-  QuestionGeneratorContract,
-} from "./types.js";
+import type { QuestionGeneratorContract } from "./types.js";
 import { AdditionGenerator, MultiplicationGenerator, SubtractionGenerator } from "./arithmetic.js";
 import { CommonMultipleGenerator, PrimeFactorizationGenerator } from "./number_theory.js";
-
-class PendingQuestionGenerator implements QuestionGeneratorContract {
-  readonly generatorId: GeneratorId;
-  readonly lastError = "GENERATOR_NOT_IMPLEMENTED";
-
-  constructor(generatorId: GeneratorId) {
-    this.generatorId = generatorId;
-  }
-
-  validateParameters(_parameters: Readonly<Record<string, unknown>>): GeneratorValidationResult {
-    return { valid: false, issues: ["GENERATOR_NOT_IMPLEMENTED"] };
-  }
-
-  generate(): GeneratedQuestionFields | null {
-    return null;
-  }
-}
+import {
+  BaseTenGenerator,
+  BasicOperationsGenerator,
+  CountingGenerator,
+  NumberBondsGenerator,
+  NumberLineGenerator,
+  TenFrameGenerator,
+} from "./foundations.js";
 
 type GeneratorFactory = () => QuestionGeneratorContract;
 
@@ -32,12 +19,12 @@ const GENERATOR_FACTORIES: Readonly<Record<GeneratorId, GeneratorFactory>> = {
   multiplication_v1: () => new MultiplicationGenerator(),
   common_multiple_v1: () => new CommonMultipleGenerator(),
   prime_factorization_v1: () => new PrimeFactorizationGenerator(),
-  counting_v1: () => new PendingQuestionGenerator("counting_v1"),
-  number_bonds_v1: () => new PendingQuestionGenerator("number_bonds_v1"),
-  ten_frame_v1: () => new PendingQuestionGenerator("ten_frame_v1"),
-  base_ten_v1: () => new PendingQuestionGenerator("base_ten_v1"),
-  number_line_v1: () => new PendingQuestionGenerator("number_line_v1"),
-  basic_operations_v1: () => new PendingQuestionGenerator("basic_operations_v1"),
+  counting_v1: () => new CountingGenerator(),
+  number_bonds_v1: () => new NumberBondsGenerator(),
+  ten_frame_v1: () => new TenFrameGenerator(),
+  base_ten_v1: () => new BaseTenGenerator(),
+  number_line_v1: () => new NumberLineGenerator(),
+  basic_operations_v1: () => new BasicOperationsGenerator(),
 };
 
 export class GeneratorRegistry {

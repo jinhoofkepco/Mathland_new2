@@ -1,0 +1,108 @@
+[
+  {
+    "name": "counting row is deterministic",
+    "generator_id": "counting_v1",
+    "seed": 42,
+    "parameters": { "count_min": 1, "count_max": 20 },
+    "expected": {
+      "resolved_parameters": {
+        "count": 13,
+        "item_ids": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "manipulative_id": "counters",
+        "initial_occupied": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      },
+      "prompt": { "key": "question.counting", "args": {} },
+      "correct_answer": { "kind": "integer", "value": 13 }
+    }
+  },
+  {
+    "name": "number bond hides the deterministic side",
+    "generator_id": "number_bonds_v1",
+    "seed": 42,
+    "parameters": { "whole_min": 2, "whole_max": 10, "show_part": "random" },
+    "expected": {
+      "resolved_parameters": {
+        "whole": 8,
+        "parts": [7, 1],
+        "shown_side": "right",
+        "shown_part": 1,
+        "missing_part": 7,
+        "manipulative_id": "counters",
+        "initial_occupied": [0]
+      },
+      "prompt": { "key": "question.number_bonds", "args": { "whole": 8, "shown_part": 1 } },
+      "correct_answer": { "kind": "integer", "value": 7 }
+    }
+  },
+  {
+    "name": "two ten frames fill in row-major order",
+    "generator_id": "ten_frame_v1",
+    "seed": 42,
+    "parameters": { "target_min": 0, "target_max": 20, "frame_count": 2 },
+    "expected": {
+      "resolved_parameters": {
+        "target": 18,
+        "frame_count": 2,
+        "occupied_cells": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+        "manipulative_id": "ten_frame"
+      },
+      "prompt": { "key": "question.ten_frame", "args": {} },
+      "correct_answer": { "kind": "integer", "value": 18 }
+    }
+  },
+  {
+    "name": "base-ten blocks reconstruct a deterministic value",
+    "generator_id": "base_ten_v1",
+    "seed": 42,
+    "parameters": { "value_min": 100, "value_max": 999, "max_place": "hundreds" },
+    "expected": {
+      "resolved_parameters": {
+        "value": 232,
+        "hundreds": 2,
+        "tens": 3,
+        "ones": 2,
+        "place_counts": [2, 3, 2],
+        "manipulative_id": "base_ten"
+      },
+      "prompt": { "key": "question.base_ten", "args": {} },
+      "correct_answer": { "kind": "integer", "value": 232 }
+    }
+  },
+  {
+    "name": "number-line hop stays on its authored axis",
+    "generator_id": "number_line_v1",
+    "seed": 42,
+    "parameters": { "axis_min": -10, "axis_max": 30, "step_min": 1, "step_max": 10, "direction": "bidirectional" },
+    "expected": {
+      "resolved_parameters": {
+        "axis_min": -10,
+        "axis_max": 30,
+        "start": -7,
+        "signed_steps": [9],
+        "endpoint": 2,
+        "direction": "forward",
+        "visited_ticks": [-7],
+        "manipulative_id": "number_line"
+      },
+      "prompt": { "key": "question.number_line", "args": { "start": -7, "step": 9 } },
+      "correct_answer": { "kind": "integer", "value": 2 }
+    }
+  },
+  {
+    "name": "basic operation respects the result ceiling",
+    "generator_id": "basic_operations_v1",
+    "seed": 42,
+    "parameters": { "operators": "mixed", "operand_min": 0, "operand_max": 20, "allow_negative": false },
+    "expected": {
+      "resolved_parameters": {
+        "operands": [16, 4],
+        "operator": "+",
+        "answer": 20,
+        "initial_counts": [16, 4],
+        "manipulative_id": "counters"
+      },
+      "prompt": { "key": "question.basic_operations", "args": { "expression": "16 + 4" } },
+      "correct_answer": { "kind": "integer", "value": 20 }
+    }
+  }
+]
