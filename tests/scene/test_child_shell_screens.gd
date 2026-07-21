@@ -107,6 +107,8 @@ func run(tree: SceneTree) -> void:
 	await _test_profile_creation_rules(tree, profile_service)
 	await _test_profile_activation_gates_route(tree, profile_service, services)
 	await _test_island_data_and_routes(tree, services)
+	await _test_collection_release_art(tree, services)
+	await _test_free_play_release_activity_icon(tree, services)
 	await _test_offline_copy_is_explicit(tree, services)
 	await _test_settings_are_profile_scoped_and_live(tree, services)
 	await _test_reduced_motion_reaches_current_and_new_buttons(tree, services)
@@ -224,11 +226,66 @@ func _test_island_data_and_routes(tree: SceneTree, services: Dictionary) -> void
 	assert_eq(screen.apple_balance(), 27)
 	assert_eq(screen.pending_review_count(), 4)
 	assert_eq(screen.sync_state(), {"online": false, "queued": 3})
+	var background: TextureRect = screen.find_child("ExplorationIslandBackground", true, false)
+	assert_not_null(background)
+	if background != null:
+		assert_true(background.texture is Texture2D)
+		assert_eq(background.size, screen.size)
+		if background.texture != null:
+			assert_eq(background.texture.resource_path, "res://assets/art/island/exploration_island_bg.png")
 	screen.open_daily_path()
 	assert_eq((services.router as FakeRouter).calls.back().route, &"daily_path")
 	screen.switch_profile()
 	assert_eq((services.router as FakeRouter).calls.back().route, &"profile_select")
 	assert_eq((services.router as FakeRouter).calls.back().mode, "reset")
+	viewport.queue_free()
+	await tree.process_frame
+
+func _test_collection_release_art(tree: SceneTree, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/island/collection.tscn")
+	var screen: Control = scene.instantiate()
+	screen.configure(services)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var artwork: TextureRect = screen.find_child("CollectionArt_first_map", true, false)
+	assert_not_null(artwork)
+	if artwork != null:
+		assert_true(artwork.texture is AtlasTexture)
+		assert_true(artwork.is_visible_in_tree())
+		assert_true(artwork.size.x > 0.0 and artwork.size.y > 0.0)
+		if artwork.texture is AtlasTexture:
+			assert_eq(artwork.texture.atlas.resource_path, "res://assets/art/collection/collection_shells.png")
+			assert_eq(artwork.texture.region, Rect2(64, 304, 480, 480))
+	var name_label: Label = screen.find_child("CollectionName_first_map", true, false)
+	assert_not_null(name_label)
+	if name_label != null:
+		assert_false(name_label.text.strip_edges().is_empty())
+		assert_ne(name_label.text, "collection.first_map")
+	viewport.queue_free()
+	await tree.process_frame
+
+func _test_free_play_release_activity_icon(tree: SceneTree, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/island/free_play.tscn")
+	var screen: Control = scene.instantiate()
+	screen.configure(services)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var button: Control = screen.find_child("ActivityButton_0", true, false)
+	assert_not_null(button)
+	if button != null:
+		var icon: TextureRect = button.get_node("Visual/Content/IconTexture")
+		assert_true(icon.visible)
+		assert_true(icon.texture is Texture2D)
+		if icon.texture != null:
+			assert_eq(icon.texture.resource_path, "res://assets/ui/icons/activities/foundations_base_ten.svg")
+		assert_false(button.get_node("Visual/Content/TextLabel").text.strip_edges().is_empty())
+		assert_false(button.accessibility_name.strip_edges().is_empty())
 	viewport.queue_free()
 	await tree.process_frame
 

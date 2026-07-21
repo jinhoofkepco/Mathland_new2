@@ -55,6 +55,28 @@ export const AudioFormatSchema = z
   })
   .strict();
 
+export const RasterTransformationSchema = z
+  .object({
+    source_width: z.number().int().positive().max(8192),
+    source_height: z.number().int().positive().max(8192),
+    output_width: z.number().int().positive().max(8192),
+    output_height: z.number().int().positive().max(8192),
+    operations: z
+      .array(
+        z.enum([
+          "remove-chroma-key",
+          "despill",
+          "convert-rgba",
+          "resize-lanczos",
+          "pad-transparent",
+          "optimize-png",
+          "add-srgb-chunk",
+        ]),
+      )
+      .min(1),
+  })
+  .strict();
+
 export const AssetRecordSchema = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9._-]{2,95}$/),
@@ -74,6 +96,7 @@ export const AssetRecordSchema = z
     prompt_path: z.string().min(1).max(240).optional(),
     prompt_sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     generation_date: z.iso.date().optional(),
+    transformation: RasterTransformationSchema.optional(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     license: z.string().trim().min(1).max(96),
     modifications: z.string().trim().min(1).max(500),
@@ -135,6 +158,18 @@ export const AssetRecordSchema = z
         code: "custom",
         path: ["master_path"],
         message: "Generated-derived releases require a production master path",
+      });
+    }
+    if (
+      asset.kind === "png" &&
+      asset.release &&
+      asset.origin === "generated-derived" &&
+      asset.transformation === undefined
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["transformation"],
+        message: "Generated-derived release PNGs require an exact transformation declaration",
       });
     }
   });

@@ -2,7 +2,7 @@
 
 All records below are covered by project-specific provenance and redistribution review. The generated raster work is original user-directed generated work made with `OpenAI built-in image_gen`; redistribution is confirmed by the project owner. The project-native SVGs are original MathLand work. No legacy SeoaQuiz raster art and no third-party asset is included.
 
-Production masters are the checked-in PNG release files recorded by `master_path`. No Krita authoring tool was available, so the repository intentionally contains no fabricated `.kra` file. The saved prompts and generated source candidates provide the reproducible provenance chain.
+Generated source candidates under `assets/source/art/generated/` are the immutable non-release masters recorded by `master_path`; checked-in runtime PNGs are reviewed derivatives. No Krita authoring tool was available, so the repository intentionally contains no fabricated `.kra` file. The saved prompt, source candidate, transformation declaration, and release hashes provide the reproducible provenance chain.
 
 - `app.mathland_launcher` — `MathLand-Original-1.0`; original; redistribution confirmed; assets/ui/app/mathland_launcher.svg
 - `ui.activity.addition_ones` — `MathLand-Original-1.0`; original; redistribution confirmed; assets/ui/icons/activities/addition_ones.svg
@@ -25,6 +25,10 @@ Production masters are the checked-in PNG release files recorded by `master_path
 - `ui.learning.unit_cube` — `MathLand-Original-1.0`; original; redistribution confirmed; assets/ui/learning/unit_cube.svg
 - `ui.learning.number_line_marker` — `MathLand-Original-1.0`; original; redistribution confirmed; assets/ui/learning/number_line_marker.svg
 - `source.generated.moa_anchor_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/moa-anchor-v1.png
+- `source.generated.moa_neutral_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/moa-neutral-v1.png
+- `source.generated.moa_celebrate_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/moa-celebrate-v1.png
+- `source.generated.moa_encourage_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/moa-encourage-v1.png
+- `source.generated.moa_point_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/moa-point-v1.png
 - `source.generated.exploration_island_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/exploration-island-v1.png
 - `source.generated.collection_shells_keyed_v1` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/source/art/generated/collection-shells-keyed-v1.png
 - `art.moa.neutral` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/moa/moa_neutral.png
@@ -33,4 +37,3 @@ Production masters are the checked-in PNG release files recorded by `master_path
 - `art.moa.point` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/moa/moa_point.png
 - `art.island.exploration_bg` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/island/exploration_island_bg.png
 - `art.collection.shells` — `MathLand-Generated-Original-1.0`; generated-derived; redistribution confirmed; assets/art/collection/collection_shells.png
-

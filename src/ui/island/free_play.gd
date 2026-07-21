@@ -1,6 +1,7 @@
 extends "res://src/ui/shared/child_screen.gd"
 
 const AppRouteScript = preload("res://src/app/app_route.gd")
+const AssetCatalogScript = preload("res://src/presentation/assets/asset_catalog.gd")
 
 var _activities: Array[Dictionary] = []
 
@@ -34,7 +35,9 @@ func _ready() -> void:
 		var description := MathlandUiScript.label(description_key, 15, MathlandUiScript.MUTED_INK)
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		column.add_child(description)
-		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, title_key, "arrow_right", Vector2(0, 54), 17)
+		var activity_id := StringName(activity.get("activity_id", ""))
+		var icon_id := AssetCatalogScript.activity_icon_id(activity_id)
+		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, title_key, String(icon_id), Vector2(0, 54), 17)
 		column.add_child(button)
 		_connect_tactile(button, _open_activity.bind(index))
 

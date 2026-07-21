@@ -60,6 +60,12 @@ export function validateAssetManifest(value: unknown): AssetReport {
 
   const ids = new Set<string>();
   const paths = new Set<string>();
+  const rawByPath = new Map<string, Record<string, unknown>>();
+  for (const candidate of assets) {
+    if (isRecord(candidate) && typeof candidate.path === "string") {
+      rawByPath.set(candidate.path, candidate);
+    }
+  }
   assets.forEach((candidate, index) => {
     if (!isRecord(candidate)) {
       return;
@@ -98,6 +104,38 @@ export function validateAssetManifest(value: unknown): AssetReport {
         path: ["assets", index, "redistribution"],
         message: "Release assets require confirmed redistribution rights",
       });
+    }
+    if (
+      candidate.kind === "png" &&
+      candidate.release === true &&
+      candidate.origin === "generated-derived"
+    ) {
+      const masterPath = candidate.master_path;
+      const master = typeof masterPath === "string" ? rawByPath.get(masterPath) : undefined;
+      if (
+        typeof masterPath !== "string" ||
+        masterPath === assetPath ||
+        master === undefined ||
+        master.release === true
+      ) {
+        pushUnique(issues, {
+          code: "GENERATED_MASTER_INVALID",
+          path: ["assets", index, "master_path"],
+          message: "Generated release masters must be genuine non-release asset records",
+        });
+      }
+      const transformation = candidate.transformation;
+      if (
+        isRecord(transformation) &&
+        (transformation.output_width !== candidate.width ||
+          transformation.output_height !== candidate.height)
+      ) {
+        pushUnique(issues, {
+          code: "RASTER_TRANSFORMATION_INVALID",
+          path: ["assets", index, "transformation"],
+          message: "Transformation output dimensions must match the release dimensions",
+        });
+      }
     }
   });
 
@@ -234,6 +272,7 @@ export async function validateAssetWorkspace(options: AssetWorkspaceOptions): Pr
     }
     if (asset.release && asset.origin === "generated-derived") {
       const source = byPath.get(asset.source_path);
+      const master = asset.master_path ? byPath.get(asset.master_path) : undefined;
       if (
         source === undefined ||
         source.release ||
@@ -245,6 +284,33 @@ export async function validateAssetWorkspace(options: AssetWorkspaceOptions): Pr
           code: "GENERATED_LINKAGE_INVALID",
           path: ["assets", index],
           message: `Generated release ${asset.id} must link one non-release source and its exact prompt`,
+        });
+      }
+      if (
+        !asset.master_path ||
+        asset.master_path === asset.path ||
+        master === undefined ||
+        master.release
+      ) {
+        pushUnique(issues, {
+          code: "GENERATED_MASTER_INVALID",
+          path: ["assets", index, "master_path"],
+          message: `Generated release ${asset.id} must link a genuine non-release master`,
+        });
+      }
+      if (
+        asset.kind === "png" &&
+        asset.transformation &&
+        source &&
+        (asset.transformation.source_width !== source.width ||
+          asset.transformation.source_height !== source.height ||
+          asset.transformation.output_width !== asset.width ||
+          asset.transformation.output_height !== asset.height)
+      ) {
+        pushUnique(issues, {
+          code: "RASTER_TRANSFORMATION_INVALID",
+          path: ["assets", index, "transformation"],
+          message: `Declared raster transformation dimensions do not match ${asset.source_path} and ${asset.path}`,
         });
       }
     }

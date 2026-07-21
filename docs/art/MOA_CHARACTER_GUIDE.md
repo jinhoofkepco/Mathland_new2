@@ -30,4 +30,4 @@ Moa is MathLand's primary guide: a small warm-brown sea otter and calm math expl
 
 ## Source and master policy
 
-The approved opaque `moa-anchor-v1.png` is the visual source reference. The four checked-in transparent PNG files are production masters/exports with exact prompt and source linkage in `assets/asset-manifest.json`. Krita was not available during production, so no `.kra` file is claimed or fabricated. Future editable masters may be added only when created by a real authoring tool and then registered with their own hashes.
+The approved opaque `moa-anchor-v1.png` is the visual identity reference only. Each pose has its own exact saved generation prompt and immutable 1254×1254 source candidate: `moa-neutral-v1`, `moa-celebrate-v1`, `moa-encourage-v1`, and `moa-point-v1`. Those non-release candidates are the genuine masters recorded in `assets/asset-manifest.json`; the transparent 1024×1024 runtime PNGs are reviewed derivatives. Krita was not available during production, so no `.kra` file is claimed or fabricated. Future editable masters may be added only when created by a real authoring tool and registered with their own hashes.

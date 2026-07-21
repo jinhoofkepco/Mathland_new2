@@ -332,7 +332,7 @@ func _build_ui() -> void:
 	_score_label = MathlandUiScript.literal_label("0", 20, MathlandUiScript.DEEP_TEAL)
 	_score_label.name = "ScoreLabel"
 	status_row.add_child(_score_label)
-	var speaker := MathlandUiScript.tactile_button("SpeakerButton", "activity.speaker", "", Vector2(82, 52), 16)
+	var speaker := MathlandUiScript.tactile_button("SpeakerButton", "activity.speaker", "ui.status.speaker", Vector2(82, 52), 16)
 	status_row.add_child(speaker)
 	_connect_tactile(speaker, _replay_voice)
 	_error_label = MathlandUiScript.literal_label("", 14, MathlandUiScript.CORAL)

@@ -40,6 +40,29 @@ const EXPECTED = [
   "assets/ui/learning/number_line_marker.svg",
 ] as const;
 
+function elements(svg: string, tag: string, className: string): string[] {
+  const pattern = new RegExp(`<${tag}\\b[^>]*\\bclass="${className}"[^>]*/?>`, "g");
+  return [...svg.matchAll(pattern)].map((match) => match[0]);
+}
+
+function elementById(svg: string, tag: string, id: string): string {
+  const match = svg.match(new RegExp(`<${tag}\\b[^>]*\\bid="${id}"[^>]*/?>`));
+  expect(match, `missing ${tag}#${id}`).not.toBeNull();
+  return match?.[0] ?? "";
+}
+
+function numberAttribute(element: string, name: string): number {
+  const match = element.match(new RegExp(`\\b${name}="(-?[0-9]+(?:\\.[0-9]+)?)"`));
+  expect(match, `${element} has no numeric ${name}`).not.toBeNull();
+  return Number(match?.[1]);
+}
+
+function pathData(element: string): string {
+  const match = element.match(/\bd="([^"]+)"/);
+  expect(match, `${element} has no path data`).not.toBeNull();
+  return match?.[1] ?? "";
+}
+
 describe("release SVG set", () => {
   it("keeps the exact required 19 paths", () => {
     expect(REQUIRED_RELEASE_SVGS).toEqual(EXPECTED);
@@ -63,5 +86,98 @@ describe("release SVG set", () => {
       expect(record?.release, relativePath).toBe(true);
       expect(licenses, relativePath).toContain(`\`${record?.id}\``);
     }
+  });
+
+  it("depicts one square 10x10 hundred flat and one ten-section rod", async () => {
+    const svg = await readFile(
+      path.join(ROOT, "assets/ui/icons/activities/foundations_base_ten.svg"),
+      "utf8",
+    );
+    const flat = elementById(svg, "rect", "hundred-flat-outline");
+    const flatX = numberAttribute(flat, "x");
+    const flatY = numberAttribute(flat, "y");
+    const flatWidth = numberAttribute(flat, "width");
+    const flatHeight = numberAttribute(flat, "height");
+    expect(flatWidth).toBe(flatHeight);
+    expect(flatWidth).toBeGreaterThanOrEqual(64);
+
+    const columns = elements(svg, "line", "hundred-column-divider");
+    const rows = elements(svg, "line", "hundred-row-divider");
+    expect(columns).toHaveLength(9);
+    expect(rows).toHaveLength(9);
+    columns.forEach((line, index) => {
+      expect(numberAttribute(line, "x1")).toBeCloseTo(
+        flatX + (flatWidth / 10) * (index + 1),
+        5,
+      );
+      expect(numberAttribute(line, "x2")).toBe(numberAttribute(line, "x1"));
+      expect(numberAttribute(line, "y1")).toBe(flatY);
+      expect(numberAttribute(line, "y2")).toBe(flatY + flatHeight);
+      expect(numberAttribute(line, "stroke-width")).toBeGreaterThanOrEqual(1.5);
+    });
+    rows.forEach((line, index) => {
+      expect(numberAttribute(line, "y1")).toBeCloseTo(
+        flatY + (flatHeight / 10) * (index + 1),
+        5,
+      );
+      expect(numberAttribute(line, "y2")).toBe(numberAttribute(line, "y1"));
+      expect(numberAttribute(line, "x1")).toBe(flatX);
+      expect(numberAttribute(line, "x2")).toBe(flatX + flatWidth);
+    });
+
+    const rod = elementById(svg, "rect", "ten-rod-outline");
+    const rodY = numberAttribute(rod, "y");
+    const rodHeight = numberAttribute(rod, "height");
+    expect(rodHeight).toBeGreaterThanOrEqual(64);
+    const rodDividers = elements(svg, "line", "ten-rod-divider");
+    expect(rodDividers).toHaveLength(9);
+    rodDividers.forEach((line, index) => {
+      expect(numberAttribute(line, "y1")).toBeCloseTo(
+        rodY + (rodHeight / 10) * (index + 1),
+        5,
+      );
+      expect(numberAttribute(line, "y2")).toBe(numberAttribute(line, "y1"));
+    });
+    expect(elements(svg, "rect", "unit-cube")).toHaveLength(2);
+  });
+
+  it("depicts exactly three equal consecutive number-line hops", async () => {
+    const svg = await readFile(
+      path.join(ROOT, "assets/ui/icons/activities/foundations_number_line.svg"),
+      "utf8",
+    );
+    const ticks = elements(svg, "line", "number-line-tick").map((line) =>
+      numberAttribute(line, "x1"),
+    );
+    expect(ticks).toEqual([24, 48, 72, 96]);
+
+    const hops = elements(svg, "path", "number-line-hop").map((path) => {
+      const match = pathData(path).match(
+        /^M([0-9.]+) ([0-9.]+)Q([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+)$/,
+      );
+      expect(match, `unexpected hop geometry: ${pathData(path)}`).not.toBeNull();
+      return {
+        from: Number(match?.[1]),
+        startY: Number(match?.[2]),
+        controlX: Number(match?.[3]),
+        controlY: Number(match?.[4]),
+        to: Number(match?.[5]),
+        endY: Number(match?.[6]),
+      };
+    });
+    expect(hops).toHaveLength(3);
+    expect(hops.map(({ from, to }) => to - from)).toEqual([24, 24, 24]);
+    expect(hops.map(({ from, to }) => [from, to])).toEqual([
+      [24, 48],
+      [48, 72],
+      [72, 96],
+    ]);
+    expect(hops.map(({ startY, endY }) => [startY, endY])).toEqual([
+      [60, 60],
+      [60, 60],
+      [60, 60],
+    ]);
+    expect(hops.map(({ from, controlX }) => controlX - from)).toEqual([12, 12, 12]);
+    expect(new Set(hops.map(({ controlY }) => controlY))).toEqual(new Set([34]));
   });
 });

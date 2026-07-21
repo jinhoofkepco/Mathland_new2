@@ -1,6 +1,6 @@
 {
   "manifest_version": "1.0.0",
-  "generated_at": "2026-07-21",
+  "generated_at": "2026-07-22",
   "palette": [
     "#66D3B5",
     "#76C8F0",
@@ -295,7 +295,7 @@
       "creator": "MathLand project",
       "tool": "project-native SVG",
       "source_path": "assets/ui/icons/activities/foundations_base_ten.svg",
-      "sha256": "38c2fcf531388648c26f7d831cb13882d3a16be4efbc54054acf65027692db04",
+      "sha256": "c27539fb56fe50011b754ee9e6233540b6e862bad90cbcace307ffe12b60fb72",
       "license": "MathLand-Original-1.0",
       "modifications": "Original code-native SVG in the canonical MathLand palette.",
       "redistribution": "confirmed",
@@ -325,7 +325,7 @@
       "creator": "MathLand project",
       "tool": "project-native SVG",
       "source_path": "assets/ui/icons/activities/foundations_number_line.svg",
-      "sha256": "d5f9173011d4c43878b2c7c570d6a79377d2fdbcfb5df39e5c41de35b4e9386e",
+      "sha256": "b9c5a4d74b0478efd912b8f80d056c8bc507796d787f8cdf02ff174e7d7f81cc",
       "license": "MathLand-Original-1.0",
       "modifications": "Original code-native SVG in the canonical MathLand palette.",
       "redistribution": "confirmed",
@@ -645,6 +645,134 @@
       }
     },
     {
+      "id": "source.generated.moa_neutral_v1",
+      "path": "assets/source/art/generated/moa-neutral-v1.png",
+      "kind": "png",
+      "release": false,
+      "width": 1254,
+      "height": 1254,
+      "alpha": "source",
+      "origin": "generated-derived",
+      "creator": "OpenAI built-in image_gen",
+      "tool": "OpenAI built-in image_gen",
+      "source_path": "assets/source/art/generated/moa-neutral-v1.png",
+      "prompt_path": "assets/source/prompts/moa-neutral-v1.md",
+      "prompt_sha256": "61aedddd3d886c4e3bb16658a3f038c59b762d2fc4cbc60f7d0b323bd8bf8ff8",
+      "generation_date": "2026-07-21",
+      "sha256": "bb91c5ee4b3f3e94d2bb8ad17dd4ccd6cbcd4c6487f40038d7d224c4dce5135f",
+      "license": "MathLand-Generated-Original-1.0",
+      "modifications": "Selected original keyed neutral-pose output; no release transformation applied to this source.",
+      "redistribution": "confirmed",
+      "reviewer": "Codex visual review",
+      "review_date": "2026-07-22",
+      "review": {
+        "math_correct": true,
+        "text_absent": true,
+        "transparency_correct": true,
+        "artifacts_absent": true,
+        "child_appropriate": true,
+        "silhouette_clear": true,
+        "contrast_checked": true,
+        "legible_48dp": true
+      }
+    },
+    {
+      "id": "source.generated.moa_celebrate_v1",
+      "path": "assets/source/art/generated/moa-celebrate-v1.png",
+      "kind": "png",
+      "release": false,
+      "width": 1254,
+      "height": 1254,
+      "alpha": "source",
+      "origin": "generated-derived",
+      "creator": "OpenAI built-in image_gen",
+      "tool": "OpenAI built-in image_gen",
+      "source_path": "assets/source/art/generated/moa-celebrate-v1.png",
+      "prompt_path": "assets/source/prompts/moa-celebrate-v1.md",
+      "prompt_sha256": "8b287d4d7bf7b22dc47a8794872c5c53539efaed6e4554f141e6558e349e5076",
+      "generation_date": "2026-07-21",
+      "sha256": "e2cea9f78f11723c25b1fb43a4b14d6220c61e34125431d679ae59830313cd82",
+      "license": "MathLand-Generated-Original-1.0",
+      "modifications": "Selected original keyed celebration-pose output; no release transformation applied to this source.",
+      "redistribution": "confirmed",
+      "reviewer": "Codex visual review",
+      "review_date": "2026-07-22",
+      "review": {
+        "math_correct": true,
+        "text_absent": true,
+        "transparency_correct": true,
+        "artifacts_absent": true,
+        "child_appropriate": true,
+        "silhouette_clear": true,
+        "contrast_checked": true,
+        "legible_48dp": true
+      }
+    },
+    {
+      "id": "source.generated.moa_encourage_v1",
+      "path": "assets/source/art/generated/moa-encourage-v1.png",
+      "kind": "png",
+      "release": false,
+      "width": 1254,
+      "height": 1254,
+      "alpha": "source",
+      "origin": "generated-derived",
+      "creator": "OpenAI built-in image_gen",
+      "tool": "OpenAI built-in image_gen",
+      "source_path": "assets/source/art/generated/moa-encourage-v1.png",
+      "prompt_path": "assets/source/prompts/moa-encourage-v1.md",
+      "prompt_sha256": "f02b3f31ac30cff70e5c044b39ddb109e96c8a7892d1cd9490e95758269d38a0",
+      "generation_date": "2026-07-21",
+      "sha256": "0386818ca4e3a0b1ad71eb6956ff32be1bbdea419bea4251e2b5c7f19a5ef56a",
+      "license": "MathLand-Generated-Original-1.0",
+      "modifications": "Selected original keyed encouragement-pose output; no release transformation applied to this source.",
+      "redistribution": "confirmed",
+      "reviewer": "Codex visual review",
+      "review_date": "2026-07-22",
+      "review": {
+        "math_correct": true,
+        "text_absent": true,
+        "transparency_correct": true,
+        "artifacts_absent": true,
+        "child_appropriate": true,
+        "silhouette_clear": true,
+        "contrast_checked": true,
+        "legible_48dp": true
+      }
+    },
+    {
+      "id": "source.generated.moa_point_v1",
+      "path": "assets/source/art/generated/moa-point-v1.png",
+      "kind": "png",
+      "release": false,
+      "width": 1254,
+      "height": 1254,
+      "alpha": "source",
+      "origin": "generated-derived",
+      "creator": "OpenAI built-in image_gen",
+      "tool": "OpenAI built-in image_gen",
+      "source_path": "assets/source/art/generated/moa-point-v1.png",
+      "prompt_path": "assets/source/prompts/moa-point-v1.md",
+      "prompt_sha256": "e467b8e8bb5a95386d2cddbbaa44a8484f537e2b0c3171a9cdc78023a550498a",
+      "generation_date": "2026-07-21",
+      "sha256": "524572f4a3553caa6ef79644c32072c2b4bc4b5bbdaafca0e0c4532ae336bef3",
+      "license": "MathLand-Generated-Original-1.0",
+      "modifications": "Selected original keyed pointing-pose output; no release transformation applied to this source.",
+      "redistribution": "confirmed",
+      "reviewer": "Codex visual review",
+      "review_date": "2026-07-22",
+      "review": {
+        "math_correct": true,
+        "text_absent": true,
+        "transparency_correct": true,
+        "artifacts_absent": true,
+        "child_appropriate": true,
+        "silhouette_clear": true,
+        "contrast_checked": true,
+        "legible_48dp": true
+      }
+    },
+    {
       "id": "source.generated.exploration_island_v1",
       "path": "assets/source/art/generated/exploration-island-v1.png",
       "kind": "png",
@@ -719,16 +847,30 @@
       "origin": "generated-derived",
       "creator": "OpenAI built-in image_gen",
       "tool": "OpenAI built-in image_gen",
-      "source_path": "assets/source/art/generated/moa-anchor-v1.png",
-      "prompt_path": "assets/source/prompts/moa-anchor-v1.md",
-      "prompt_sha256": "22b69392f7b606cdad1d170c298b11a5754a293090b6fbde067df4f7a95fb89c",
+      "source_path": "assets/source/art/generated/moa-neutral-v1.png",
+      "prompt_path": "assets/source/prompts/moa-neutral-v1.md",
+      "prompt_sha256": "61aedddd3d886c4e3bb16658a3f038c59b762d2fc4cbc60f7d0b323bd8bf8ff8",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 1254,
+        "source_height": 1254,
+        "output_width": 1024,
+        "output_height": 1024,
+        "operations": [
+          "remove-chroma-key",
+          "despill",
+          "convert-rgba",
+          "resize-lanczos",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "72ab7aa66d70eb32f453df1ee73e2208997aa6ba423db05f0069e5d82e09e0b9",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Transparent production pose derived from the approved anchor; explicit sRGB metadata added without pixel changes.",
+      "modifications": "The 1254x1254 keyed neutral source was chroma-keyed with a soft matte, despilled, converted to RGBA, resized to 1024x1024 with Pillow Lanczos, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -739,7 +881,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/moa/moa_neutral.png"
+      "master_path": "assets/source/art/generated/moa-neutral-v1.png"
     },
     {
       "id": "art.moa.celebrate",
@@ -752,16 +894,30 @@
       "origin": "generated-derived",
       "creator": "OpenAI built-in image_gen",
       "tool": "OpenAI built-in image_gen",
-      "source_path": "assets/source/art/generated/moa-anchor-v1.png",
-      "prompt_path": "assets/source/prompts/moa-anchor-v1.md",
-      "prompt_sha256": "22b69392f7b606cdad1d170c298b11a5754a293090b6fbde067df4f7a95fb89c",
+      "source_path": "assets/source/art/generated/moa-celebrate-v1.png",
+      "prompt_path": "assets/source/prompts/moa-celebrate-v1.md",
+      "prompt_sha256": "8b287d4d7bf7b22dc47a8794872c5c53539efaed6e4554f141e6558e349e5076",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 1254,
+        "source_height": 1254,
+        "output_width": 1024,
+        "output_height": 1024,
+        "operations": [
+          "remove-chroma-key",
+          "despill",
+          "convert-rgba",
+          "resize-lanczos",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "89c54894b978b4dede16b5b9c4ee6378cf0998387fb4279b3247d8b83937b4be",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Transparent production pose derived from the approved anchor; explicit sRGB metadata added without pixel changes.",
+      "modifications": "The 1254x1254 keyed celebration source was chroma-keyed with a soft matte, despilled, converted to RGBA, resized to 1024x1024 with Pillow Lanczos, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -772,7 +928,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/moa/moa_celebrate.png"
+      "master_path": "assets/source/art/generated/moa-celebrate-v1.png"
     },
     {
       "id": "art.moa.encourage",
@@ -785,16 +941,30 @@
       "origin": "generated-derived",
       "creator": "OpenAI built-in image_gen",
       "tool": "OpenAI built-in image_gen",
-      "source_path": "assets/source/art/generated/moa-anchor-v1.png",
-      "prompt_path": "assets/source/prompts/moa-anchor-v1.md",
-      "prompt_sha256": "22b69392f7b606cdad1d170c298b11a5754a293090b6fbde067df4f7a95fb89c",
+      "source_path": "assets/source/art/generated/moa-encourage-v1.png",
+      "prompt_path": "assets/source/prompts/moa-encourage-v1.md",
+      "prompt_sha256": "f02b3f31ac30cff70e5c044b39ddb109e96c8a7892d1cd9490e95758269d38a0",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 1254,
+        "source_height": 1254,
+        "output_width": 1024,
+        "output_height": 1024,
+        "operations": [
+          "remove-chroma-key",
+          "despill",
+          "convert-rgba",
+          "resize-lanczos",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "a12854d00937b94da6db42632d26cd24f859b2b4a6b6e6a7209ae6f928dd022e",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Transparent production pose derived from the approved anchor; explicit sRGB metadata added without pixel changes.",
+      "modifications": "The 1254x1254 keyed encouragement source was chroma-keyed with a soft matte, despilled, converted to RGBA, resized to 1024x1024 with Pillow Lanczos, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -805,7 +975,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/moa/moa_encourage.png"
+      "master_path": "assets/source/art/generated/moa-encourage-v1.png"
     },
     {
       "id": "art.moa.point",
@@ -818,16 +988,30 @@
       "origin": "generated-derived",
       "creator": "OpenAI built-in image_gen",
       "tool": "OpenAI built-in image_gen",
-      "source_path": "assets/source/art/generated/moa-anchor-v1.png",
-      "prompt_path": "assets/source/prompts/moa-anchor-v1.md",
-      "prompt_sha256": "22b69392f7b606cdad1d170c298b11a5754a293090b6fbde067df4f7a95fb89c",
+      "source_path": "assets/source/art/generated/moa-point-v1.png",
+      "prompt_path": "assets/source/prompts/moa-point-v1.md",
+      "prompt_sha256": "e467b8e8bb5a95386d2cddbbaa44a8484f537e2b0c3171a9cdc78023a550498a",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 1254,
+        "source_height": 1254,
+        "output_width": 1024,
+        "output_height": 1024,
+        "operations": [
+          "remove-chroma-key",
+          "despill",
+          "convert-rgba",
+          "resize-lanczos",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "4a6a02c64d66a28ac1a3a5d4e542c4b2404dde93e06f9c130fdee5f468c9e561",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Transparent production pose derived from the approved anchor; explicit sRGB metadata added without pixel changes.",
+      "modifications": "The 1254x1254 keyed pointing source was chroma-keyed with a soft matte, despilled, converted to RGBA, resized to 1024x1024 with Pillow Lanczos, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -838,7 +1022,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/moa/moa_point.png"
+      "master_path": "assets/source/art/generated/moa-point-v1.png"
     },
     {
       "id": "art.island.exploration_bg",
@@ -855,12 +1039,23 @@
       "prompt_path": "assets/source/prompts/exploration-island-v1.md",
       "prompt_sha256": "f0f035b2f1f1a494fc3d299021f7c21d4f9cabfc360ae98827521f0a1f978637",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 941,
+        "source_height": 1672,
+        "output_width": 1080,
+        "output_height": 1920,
+        "operations": [
+          "resize-lanczos",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "71b2b62cc79438e777c31342ac1846bab370927eb8d638e6ec7ea4d2a8d362ed",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Portrait production crop with explicit sRGB metadata added without pixel changes.",
+      "modifications": "Resized from the 941x1672 RGB source to 1080x1920 with Pillow Lanczos, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -871,7 +1066,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/island/exploration_island_bg.png"
+      "master_path": "assets/source/art/generated/exploration-island-v1.png"
     },
     {
       "id": "art.collection.shells",
@@ -888,12 +1083,26 @@
       "prompt_path": "assets/source/prompts/collection-shells-v1.md",
       "prompt_sha256": "3264007a6a8a44f6ff3286f04b7660d221705be93de4b0693a9867c291c7ca27",
       "generation_date": "2026-07-21",
+      "transformation": {
+        "source_width": 1448,
+        "source_height": 1086,
+        "output_width": 2048,
+        "output_height": 2048,
+        "operations": [
+          "remove-chroma-key",
+          "despill",
+          "resize-lanczos",
+          "pad-transparent",
+          "optimize-png",
+          "add-srgb-chunk"
+        ]
+      },
       "sha256": "e91e917c9f5de75cc18dd127a256d994aaf035815fcf1b589b802106587815db",
       "license": "MathLand-Generated-Original-1.0",
-      "modifications": "Chroma-keyed alpha source resized with Lanczos to a 1920x1440 4x3 grid and centered on a transparent 2048 square master.",
+      "modifications": "The 1448x1086 keyed source was chroma-keyed and despilled, resized with Pillow Lanczos to a 1920x1440 4x3 grid, centered with transparent padding on a 2048x2048 canvas, saved as an optimized PNG, and tagged with an explicit sRGB chunk.",
       "redistribution": "confirmed",
       "reviewer": "Codex visual review",
-      "review_date": "2026-07-21",
+      "review_date": "2026-07-22",
       "review": {
         "math_correct": true,
         "text_absent": true,
@@ -904,7 +1113,7 @@
         "contrast_checked": true,
         "legible_48dp": true
       },
-      "master_path": "assets/art/collection/collection_shells.png"
+      "master_path": "assets/source/art/generated/collection-shells-keyed-v1.png"
     }
   ]
 }

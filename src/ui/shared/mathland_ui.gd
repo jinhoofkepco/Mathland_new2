@@ -113,6 +113,8 @@ static func tactile_button(node_name: String, label_key: String, icon_name := ""
 	text_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var icon_label: Label = button.get_node("Visual/Content/IconLabel")
 	icon_label.add_theme_font_size_override("font_size", font_size + 4)
+	var icon_texture: TextureRect = button.get_node("Visual/Content/IconTexture")
+	icon_texture.custom_minimum_size = Vector2(font_size + 9, font_size + 9)
 	return button
 
 static func label(text_key: String, font_size := 18, color := INK) -> Label:

@@ -67,6 +67,35 @@ function svgRecord(overrides: Record<string, unknown> = {}): Record<string, unkn
   };
 }
 
+function generatedPngRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const record = svgRecord({
+    id: "art.test.generated",
+    path: "assets/art/test.png",
+    kind: "png",
+    width: 1024,
+    height: 1024,
+    alpha: "transparent-corners",
+    origin: "generated-derived",
+    creator: "OpenAI built-in image_gen",
+    tool: "OpenAI built-in image_gen",
+    source_path: "assets/source/art/generated/test-v1.png",
+    master_path: "assets/source/art/generated/test-v1.png",
+    prompt_path: "assets/source/prompts/test-v1.md",
+    prompt_sha256: "a".repeat(64),
+    generation_date: "2026-07-21",
+    transformation: {
+      source_width: 1254,
+      source_height: 1254,
+      output_width: 1024,
+      output_height: 1024,
+      operations: ["remove-chroma-key", "resize-lanczos", "add-srgb-chunk"],
+    },
+    ...overrides,
+  });
+  delete record.view_box;
+  return record;
+}
+
 function manifest(assets: readonly unknown[]): Record<string, unknown> {
   return {
     manifest_version: "1.0.0",
@@ -130,6 +159,28 @@ describe("asset provenance schema", () => {
       ]),
     );
     expect(issueCodes(report)).toContain("ASSET_SCHEMA_INVALID");
+  });
+
+  it("rejects a generated master that aliases its release output", () => {
+    const record = generatedPngRecord({ master_path: "assets/art/test.png" });
+    expect(issueCodes(validateAssetManifest(manifest([record])))).toContain(
+      "GENERATED_MASTER_INVALID",
+    );
+  });
+
+  it("rejects transformation output dimensions that contradict the release record", () => {
+    const record = generatedPngRecord({
+      transformation: {
+        source_width: 1254,
+        source_height: 1254,
+        output_width: 1080,
+        output_height: 1024,
+        operations: ["resize-lanczos"],
+      },
+    });
+    expect(issueCodes(validateAssetManifest(manifest([record])))).toContain(
+      "RASTER_TRANSFORMATION_INVALID",
+    );
   });
 });
 
