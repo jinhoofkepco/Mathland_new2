@@ -21,9 +21,11 @@ jobs:
           echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
       - name: Verify Godot version
         run: godot --version | grep -q '^4\.7\.1'
+      - name: Verify test harness rejects engine errors
+        run: tools/tests/test_run_godot_tests.sh
       - name: Run unit suite
-        run: godot --headless --path . --script res://tests/run_all.gd -- --suite unit
+        run: tools/test/run_godot_tests.sh unit
       - name: Run scene suite
-        run: godot --headless --path . --script res://tests/run_all.gd -- --suite scene
+        run: tools/test/run_godot_tests.sh scene
       - name: Run integration suite
-        run: godot --headless --path . --script res://tests/run_all.gd -- --suite integration
+        run: tools/test/run_godot_tests.sh integration

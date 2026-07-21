@@ -1,7 +1,7 @@
 extends SceneTree
 
 const SUITES := ["unit", "scene", "integration"]
-const TestCaseScript = preload("res://tests/support/test_case.gd")
+const TestScriptLoaderScript = preload("res://tests/support/test_script_loader.gd")
 
 func _init() -> void:
 	call_deferred("_run")
@@ -15,8 +15,15 @@ func _run() -> void:
 
 	var test_paths := _discover_tests(suite)
 	var failed := false
+	var loader := TestScriptLoaderScript.new()
 	for path in test_paths:
-		var test = load(path).new()
+		var loaded: Variant = load(path)
+		var loaded_test: Dictionary = loader.instantiate(loaded, path)
+		if not loaded_test.ok:
+			failed = true
+			print("FAIL %s: %s" % [path, loaded_test.error])
+			continue
+		var test: Variant = loaded_test.instance
 		await test.run(self)
 		if test.failures.is_empty():
 			print("PASS %s" % path)
