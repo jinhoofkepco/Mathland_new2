@@ -154,33 +154,40 @@ func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms
 		rewards = _config.reward_per_correct.duplicate(true)
 		if not _add_rewards(next.earned_rewards, rewards):
 			return null
-		effects.append("correct")
+		effects.append(_effect("correct"))
 		effect_name = _combo_effect(next.combo)
-		if effect_name == "correct":
-			effect_name = "correct"
+		if effect_name == _effect("correct"):
+			effect_name = _effect("correct")
 		elif not effect_name in effects:
 			effects.append(effect_name)
-		if next.boss_state:
-			effect_name = "boss"
-			effects.append("boss")
+		var periodic_boss: bool = _config.boss_every_correct > 0 and next.score % _config.boss_every_correct == 0
+		if next.boss_state or periodic_boss:
+			next.boss_state = true
+			effect_name = _effect("boss")
+			if effect_name not in effects:
+				effects.append(effect_name)
 	else:
 		next.combo = 0
 		next.health = maxi(next.health - 1, 0)
-		effects.assign(["wrong", "health_loss"])
-		effect_name = "wrong"
+		effects.assign([_effect("wrong"), _effect("health_loss")])
+		effect_name = _effect("wrong")
 	if next.health <= 0:
 		next.status = "completed"
 		next.completion_reason = "health_depleted"
 		effects.append("health_depleted")
 		follow_up = "health_depleted"
 	elif next.score >= _config.target_score:
+		if not _add_rewards(rewards, _config.reward_on_completion) or not _add_rewards(next.earned_rewards, _config.reward_on_completion):
+			return null
 		next.status = "completed"
 		next.completion_reason = "target_reached"
 		effects.append("target_reached")
-		effects.append("level_up")
-		follow_up = "level_up"
+		effects.append(_effect("level_up"))
+		follow_up = _effect("level_up")
 		if not next.boss_state:
 			effect_name = "target_reached"
+	if not rewards.is_empty() and _effect("reward") not in effects:
+		effects.append(_effect("reward"))
 	next.timer_remaining_ms = time_remaining_ms()
 	var event_answer: Variant = _timeout_answer(_state.current_question.correct_answer) if kind == "timeout" else answer
 	var transition := RunTransitionScript.new({
@@ -236,11 +243,16 @@ func _clear_planned_transitions() -> void:
 	_planned_transition_order.clear()
 
 func _combo_effect(combo: int) -> String:
+	if _config.combo_thresholds.size() >= 3 and combo >= _config.combo_thresholds[2]:
+		return _effect("combo")
 	if _config.combo_thresholds.size() >= 2 and combo >= _config.combo_thresholds[1]:
-		return "combo_2"
+		return _effect("combo")
 	if _config.combo_thresholds.size() >= 1 and combo >= _config.combo_thresholds[0]:
-		return "combo_1"
-	return "correct"
+		return _effect("combo")
+	return _effect("correct")
+
+func _effect(key: String) -> String:
+	return String(_config.effect_presets.get(key, key))
 
 func _add_rewards(balance: Dictionary, delta: Dictionary) -> bool:
 	for key in delta:
@@ -262,6 +274,8 @@ func _can_answer() -> bool:
 	return _can_interact() and _state.get("awaiting_answer", false) and not _state.current_question.is_empty()
 
 func _is_valid_question(question: Dictionary) -> bool:
+	if question.get("contract_version") == 1:
+		return _is_valid_v1_question(question)
 	for key in ["question_id", "activity_id", "content_version", "generator_id", "band_id", "seed", "resolved_parameters", "prompt_key", "correct_answer", "answer_layout", "manipulative"]:
 		if not question.has(key):
 			return false
@@ -282,6 +296,44 @@ func _is_valid_question(question: Dictionary) -> bool:
 	if not _is_resolved_parameters(question.resolved_parameters) or not question.manipulative is Dictionary:
 		return false
 	return _canonical_answer(question.correct_answer) != null
+
+func _is_valid_v1_question(question: Dictionary) -> bool:
+	for key in ["contract_version", "activity_id", "content_version", "generator_id", "band_id", "seed", "resolved_parameters", "prompt", "correct_answer", "answer_layout", "manipulative"]:
+		if not question.has(key):
+			return false
+	if question.activity_id != _config.activity_id or question.content_version != _config.content_version:
+		return false
+	if not _is_nonnegative_safe_integer(question.seed):
+		return false
+	for key in ["generator_id", "band_id"]:
+		if not question[key] is String or String(question[key]).is_empty():
+			return false
+	if not _is_resolved_parameters(question.resolved_parameters):
+		return false
+	var prompt: Variant = question.prompt
+	if not prompt is Dictionary or not prompt.get("key") is String or prompt.get("key").is_empty() or not _is_valid_prompt_args(prompt.get("args")):
+		return false
+	var layout: Variant = question.answer_layout
+	if not layout is Dictionary or not layout.get("id") is String or layout.get("id").is_empty():
+		return false
+	var manipulative: Variant = question.manipulative
+	if not manipulative is Dictionary or not manipulative.get("id") is String or manipulative.get("id").is_empty():
+		return false
+	return _canonical_answer(question.correct_answer) != null
+
+func _is_valid_prompt_args(value: Variant) -> bool:
+	if not value is Dictionary or value.size() > 32:
+		return false
+	for key in value:
+		if not key is String or key.is_empty() or key.length() > 64:
+			return false
+		var item: Variant = value[key]
+		if _is_safe_integer(item):
+			continue
+		if item is String and item.length() <= 256:
+			continue
+		return false
+	return true
 
 func _is_resolved_parameters(value: Variant) -> bool:
 	if not value is Dictionary:

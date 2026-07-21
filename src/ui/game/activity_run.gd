@@ -5,13 +5,26 @@ signal presentation_failed(code: String)
 
 const AppRouteScript = preload("res://src/app/app_route.gd")
 const RunSessionScript = preload("res://src/game/run_session.gd")
-const QuestionEngineScript = preload("res://src/content/vertical_slice_question_engine.gd")
+const LegacyQuestionEngineScript = preload("res://src/content/vertical_slice_question_engine.gd")
+const QuestionEngineScript = preload("res://src/content/question_engine.gd")
+const AdaptiveBandSelectorScript = preload("res://src/content/adaptive_band_selector.gd")
+const ManipulativeFactoryScript = preload("res://src/game/manipulatives/manipulative_factory.gd")
+const AnswerInputFactoryScript = preload("res://src/ui/game/answer_input_factory.gd")
 const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 const SystemClockScript = preload("res://src/core/system_clock.gd")
 const TenRodBoardScene = preload("res://scenes/game/manipulatives/ten_rod_board.tscn")
 const RewardOverlayScene = preload("res://scenes/game/reward_overlay.tscn")
 const MAX_SAFE_INTEGER := 9007199254740991
 const MAX_RESPONSE_DURATION_MS := 86_400_000
+const DIALOGUE_BY_GENERATOR := {
+	"counting_v1": &"moa_tutorial_counting",
+	"number_bonds_v1": &"moa_tutorial_number_bonds",
+	"ten_frame_v1": &"moa_tutorial_ten_frame",
+	"base_ten_v1": &"moa_tutorial_base_ten",
+	"number_line_v1": &"moa_tutorial_number_line",
+	"basic_operations_v1": &"moa_tutorial_basic_operations",
+	"foundation_ten_rods": &"moa_tutorial_base_ten",
+}
 
 var _journal: Variant
 var _question_engine: Variant
@@ -29,11 +42,21 @@ var _submitting := false
 var _persistence_blocked := false
 var _question_presented_at_ms := -1
 var _board: Control
+var _manipulative: Control
+var _answer_input: Control
+var _manipulative_host: VBoxContainer
+var _answer_input_host: VBoxContainer
+var _prompt_label: Label
+var _screen_title: Label
 var _heart_label: Label
 var _score_label: Label
 var _error_label: Label
 var _introduction: Control
+var _introduction_title: Label
+var _introduction_body: Label
 var _reward_overlay: Control
+var _legacy_mode := true
+var _current_band_id := &""
 
 func configure(params: Dictionary) -> void:
 	super.configure(params)
@@ -114,7 +137,12 @@ func _start_activity() -> void:
 		_show_error("content_unavailable")
 		return
 	_activity = resolved.duplicate(true)
-	_question_engine = _question_engine if _question_engine != null else QuestionEngineScript.new()
+	_legacy_mode = not _activity.get("difficulty_bands") is Array
+	_apply_profile_runtime_options()
+	_update_activity_copy()
+	_question_engine = _question_engine if _question_engine != null else (
+		LegacyQuestionEngineScript.new() if _legacy_mode else QuestionEngineScript.new()
+	)
 	if _run_session == null and _journal != null and _progress_service != null:
 		_run_session = RunSessionScript.new(null, _journal, _progress_service)
 	if _run_session == null:
@@ -125,6 +153,9 @@ func _start_activity() -> void:
 	_question = _generate_question(_next_seed)
 	if _question.is_empty():
 		_show_error("question_unavailable")
+		return
+	if not _prepare_question_controls(_question):
+		_show_error("unsupported_presentation")
 		return
 	_run_session.answer_committed.connect(_on_answer_committed)
 	_run_session.run_completed.connect(_on_run_completed)
@@ -142,16 +173,25 @@ func _start_activity() -> void:
 func _generate_question(seed: int) -> Dictionary:
 	if _question_engine == null or not _question_engine.has_method("generate_question"):
 		return {}
-	var bands: Variant = _activity.get("bands", [])
+	var bands: Variant = _activity.get("bands", []) if _legacy_mode else _activity.get("difficulty_bands", [])
 	if not bands is Array or bands.is_empty() or not bands[0] is Dictionary:
 		return {}
 	var band_id := StringName(bands[0].get("band_id", ""))
+	if not _legacy_mode:
+		var requested := StringName(_params.get("band_id", String(band_id))) if _current_band_id.is_empty() else _current_band_id
+		var selector := AdaptiveBandSelectorScript.new()
+		band_id = selector.select(_activity, requested, _recent_events(), _adaptive_enabled())
+		_current_band_id = band_id
 	var generated: Variant = _question_engine.generate_question(_activity, band_id, seed)
 	return generated.duplicate(true) if generated is Dictionary else {}
 
 func _present_question(question: Dictionary) -> void:
 	_question = question.duplicate(true)
-	_board.configure({"maximum": 99}, _question)
+	if not _prepare_question_controls(_question):
+		_show_error("unsupported_presentation")
+		return
+	if _prompt_label != null:
+		_prompt_label.text = _formatted_prompt(_question)
 	_question_presented_at_ms = _now_ms()
 	question_presented.emit(_question.duplicate(true))
 
@@ -163,7 +203,8 @@ func _on_answer_committed(event: Dictionary, transition: RefCounted) -> void:
 	_submitting = false
 	var transition_data: Dictionary = transition.to_dict() if transition != null and transition.has_method("to_dict") else {}
 	var correctness := bool(event.get("correctness", false))
-	_board.show_feedback(correctness)
+	if _manipulative != null and _manipulative.has_method("show_feedback"):
+		_manipulative.show_feedback(correctness)
 	_play_answer_presentation(event, transition_data, correctness)
 	_update_status()
 	if _state.get("status") == "running":
@@ -240,11 +281,15 @@ func _show_reward(kind: String, amount: int) -> void:
 	add_child(_reward_overlay)
 
 func _replay_voice() -> void:
-	if _audio_service != null and _audio_service.has_method("play_voice"):
-		_audio_service.play_voice(&"moa_tutorial_base_ten")
+	if _audio_service == null or not _audio_service.has_method("play_voice"):
+		return
+	var dialogue_id: Variant = DIALOGUE_BY_GENERATOR.get(String(_question.get("generator_id", "")))
+	if dialogue_id is StringName:
+		_audio_service.play_voice(dialogue_id)
 
 func _build_ui() -> void:
-	var ui := MathlandUiScript.scaffold(self, "activity.foundation_ten_rods.title", "", true)
+	var ui := MathlandUiScript.scaffold(self, "activity.run.title", "", true)
+	_screen_title = ui.title
 	_connect_tactile(ui.back_button, _back)
 	var body: VBoxContainer = ui.body
 	var status_row := HBoxContainer.new()
@@ -266,11 +311,20 @@ func _build_ui() -> void:
 	_error_label.name = "RunErrorLabel"
 	_error_label.custom_minimum_size = Vector2(0, 18)
 	body.add_child(_error_label)
-	_board = TenRodBoardScene.instantiate()
-	_board.name = "TenRodBoard"
-	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(_board)
-	_board.answer_submitted.connect(_on_board_answer)
+	_prompt_label = MathlandUiScript.literal_label("", 23, MathlandUiScript.INK)
+	_prompt_label.name = "QuestionPrompt"
+	_prompt_label.custom_minimum_size = Vector2(0, 52)
+	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(_prompt_label)
+	_manipulative_host = VBoxContainer.new()
+	_manipulative_host.name = "ManipulativeHost"
+	_manipulative_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(_manipulative_host)
+	_answer_input_host = VBoxContainer.new()
+	_answer_input_host.name = "AnswerInputHost"
+	_answer_input_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(_answer_input_host)
 	_build_introduction()
 
 func _build_introduction() -> void:
@@ -290,13 +344,13 @@ func _build_introduction() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 10)
 	card.add_child(column)
-	var title := MathlandUiScript.label("activity.intro.title", 25, MathlandUiScript.INK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(title)
-	var body := MathlandUiScript.label("activity.intro.body", 17, MathlandUiScript.MUTED_INK)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(body)
+	_introduction_title = MathlandUiScript.label("activity.intro.title", 25, MathlandUiScript.INK)
+	_introduction_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_introduction_title)
+	_introduction_body = MathlandUiScript.label("activity.intro.body", 17, MathlandUiScript.MUTED_INK)
+	_introduction_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_introduction_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_introduction_body)
 	var skip := MathlandUiScript.tactile_button("SkipIntroButton", "activity.intro.skip", "arrow_right", Vector2(0, 56), 18)
 	column.add_child(skip)
 	_connect_tactile(skip, skip_introduction)
@@ -304,14 +358,156 @@ func _build_introduction() -> void:
 func _update_status() -> void:
 	if _heart_label != null:
 		var health := maxi(0, int(_state.get("health", 0)))
-		var initial_health := maxi(health, int(_activity.get("initial_health", 3)))
+		var initial_health := maxi(health, _configured_initial_health())
 		_heart_label.text = "♥".repeat(health) + "♡".repeat(maxi(0, initial_health - health))
 	if _score_label != null:
 		_score_label.text = TranslationServer.translate("activity.score") % int(_state.get("score", 0))
 
 func _update_interaction() -> void:
-	if _board != null:
-		_board.set_interaction_enabled(can_answer())
+	for control in [_manipulative, _answer_input]:
+		if control != null and control.has_method("set_interaction_enabled"):
+			control.set_interaction_enabled(can_answer())
+
+func _prepare_question_controls(question: Dictionary) -> bool:
+	if _manipulative_host == null or _answer_input_host == null:
+		return false
+	_clear_presentation_controls()
+	if _legacy_mode:
+		_board = TenRodBoardScene.instantiate()
+		_board.name = "TenRodBoard"
+		_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_manipulative_host.add_child(_board)
+		_board.configure({"maximum": 99}, question)
+		_board.answer_submitted.connect(_on_board_answer)
+		_manipulative = _board
+		_manipulative_host.visible = true
+		_answer_input_host.visible = false
+		return true
+	var layout: Variant = question.get("answer_layout")
+	var manipulative_data: Variant = question.get("manipulative")
+	if not layout is Dictionary or not manipulative_data is Dictionary:
+		return false
+	var layout_id := StringName(layout.get("id", ""))
+	var manipulative_id := StringName(manipulative_data.get("id", ""))
+	if not AnswerInputFactoryScript.supports(layout_id) or not ManipulativeFactoryScript.supports(manipulative_id):
+		return false
+	if layout_id == &"manipulative_submit" and manipulative_id == &"none":
+		return false
+	if manipulative_id != &"none":
+		_manipulative = ManipulativeFactoryScript.create(manipulative_id)
+		if _manipulative == null:
+			return false
+		_manipulative.name = "Manipulative"
+		_manipulative.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_manipulative_host.add_child(_manipulative)
+		var config: Variant = manipulative_data.get("config", {})
+		_manipulative.configure(config if config is Dictionary else {}, question)
+		_manipulative.answer_submitted.connect(_on_board_answer)
+	if layout_id != &"manipulative_submit":
+		_answer_input = AnswerInputFactoryScript.create(layout_id)
+		if _answer_input == null:
+			_clear_presentation_controls()
+			return false
+		_answer_input.name = "AnswerInput"
+		_answer_input.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_answer_input_host.add_child(_answer_input)
+		_answer_input.configure(question)
+		_answer_input.answer_submitted.connect(_on_board_answer)
+	_manipulative_host.visible = _manipulative != null
+	_answer_input_host.visible = _answer_input != null
+	return true
+
+func _clear_presentation_controls() -> void:
+	for host in [_manipulative_host, _answer_input_host]:
+		if host != null:
+			for child in host.get_children():
+				host.remove_child(child)
+				child.queue_free()
+	_board = null
+	_manipulative = null
+	_answer_input = null
+
+func _apply_profile_runtime_options() -> void:
+	if _legacy_mode:
+		return
+	var settings := _profile_settings()
+	if settings.get("timers_enabled", true):
+		return
+	var run: Variant = _activity.get("run")
+	if not run is Dictionary or not run.get("timer") is Dictionary:
+		return
+	var timer: Dictionary = run.timer
+	if timer.get("profile_can_disable", false):
+		timer["enabled"] = false
+		run["timer"] = timer
+		_activity["run"] = run
+
+func _adaptive_enabled() -> bool:
+	return bool(_profile_settings().get("adaptive_difficulty", false))
+
+func _profile_settings() -> Dictionary:
+	var injected: Variant = _params.get("profile_settings")
+	if injected is Dictionary:
+		return injected.duplicate(true)
+	var profile := _profile()
+	var settings: Variant = profile.get("settings", {})
+	return settings.duplicate(true) if settings is Dictionary else {}
+
+func _recent_events() -> Array:
+	if _journal == null or not _journal.has_method("replay"):
+		return []
+	var replayed: Variant = _journal.replay()
+	if replayed is Dictionary and replayed.get("ok", false) and replayed.get("events") is Array:
+		return replayed.events.duplicate(true)
+	return []
+
+func _configured_initial_health() -> int:
+	var run: Variant = _activity.get("run")
+	if run is Dictionary and run.get("starting_hearts") is int:
+		return maxi(1, int(run.starting_hearts))
+	return maxi(1, int(_activity.get("initial_health", 3)))
+
+func _update_activity_copy() -> void:
+	if _screen_title == null or _legacy_mode:
+		return
+	var localized := _localized_activity()
+	var title := String(localized.get("title", ""))
+	if not title.is_empty():
+		_screen_title.text = title
+		_introduction_title.text = title
+	var tutorial: Variant = localized.get("tutorial_steps", [])
+	if tutorial is Array and not tutorial.is_empty() and tutorial[0] is String:
+		_introduction_body.text = tutorial[0]
+
+func _localized_activity() -> Dictionary:
+	var localizations: Variant = _activity.get("localizations", {})
+	if not localizations is Dictionary:
+		return {}
+	var locale := TranslationServer.get_locale().replace("_", "-")
+	for key in [locale, locale.get_slice("-", 0), "ko-KR"]:
+		var value: Variant = localizations.get(key)
+		if value is Dictionary:
+			return value
+	return {}
+
+func _formatted_prompt(question: Dictionary) -> String:
+	if _legacy_mode:
+		var prompt_key: Variant = question.get("prompt_key", "")
+		return tr(prompt_key) if prompt_key is String else ""
+	var prompt: Variant = question.get("prompt", {})
+	if not prompt is Dictionary:
+		return ""
+	var key := String(prompt.get("key", ""))
+	var result := TranslationServer.translate(key)
+	var arguments: Variant = prompt.get("args", {})
+	if arguments is Dictionary:
+		for argument_name in arguments:
+			var replacement := str(arguments[argument_name])
+			result = result.replace("{%s}" % argument_name, replacement)
+			result = result.replace("%%(%s)s" % argument_name, replacement)
+		if result == key and arguments.has("expression"):
+			result = str(arguments.expression)
+	return result
 
 func _session_is_blocked() -> bool:
 	return _run_session != null and _run_session.has_method("is_blocked") and bool(_run_session.is_blocked())

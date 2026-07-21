@@ -1,6 +1,6 @@
 extends SceneTree
 
-const SUITES := ["unit", "scene", "integration", "content"]
+const SUITES := ["unit", "scene", "integration", "content", "manipulatives"]
 const TestScriptLoaderScript = preload("res://tests/support/test_script_loader.gd")
 
 func _init() -> void:
