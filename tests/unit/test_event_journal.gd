@@ -8,6 +8,8 @@ class FaultInjectingJournal extends EventJournal:
 	var promotion_failed := false
 
 	func _write_bytes(path: String, bytes: PackedByteArray) -> Error:
+		if path.ends_with(".append.rollback.tmp") and failure_point == "append_partial_rollback_write":
+			return ERR_CANT_CREATE
 		if failure_point == "corrupt_write" and path.ends_with(".partial.corrupt.tmp"):
 			return ERR_CANT_CREATE
 		if failure_point == "before_rotation" and path.ends_with(".recovery.tmp"):
@@ -22,6 +24,16 @@ class FaultInjectingJournal extends EventJournal:
 		return error
 
 	func _rename_path(from_path: String, to_path: String) -> Error:
+		if from_path.ends_with(".append.rollback.tmp") and to_path.ends_with(".jsonl") and failure_point in ["append_partial_rollback_promotion", "append_partial_rollback_restore"]:
+			return ERR_CANT_CREATE
+		if from_path.ends_with(".append.failed.bak") and to_path.ends_with(".jsonl") and failure_point == "append_partial_rollback_restore":
+			return ERR_CANT_CREATE
+		if from_path.ends_with(".jsonl") and to_path.ends_with(".recovery.rotate") and failure_point == "candidate_rotation":
+			return ERR_CANT_CREATE
+		if from_path.ends_with(".recovery.bak") and to_path.ends_with(".jsonl") and failure_point in ["candidate_promotion", "candidate_promotion_restore"]:
+			return ERR_CANT_CREATE
+		if from_path.ends_with(".recovery.rotate") and to_path.ends_with(".jsonl") and failure_point == "candidate_promotion_restore":
+			return ERR_CANT_CREATE
 		if from_path.ends_with(".jsonl") and to_path.ends_with(".recovery.bak") and failure_point == "original_rotation":
 			return ERR_CANT_CREATE
 		if from_path.ends_with(".partial.corrupt.tmp") and to_path.ends_with(".partial.corrupt") and failure_point in ["corrupt_promotion", "corrupt_restoration"]:
@@ -36,6 +48,10 @@ class FaultInjectingJournal extends EventJournal:
 		return DirAccess.rename_absolute(ProjectSettings.globalize_path(from_path), ProjectSettings.globalize_path(to_path))
 
 	func _remove_path(path: String) -> Error:
+		if path.ends_with(".append.failed.bak") and failure_point == "append_partial_rollback_cleanup":
+			return ERR_CANT_CREATE
+		if path.ends_with(".recovery.tmp") and failure_point == "candidate_cleanup":
+			return ERR_CANT_CREATE
 		if path.ends_with(".recovery.bak") and failure_point == "journal_backup_cleanup":
 			return ERR_CANT_CREATE
 		if path.ends_with(".partial.corrupt.bak") and failure_point == "corrupt_backup_cleanup":
@@ -48,7 +64,16 @@ class FaultInjectingJournal extends EventJournal:
 		return FileAccess.open(path, mode)
 
 	func _write_append_file(file: FileAccess, bytes: PackedByteArray) -> Error:
-		if failure_point == "append_write":
+		if failure_point in ["append_write", "append_absent"]:
+			return ERR_CANT_CREATE
+		if failure_point in ["append_partial", "append_partial_rollback_write", "append_partial_rollback_promotion", "append_partial_rollback_restore", "append_partial_rollback_cleanup"]:
+			file.store_buffer(bytes.slice(0, maxi(1, bytes.size() / 2)))
+			return ERR_CANT_CREATE
+		if failure_point == "append_indeterminate":
+			file.store_buffer(PackedByteArray([0x00, 0xff, 0x41]))
+			return ERR_CANT_CREATE
+		if failure_point == "append_full_store_error":
+			file.store_buffer(bytes)
 			return ERR_CANT_CREATE
 		file.store_buffer(bytes)
 		return file.get_error()
@@ -97,6 +122,12 @@ func run(_tree: SceneTree) -> void:
 	_cleanup()
 	_test_startup_cleanup_failure_preserves_candidates()
 	_cleanup()
+	_test_candidate_selection_uses_longest_validated_prefix()
+	_cleanup()
+	_test_all_three_candidates_promote_newest()
+	_cleanup()
+	_test_all_three_candidate_failures_preserve_bytes()
+	_cleanup()
 	_test_original_rotation_failure_preserves_original()
 	_cleanup()
 	_test_corrupt_promotion_failure_restores_old_artifact()
@@ -107,7 +138,13 @@ func run(_tree: SceneTree) -> void:
 	_cleanup()
 	_test_startup_recovers_interrupted_corrupt_artifact_promotion()
 	_cleanup()
-	_test_append_io_failures_do_not_advance_sequence()
+	_test_append_absent_and_partial_failures_are_retry_safe()
+	_cleanup()
+	_test_append_full_persistence_is_recognized_as_success()
+	_cleanup()
+	_test_append_indeterminate_failure_blocks_until_configure()
+	_cleanup()
+	_test_append_rollback_failures_block_until_configure()
 	_cleanup()
 
 func _test_append_reopen_and_tail_recovery() -> void:
@@ -360,6 +397,95 @@ func _test_startup_cleanup_failure_preserves_candidates() -> void:
 	assert_true(_read_bytes(prepared.path) == prepared.bytes)
 	assert_true(_read_bytes("%s.recovery.bak" % prepared.path) == prepared.bytes)
 
+func _test_candidate_selection_uses_longest_validated_prefix() -> void:
+	var seed := _prepare_valid_journal("candidate-ranking-seed.jsonl", 3)
+	var one := _events_bytes(seed.events, 1)
+	var two := _events_bytes(seed.events, 2)
+	var three := _events_bytes(seed.events, 3)
+	var two_with_tail: PackedByteArray = two.duplicate()
+	two_with_tail.append_array("{broken".to_utf8_buffer())
+	var three_with_tail: PackedByteArray = three.duplicate()
+	three_with_tail.append_array(PackedByteArray([0x7b, 0xff, 0x41]))
+	var wrong_scope_events: Array[Dictionary] = []
+	for event in seed.events:
+		var changed: Dictionary = event.duplicate(true)
+		changed.profile_id = "profile-b"
+		wrong_scope_events.append(changed)
+	var wrong_scope := _events_bytes(wrong_scope_events, 3)
+	var wrong_sequence_events: Array[Dictionary] = []
+	for event in seed.events:
+		wrong_sequence_events.append(event.duplicate(true))
+	wrong_sequence_events[1].sequence = 9
+	var wrong_sequence := _events_bytes(wrong_sequence_events, 3)
+	var cases := [
+		{"name": "candidate-ranking-empty.jsonl", "original": PackedByteArray(), "backup": two, "expected": two, "count": 2},
+		{"name": "candidate-ranking-stale.jsonl", "original": one, "backup": three, "expected": three, "count": 3},
+		{"name": "candidate-ranking-newer-tail.jsonl", "original": three_with_tail, "backup": two, "expected": three, "count": 3},
+		{"name": "candidate-ranking-complete-tie.jsonl", "original": two_with_tail, "backup": two, "expected": two, "count": 2},
+		{"name": "candidate-ranking-temp.jsonl", "original": null, "temp": three, "backup": two, "expected": three, "count": 3},
+		{"name": "candidate-ranking-scope.jsonl", "original": wrong_scope, "backup": one, "expected": one, "count": 1},
+		{"name": "candidate-ranking-sequence.jsonl", "original": wrong_sequence, "temp": two, "backup": one, "expected": two, "count": 2},
+	]
+	for case in cases:
+		var path := _path(case.name)
+		if case.get("original") != null:
+			assert_eq(_write_bytes_direct(path, case.original), OK)
+		if case.get("temp") != null:
+			assert_eq(_write_bytes_direct("%s.recovery.tmp" % path, case.temp), OK)
+		if case.get("backup") != null:
+			assert_eq(_write_bytes_direct("%s.recovery.bak" % path, case.backup), OK)
+		var journal := EventJournal.new()
+		var result := journal.configure("profile-a", "device-a", path)
+		assert_true(result.ok, "%s failed recovery" % case.name)
+		assert_true(_read_bytes(path) == case.expected, "%s selected the wrong bytes" % case.name)
+		assert_eq(journal.replay().get("events", []).size(), case.count, "%s selected the wrong prefix" % case.name)
+		for suffix in [".recovery.tmp", ".recovery.bak", ".recovery.rotate", ".recovery.stage"]:
+			assert_false(FileAccess.file_exists("%s%s" % [path, suffix]), "%s left %s" % [case.name, suffix])
+
+func _test_all_three_candidates_promote_newest() -> void:
+	var seed := _prepare_valid_journal("candidate-three-seed.jsonl", 3)
+	var path := _path("candidate-three.jsonl")
+	var one := _events_bytes(seed.events, 1)
+	var two := _events_bytes(seed.events, 2)
+	var three := _events_bytes(seed.events, 3)
+	assert_eq(_write_bytes_direct(path, one), OK)
+	assert_eq(_write_bytes_direct("%s.recovery.tmp" % path, two), OK)
+	assert_eq(_write_bytes_direct("%s.recovery.bak" % path, three), OK)
+	var journal := EventJournal.new()
+	var result := journal.configure("profile-a", "device-a", path)
+	assert_true(result.ok)
+	assert_true(_read_bytes(path) == three, "all-three recovery did not promote longest prefix")
+	assert_eq(journal.replay().get("events", []).size(), 3)
+	for suffix in [".recovery.tmp", ".recovery.bak", ".recovery.rotate", ".recovery.stage"]:
+		assert_false(FileAccess.file_exists("%s%s" % [path, suffix]))
+
+func _test_all_three_candidate_failures_preserve_bytes() -> void:
+	for failure_point in ["candidate_rotation", "candidate_promotion", "candidate_promotion_restore", "candidate_cleanup"]:
+		var seed := _prepare_valid_journal("candidate-%s-seed.jsonl" % failure_point, 3)
+		var path := _path("candidate-%s.jsonl" % failure_point)
+		var one := _events_bytes(seed.events, 1)
+		var two := _events_bytes(seed.events, 2)
+		var three := _events_bytes(seed.events, 3)
+		assert_eq(_write_bytes_direct(path, one), OK)
+		assert_eq(_write_bytes_direct("%s.recovery.tmp" % path, two), OK)
+		assert_eq(_write_bytes_direct("%s.recovery.bak" % path, three), OK)
+		var journal := FaultInjectingJournal.new()
+		journal.failure_point = failure_point
+		var result := journal.configure("profile-a", "device-a", path)
+		assert_false(result.ok, "%s unexpectedly recovered" % failure_point)
+		assert_eq(result.get("error", ""), "tail_recovery_failed")
+		if failure_point == "candidate_promotion_restore":
+			assert_false(FileAccess.file_exists(path), "failed restoration left an unvalidated original")
+			assert_true(_read_bytes("%s.recovery.rotate" % path) == one, "rotation bytes lost")
+		elif failure_point == "candidate_cleanup":
+			assert_true(_read_bytes(path) == three, "cleanup failure lost promoted winner")
+			assert_true(_read_bytes("%s.recovery.rotate" % path) == one, "cleanup failure lost rotated original")
+		else:
+			assert_true(_read_bytes(path) == one, "%s changed original incorrectly" % failure_point)
+		assert_true(_read_bytes("%s.recovery.tmp" % path) == two, "%s lost temp bytes" % failure_point)
+		if failure_point != "candidate_cleanup":
+			assert_true(_read_bytes("%s.recovery.bak" % path) == three, "%s lost backup bytes" % failure_point)
+
 func _test_original_rotation_failure_preserves_original() -> void:
 	var prepared := _prepare_corrupt_journal("rotation-failure.jsonl")
 	var journal := FaultInjectingJournal.new()
@@ -423,19 +549,102 @@ func _test_startup_recovers_interrupted_corrupt_artifact_promotion() -> void:
 	assert_false(FileAccess.file_exists("%s.partial.corrupt.bak" % prepared.path))
 	assert_false(FileAccess.file_exists("%s.partial.corrupt.tmp" % prepared.path))
 
-func _test_append_io_failures_do_not_advance_sequence() -> void:
-	for failure_point in ["append_open", "append_write", "append_flush"]:
+func _test_append_absent_and_partial_failures_are_retry_safe() -> void:
+	for failure_point in ["append_open", "append_absent", "append_partial"]:
+		var path := _path("%s.jsonl" % failure_point)
+		var journal := FaultInjectingJournal.new()
+		assert_true(journal.configure("profile-a", "device-a", path).ok)
+		assert_true(journal.append(_answer_payload("session-a", 7)).ok)
+		var before := _read_bytes(path)
+		journal.failure_point = failure_point
+		var failed := journal.append(_answer_payload("session-a", 8))
+		assert_false(failed.ok, "%s unexpectedly appended" % failure_point)
+		assert_eq(failed.get("error", ""), "journal_open_failed" if failure_point == "append_open" else "journal_write_failed")
+		assert_true(_read_bytes(path) == before, "%s did not restore exact pre-append bytes" % failure_point)
+		journal.failure_point = ""
+		var retry := journal.append(_answer_payload("session-a", 8))
+		assert_true(retry.ok)
+		assert_eq(retry.event.sequence, 2, "%s advanced sequence" % failure_point)
+		var replayed := journal.replay()
+		assert_true(replayed.ok)
+		assert_eq(replayed.get("events", []).map(func(event): return event.sequence), [1, 2])
+
+func _test_append_full_persistence_is_recognized_as_success() -> void:
+	for failure_point in ["append_full_store_error", "append_flush"]:
 		var path := _path("%s.jsonl" % failure_point)
 		var journal := FaultInjectingJournal.new()
 		assert_true(journal.configure("profile-a", "device-a", path).ok)
 		journal.failure_point = failure_point
-		var failed := journal.append(_answer_payload("session-a", 7))
-		assert_false(failed.ok, "%s unexpectedly appended" % failure_point)
-		assert_eq(failed.get("error", ""), "journal_open_failed" if failure_point == "append_open" else "journal_write_failed")
+		var result := journal.append(_answer_payload("session-a", 7))
+		assert_true(result.ok, "%s did not recognize the persisted event" % failure_point)
+		if result.ok:
+			assert_eq(result.event.sequence, 1)
+			var replayed := journal.replay()
+			assert_true(replayed.ok)
+			assert_eq(replayed.get("events", []).size(), 1)
+			if replayed.get("events", []).size() == 1:
+				assert_eq(replayed.events[0].event_id, result.event.event_id, "%s changed event identity" % failure_point)
 		journal.failure_point = ""
-		var retry := journal.append(_answer_payload("session-a", 7))
+		var second := journal.append(_answer_payload("session-a", 8))
+		assert_true(second.ok)
+		if second.ok:
+			assert_eq(second.event.sequence, 2, "%s did not advance committed sequence" % failure_point)
+		assert_eq(journal.replay().get("events", []).size(), 2)
+
+func _test_append_indeterminate_failure_blocks_until_configure() -> void:
+	var path := _path("append-indeterminate.jsonl")
+	var journal := FaultInjectingJournal.new()
+	assert_true(journal.configure("profile-a", "device-a", path).ok)
+	assert_true(journal.append(_answer_payload("session-a", 7)).ok)
+	var before := _read_bytes(path)
+	journal.failure_point = "append_indeterminate"
+	var failed := journal.append(_answer_payload("session-a", 8))
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "append_recovery_required")
+	var damaged := _read_bytes(path)
+	assert_true(_bytes_start_with(damaged, before))
+	assert_true(damaged != before)
+	journal.failure_point = ""
+	var blocked := journal.append(_answer_payload("session-a", 8))
+	assert_false(blocked.ok)
+	assert_eq(blocked.get("error", ""), "append_recovery_required")
+	assert_true(_read_bytes(path) == damaged, "blocked retry changed indeterminate bytes")
+	var recovery := journal.configure("profile-a", "device-a", path)
+	assert_true(recovery.ok)
+	assert_true(recovery.get("quarantined_tail", false))
+	var retry := journal.append(_answer_payload("session-a", 8))
+	assert_true(retry.ok)
+	if retry.ok:
+		assert_eq(retry.event.sequence, 2)
+	assert_eq(journal.replay().get("events", []).size(), 2)
+
+func _test_append_rollback_failures_block_until_configure() -> void:
+	for failure_point in ["append_partial_rollback_write", "append_partial_rollback_promotion", "append_partial_rollback_restore", "append_partial_rollback_cleanup"]:
+		var path := _path("%s.jsonl" % failure_point)
+		var journal := FaultInjectingJournal.new()
+		assert_true(journal.configure("profile-a", "device-a", path).ok)
+		assert_true(journal.append(_answer_payload("session-a", 7)).ok)
+		var before := _read_bytes(path)
+		journal.failure_point = failure_point
+		var failed := journal.append(_answer_payload("session-a", 8))
+		assert_false(failed.ok)
+		assert_eq(failed.get("error", ""), "append_recovery_required")
+		journal.failure_point = ""
+		var blocked_bytes := _read_bytes(path)
+		var blocked := journal.append(_answer_payload("session-a", 8))
+		assert_false(blocked.ok)
+		assert_eq(blocked.get("error", ""), "append_recovery_required")
+		assert_true(_read_bytes(path) == blocked_bytes, "%s retry changed bytes" % failure_point)
+		var recovery := journal.configure("profile-a", "device-a", path)
+		assert_true(recovery.ok, "%s did not recover on configure" % failure_point)
+		assert_true(_read_bytes(path) == before, "%s did not restore pre-append snapshot" % failure_point)
+		for suffix in [".append.rollback.tmp", ".append.failed.bak"]:
+			assert_false(FileAccess.file_exists("%s%s" % [path, suffix]), "%s left %s" % [failure_point, suffix])
+		var retry := journal.append(_answer_payload("session-a", 8))
 		assert_true(retry.ok)
-		assert_eq(retry.event.sequence, 1, "%s advanced sequence" % failure_point)
+		if retry.ok:
+			assert_eq(retry.event.sequence, 2)
+		assert_eq(journal.replay().get("events", []).size(), 2)
 
 func _prepare_valid_journal(name: String, count: int) -> Dictionary:
 	var path := _path(name)
@@ -447,6 +656,15 @@ func _prepare_valid_journal(name: String, count: int) -> Dictionary:
 		assert_true(appended.ok)
 		events.append(appended.event)
 	return {"path": path, "bytes": _read_bytes(path), "events": events}
+
+func _events_bytes(events: Array[Dictionary], count: int) -> PackedByteArray:
+	var result := PackedByteArray()
+	for index in count:
+		result.append_array((JSON.stringify(events[index]) + "\n").to_utf8_buffer())
+	return result
+
+func _bytes_start_with(bytes: PackedByteArray, prefix: PackedByteArray) -> bool:
+	return bytes.size() >= prefix.size() and bytes.slice(0, prefix.size()) == prefix
 
 func _prepare_corrupt_journal(name: String) -> Dictionary:
 	var path := _path(name)
@@ -501,8 +719,8 @@ func _write_bytes_direct(path: String, bytes: PackedByteArray) -> Error:
 	return error
 
 func _cleanup() -> void:
-	for journal_name in ["events.jsonl", "first.jsonl", "second.jsonl", "scope.jsonl", "invalid.jsonl", "semantic-tail.jsonl", "sequence-tail.jsonl", "limits.jsonl", "exact.jsonl", "valid-unterminated.jsonl", "corrupt-write.jsonl", "before-rotation.jsonl", "promotion.jsonl", "restoration.jsonl", "candidate-original.jsonl", "candidate-temp.jsonl", "candidate-invalid.jsonl", "candidate-lone-temp.jsonl", "candidate-cleanup.jsonl", "rotation-failure.jsonl", "corrupt-promotion.jsonl", "corrupt-restoration.jsonl", "corrupt-cleanup.jsonl", "corrupt-startup.jsonl", "append_open.jsonl", "append_write.jsonl", "append_flush.jsonl"]:
-		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".partial.corrupt.bak", ".recovery.tmp", ".recovery.bak"]:
+	for journal_name in ["events.jsonl", "first.jsonl", "second.jsonl", "scope.jsonl", "invalid.jsonl", "semantic-tail.jsonl", "sequence-tail.jsonl", "limits.jsonl", "exact.jsonl", "valid-unterminated.jsonl", "corrupt-write.jsonl", "before-rotation.jsonl", "promotion.jsonl", "restoration.jsonl", "candidate-original.jsonl", "candidate-temp.jsonl", "candidate-invalid.jsonl", "candidate-lone-temp.jsonl", "candidate-cleanup.jsonl", "candidate-ranking-seed.jsonl", "candidate-ranking-empty.jsonl", "candidate-ranking-stale.jsonl", "candidate-ranking-newer-tail.jsonl", "candidate-ranking-complete-tie.jsonl", "candidate-ranking-temp.jsonl", "candidate-ranking-scope.jsonl", "candidate-ranking-sequence.jsonl", "candidate-three-seed.jsonl", "candidate-three.jsonl", "candidate-candidate_rotation-seed.jsonl", "candidate-candidate_rotation.jsonl", "candidate-candidate_promotion-seed.jsonl", "candidate-candidate_promotion.jsonl", "candidate-candidate_promotion_restore-seed.jsonl", "candidate-candidate_promotion_restore.jsonl", "candidate-candidate_cleanup-seed.jsonl", "candidate-candidate_cleanup.jsonl", "rotation-failure.jsonl", "corrupt-promotion.jsonl", "corrupt-restoration.jsonl", "corrupt-cleanup.jsonl", "corrupt-startup.jsonl", "append_open.jsonl", "append_write.jsonl", "append_absent.jsonl", "append_partial.jsonl", "append_full_store_error.jsonl", "append_flush.jsonl", "append-indeterminate.jsonl", "append_partial_rollback_write.jsonl", "append_partial_rollback_promotion.jsonl", "append_partial_rollback_restore.jsonl", "append_partial_rollback_cleanup.jsonl"]:
+		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".partial.corrupt.bak", ".recovery.tmp", ".recovery.bak", ".recovery.rotate", ".recovery.stage", ".append.rollback.tmp", ".append.failed.bak"]:
 			var path := _path("%s%s" % [journal_name, suffix])
 			if FileAccess.file_exists(path):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
