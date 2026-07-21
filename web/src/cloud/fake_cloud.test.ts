@@ -43,6 +43,9 @@ describe("FakeCloud", () => {
     await expect(cloud.listChildren("00000000-0000-4000-8000-000000000001")).resolves.toEqual([
       expect.objectContaining({ nickname: "데모 아이" }),
     ]);
+    await expect(cloud.listDrafts()).resolves.toEqual([
+      expect.objectContaining({ activityId: "addition_ones", title: "덧셈 탐험" }),
+    ]);
   });
 
   it("isolates children by requested family", async () => {

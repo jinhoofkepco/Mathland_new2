@@ -39,6 +39,10 @@ test("opens the owner content studio without a desktop-only layout", async ({ pa
 
   await page.getByRole("link", { name: "콘텐츠 스튜디오" }).click();
   await expect(page.getByRole("heading", { name: "콘텐츠 스튜디오" })).toBeVisible();
-  await expect(page.getByText("아직 저장된 초안이 없습니다.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "덧셈 탐험" })).toBeVisible();
+  await page.getByRole("link", { name: "편집하기" }).click();
+  await expect(page.getByRole("heading", { name: "덧셈 탐험 편집" })).toBeVisible();
+  await page.getByLabel("완료 정답 수").fill("12");
+  await expect(page.getByRole("button", { name: "초안 저장" })).toBeEnabled();
   await expectNoHorizontalOverflow(page);
 });

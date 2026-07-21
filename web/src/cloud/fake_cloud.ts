@@ -14,6 +14,7 @@ import type {
   SessionState,
   ValidationReportWire,
 } from "./cloud_port";
+import demoAdditionPackage from "../../../content/sources/addition_ones.json";
 
 export interface FakeCloudDataset {
   session: SessionState;
@@ -36,6 +37,7 @@ const DEMO_FAMILY_ID = "00000000-0000-4000-8000-000000000001";
 const DEMO_CHILD_ID = "00000000-0000-4000-8000-000000000002";
 const DEMO_USER_ID = "00000000-0000-4000-8000-000000000003";
 const DEMO_SYNC_AT = "2026-07-21T09:20:00.000Z";
+const DEMO_ADDITION_PACKAGE = demoAdditionPackage as unknown as ContentDraft["package"];
 
 const DEMO_DATASET: FakeCloudDataset = {
   session: { status: "authenticated", userId: DEMO_USER_ID, role: "owner" },
@@ -104,7 +106,16 @@ const DEMO_DATASET: FakeCloudDataset = {
       ],
     },
   },
-  drafts: [],
+  drafts: [
+    {
+      id: "00000000-0000-4000-8000-000000000004",
+      activityId: "addition_ones",
+      title: "덧셈 탐험",
+      revision: 3,
+      updatedAt: DEMO_SYNC_AT,
+      package: DEMO_ADDITION_PACKAGE,
+    },
+  ],
   publications: [],
 };
 
