@@ -27,6 +27,7 @@ function makeSource(root, includeHostArtifacts) {
   write(root, "project.godot", "[application]");
   write(root, "src/app.gd", "extends Node");
   write(root, "assets/moa.svg", "<svg />");
+  write(root, "assets/source/art/generated/master.png", "provenance master");
   write(root, "addons/mathland_secure_credentials/bin/debug/plugin.aar", "aar");
   if (!includeHostArtifacts) return;
   write(root, "package.json", "host package");

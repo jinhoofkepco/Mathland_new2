@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Addition tiles</title>
+  <desc id="desc">Two groups of tiles meet around a plus sign.</desc>
+  <rect x="12" y="35" width="34" height="58" rx="12" fill="#76C8F0" stroke="#23415A" stroke-width="8"/>
+  <circle cx="29" cy="54" r="7" fill="#FFF8E8" stroke="#23415A" stroke-width="4"/>
+  <circle cx="29" cy="76" r="7" fill="#FFF8E8" stroke="#23415A" stroke-width="4"/>
+  <rect x="82" y="35" width="34" height="58" rx="12" fill="#66D3B5" stroke="#23415A" stroke-width="8"/>
+  <circle cx="99" cy="54" r="7" fill="#FFF8E8" stroke="#23415A" stroke-width="4"/>
+  <circle cx="99" cy="76" r="7" fill="#FFF8E8" stroke="#23415A" stroke-width="4"/>
+  <path d="M64 46v36M52 64h24" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+</svg>

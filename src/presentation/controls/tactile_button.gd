@@ -1,6 +1,8 @@
 class_name TactileButton
 extends Control
 
+const AssetCatalogScript = preload("res://src/presentation/assets/asset_catalog.gd")
+
 signal press_started
 signal accepted
 signal cancelled
@@ -20,6 +22,7 @@ const KEYBOARD_POINTER := -2
 @onready var _surface: Panel = %Surface
 @onready var _focus_ring: Panel = %FocusRing
 @onready var _icon_label: Label = %IconLabel
+@onready var _icon_texture: TextureRect = %IconTexture
 @onready var _text_label: Label = %TextLabel
 
 var _active_pointer := NO_POINTER
@@ -186,8 +189,11 @@ func _apply_accessibility() -> void:
 	if visible_label.is_empty():
 		visible_label = label_key
 	_text_label.text = visible_label
+	var release_icon := AssetCatalogScript.texture_for(StringName(icon_name))
+	_icon_texture.texture = release_icon
+	_icon_texture.visible = release_icon != null
 	_icon_label.text = _icon_glyph(icon_name)
-	_icon_label.visible = not icon_name.is_empty()
+	_icon_label.visible = release_icon == null and not icon_name.is_empty()
 	accessibility_name = visible_label
 	accessibility_description = visible_label
 	tooltip_text = visible_label

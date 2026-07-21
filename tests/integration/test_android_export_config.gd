@@ -23,6 +23,7 @@ const REQUIRED_RELEASE_EXCLUDES := [
 	"scripts/**",
 	"tools/**",
 	"android/**",
+	"assets/source/**",
 	".env",
 	".env.*",
 	"*.keystore",

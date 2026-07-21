@@ -8,6 +8,7 @@
     "test:content-tools": "npm --workspace @mathland/contracts test --",
     "validate:content": "tsx tools/content/validate_content.ts --manifest content/active-manifest.json",
     "build:content": "tsx tools/content/build_content.ts",
+    "validate:assets": "tsx tools/assets/validate_assets.ts --manifest assets/asset-manifest.json --licenses ASSET_LICENSES.md",
     "verify:toolchain": "node scripts/ci/verify_toolchain.mjs"
   },
   "workspaces": [

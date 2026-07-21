@@ -175,7 +175,7 @@ func _build_ui() -> void:
 	_add_control_button(controls, "AddUnitButton", "manipulative.add_unit", add_unit)
 	_add_control_button(controls, "RemoveTenButton", "manipulative.remove_ten", remove_ten)
 	_add_control_button(controls, "RemoveUnitButton", "manipulative.remove_unit", remove_unit)
-	var submit := _make_button("SubmitButton", "manipulative.submit", "check", Vector2(0, 58), 19)
+	var submit := _make_button("SubmitButton", "manipulative.submit", "ui.status.correct", Vector2(0, 58), 19)
 	column.add_child(submit)
 	submit.accepted.connect(submit_current_answer)
 	_buttons.append(submit)

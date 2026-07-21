@@ -12,4 +12,10 @@ describe("root workspace scripts", () => {
       "npm --workspace @mathland/contracts test --",
     );
   });
+
+  it("exposes the strict asset admission command", () => {
+    expect(rootPackage.scripts?.["validate:assets"]).toBe(
+      "tsx tools/assets/validate_assets.ts --manifest assets/asset-manifest.json --licenses ASSET_LICENSES.md",
+    );
+  });
 });

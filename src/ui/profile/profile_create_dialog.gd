@@ -89,7 +89,7 @@ func _build_ui() -> void:
 	var close_button := MathlandUiScript.tactile_button("CloseButton", "ui.close", "", Vector2(0, 52), 17)
 	close_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions.add_child(close_button)
-	var save_button := MathlandUiScript.tactile_button("SaveProfileButton", "ui.save", "check", Vector2(0, 52), 17)
+	var save_button := MathlandUiScript.tactile_button("SaveProfileButton", "ui.save", "ui.status.correct", Vector2(0, 52), 17)
 	save_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions.add_child(save_button)
 	MathlandUiScript.connect_tactile(close_button, _dismiss)

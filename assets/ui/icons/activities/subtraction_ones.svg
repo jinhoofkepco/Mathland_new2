@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Subtraction bridge</title>
+  <desc id="desc">Five tiles cross a bridge while two move away.</desc>
+  <path d="M16 82c18-34 78-34 96 0" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="28" cy="74" r="10" fill="#66D3B5" stroke="#23415A" stroke-width="6"/>
+  <circle cx="48" cy="57" r="10" fill="#66D3B5" stroke="#23415A" stroke-width="6"/>
+  <circle cx="70" cy="52" r="10" fill="#66D3B5" stroke="#23415A" stroke-width="6"/>
+  <circle cx="94" cy="52" r="10" fill="#FF8A7A" stroke="#23415A" stroke-width="6"/>
+  <circle cx="108" cy="30" r="8" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+  <path d="M45 103h38" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+</svg>

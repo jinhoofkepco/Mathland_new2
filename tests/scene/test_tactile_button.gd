@@ -4,10 +4,30 @@ const TactileButtonScene = preload("res://scenes/shared/tactile_button.tscn")
 
 func run(tree: SceneTree) -> void:
 	await _test_pointer_down_release_and_cancel(tree)
+	await _test_release_icon_preserves_accessibility_text(tree)
 	await _test_reduced_motion_keeps_non_motion_feedback(tree)
 	await _test_keyboard_acceptance(tree)
 	await _test_keyboard_focus_loss_cancels_and_recovers(tree)
 	await _test_viewport_dispatch_targets_offset_button(tree)
+
+func _test_release_icon_preserves_accessibility_text(tree: SceneTree) -> void:
+	var button: Control = TactileButtonScene.instantiate()
+	button.size = Vector2(240, 64)
+	tree.root.add_child(button)
+	await tree.process_frame
+	button.configure_accessibility("다음", "ui.status.correct")
+	var icon: TextureRect = button.get_node("Visual/Content/IconTexture")
+	assert_true(icon.visible)
+	assert_true(icon.texture is Texture2D)
+	if icon.texture != null:
+		assert_eq(icon.texture.resource_path, "res://assets/ui/icons/status/correct.svg")
+	assert_false(button.get_node("Visual/Content/IconLabel").visible)
+	assert_eq(button.get_node("Visual/Content/TextLabel").text, "다음")
+	assert_eq(button.accessibility_name, "다음")
+	assert_eq(button.accessibility_description, "다음")
+	assert_eq(button.tooltip_text, "다음")
+	button.queue_free()
+	await tree.process_frame
 
 func _test_pointer_down_release_and_cancel(tree: SceneTree) -> void:
 	var button: Control = TactileButtonScene.instantiate()

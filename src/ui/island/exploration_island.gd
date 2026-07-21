@@ -2,6 +2,7 @@ extends "res://src/ui/shared/child_screen.gd"
 
 const AppRouteScript = preload("res://src/app/app_route.gd")
 const DailyObjectiveServiceScript = preload("res://src/island/daily_objective_service.gd")
+const AssetCatalogScript = preload("res://src/presentation/assets/asset_catalog.gd")
 
 var _objectives: Array[Dictionary] = []
 var _apples := 0
@@ -24,6 +25,7 @@ func _ready() -> void:
 		_queued = maxi(0, int(_params.get("sync_queue_count", 0)))
 	_objectives = DailyObjectiveServiceScript.new().objectives(_profile_id, _today())
 	var ui := MathlandUiScript.scaffold(self, "island.title", "island.subtitle")
+	_add_exploration_background()
 	var body: VBoxContainer = ui.body
 	_add_status_row(body)
 	body.add_child(MathlandUiScript.section_label("island.today_objectives"))
@@ -95,6 +97,20 @@ func continue_activity() -> void:
 		"activity_id": objective.activity_id,
 		"objective_id": objective.objective_id,
 	})
+
+func _add_exploration_background() -> void:
+	var texture := AssetCatalogScript.texture_for(AssetCatalogScript.EXPLORATION_ISLAND_ID)
+	if texture == null:
+		return
+	var background := TextureRect.new()
+	background.name = "ExplorationIslandBackground"
+	background.texture = texture
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(background)
+	move_child(background, 1)
 
 func _add_status_row(body: VBoxContainer) -> void:
 	var row := HBoxContainer.new()

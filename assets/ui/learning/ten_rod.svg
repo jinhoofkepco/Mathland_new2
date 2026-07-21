@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Base-ten rod</title>
+  <desc id="desc">Ten equal connected cubes form one horizontal ten rod.</desc>
+  <rect x="13" y="92" width="230" height="72" rx="12" fill="#F6C453" stroke="#23415A" stroke-width="8"/>
+  <path d="M36 96v64M59 96v64M82 96v64M105 96v64M128 96v64M151 96v64M174 96v64M197 96v64M220 96v64" fill="none" stroke="#23415A" stroke-width="4" stroke-linecap="round"/>
+</svg>

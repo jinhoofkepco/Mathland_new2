@@ -23,9 +23,9 @@ jobs:
         run: godot --version | grep -q '^4\.7\.1'
       - name: Verify test harness rejects engine errors
         run: tools/tests/test_run_godot_tests.sh
-      - name: Run unit suite
-        run: tools/test/run_godot_tests.sh unit
-      - name: Run scene suite
-        run: tools/test/run_godot_tests.sh scene
+      - name: Run unit and scene suites from a fresh archive
+        run: tools/tests/test_fresh_archive_godot.sh unit scene
       - name: Run integration suite
         run: tools/test/run_godot_tests.sh integration
+      - name: Verify Android Smoke PCK content
+        run: tools/tests/test_android_smoke_pck.sh

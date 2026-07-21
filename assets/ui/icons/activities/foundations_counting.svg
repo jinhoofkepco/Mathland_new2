@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Counted shells</title>
+  <desc id="desc">Five distinct shells form an easy-to-count arc.</desc>
+  <path d="M17 71c0-15 11-27 24-27s24 12 24 27z" fill="#FF8A7A" stroke="#23415A" stroke-width="8"/>
+  <path d="M24 66l6-15M40 66V47M56 66l-6-15" fill="none" stroke="#23415A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M75 43c10-12 29-12 39 0l-9 31H84z" fill="#76C8F0" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="24" cy="99" r="10" fill="#F6C453" stroke="#23415A" stroke-width="6"/>
+  <circle cx="57" cy="99" r="10" fill="#66D3B5" stroke="#23415A" stroke-width="6"/>
+  <circle cx="94" cy="99" r="10" fill="#F4D9A4" stroke="#23415A" stroke-width="6"/>
+</svg>

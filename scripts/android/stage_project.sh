@@ -35,6 +35,7 @@ rsync -a \
   --exclude='scripts/' \
   --exclude='tools/' \
   --exclude='dist/' \
+  --exclude='assets/source/' \
   --exclude='.env' \
   --exclude='.env.*' \
   --exclude='*.keystore' \
