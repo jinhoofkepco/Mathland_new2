@@ -3,8 +3,17 @@ extends "res://tests/support/test_case.gd"
 const BASE_PATH := "user://tests/atomic"
 const AtomicJsonStore = preload("res://src/persistence/atomic_json_store.gd")
 
+class FailedReplacementAndRestoreStore extends AtomicJsonStore:
+	var _rename_count := 0
+
+	func _rename_absolute(from_path: String, to_path: String) -> Error:
+		_rename_count += 1
+		if _rename_count == 1:
+			return DirAccess.rename_absolute(from_path, to_path)
+		return ERR_CANT_CREATE
+
 func run(_tree: SceneTree) -> void:
-	_cleanup_files(["profile.json", "profile.json.tmp", "profile.json.bak", "broken.json", "broken.json.corrupt", "blocked.json", "blocked.json.corrupt", "recovered.json", "recovered.json.bak", "recovered.json.tmp"])
+	_cleanup_files(["profile.json", "profile.json.tmp", "profile.json.bak", "broken.json", "broken.json.corrupt", "blocked.json", "blocked.json.corrupt", "recovered.json", "recovered.json.bak", "recovered.json.tmp", "authoritative.json", "authoritative.json.tmp", "unrestorable.json", "unrestorable.json.tmp", "unrestorable.json.bak"])
 	_cleanup_directory("blocked.json.corrupt")
 
 	var store := AtomicJsonStore.new(BASE_PATH)
@@ -42,7 +51,24 @@ func run(_tree: SceneTree) -> void:
 	assert_false(FileAccess.file_exists("%s/recovered.json.bak" % BASE_PATH))
 	assert_false(FileAccess.file_exists("%s/recovered.json.tmp" % BASE_PATH))
 
-	_cleanup_files(["profile.json", "profile.json.tmp", "profile.json.bak", "broken.json", "broken.json.corrupt", "blocked.json", "blocked.json.corrupt", "recovered.json", "recovered.json.bak", "recovered.json.tmp"])
+	var authoritative_file := FileAccess.open("%s/authoritative.json" % BASE_PATH, FileAccess.WRITE)
+	authoritative_file.store_string(JSON.stringify({"nickname": "final"}))
+	authoritative_file.close()
+	var stale_temporary := FileAccess.open("%s/authoritative.json.tmp" % BASE_PATH, FileAccess.WRITE)
+	stale_temporary.store_string(JSON.stringify({"nickname": "stale"}))
+	stale_temporary.close()
+	assert_eq(store.load("authoritative.json"), {"ok": true, "value": {"nickname": "final"}})
+	assert_false(FileAccess.file_exists("%s/authoritative.json.tmp" % BASE_PATH))
+
+	var unreplaced_file := FileAccess.open("%s/unrestorable.json" % BASE_PATH, FileAccess.WRITE)
+	unreplaced_file.store_string(JSON.stringify({"nickname": "old"}))
+	unreplaced_file.close()
+	var failed_store := FailedReplacementAndRestoreStore.new(BASE_PATH)
+	assert_eq(failed_store.save("unrestorable.json", {"nickname": "new"}), FAILED)
+	assert_true(FileAccess.file_exists("%s/unrestorable.json.bak" % BASE_PATH))
+	assert_false(FileAccess.file_exists("%s/unrestorable.json" % BASE_PATH))
+
+	_cleanup_files(["profile.json", "profile.json.tmp", "profile.json.bak", "broken.json", "broken.json.corrupt", "blocked.json", "blocked.json.corrupt", "recovered.json", "recovered.json.bak", "recovered.json.tmp", "authoritative.json", "authoritative.json.tmp", "unrestorable.json", "unrestorable.json.tmp", "unrestorable.json.bak"])
 	_cleanup_directory("blocked.json.corrupt")
 
 func _cleanup_files(file_names: Array[String]) -> void:

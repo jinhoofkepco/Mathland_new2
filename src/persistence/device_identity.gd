@@ -17,5 +17,6 @@ func load_or_create() -> String:
 		if device_id is String and UUID_V4.is_valid(device_id):
 			return device_id
 	var device_id := UUID_V4.generate()
-	assert(_store.save(FILE_NAME, {"schema_version": 1, "device_id": device_id}) == OK)
+	if _store.save(FILE_NAME, {"schema_version": 1, "device_id": device_id}) != OK:
+		return ""
 	return device_id

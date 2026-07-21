@@ -31,19 +31,21 @@ func save(path: String, value: Variant) -> Error:
 		if remove_backup_error != OK:
 			return remove_backup_error
 	if FileAccess.file_exists(final_path):
-		var backup_error := DirAccess.rename_absolute(
+		var backup_error := _rename_absolute(
 			ProjectSettings.globalize_path(final_path), ProjectSettings.globalize_path(backup_path)
 		)
 		if backup_error != OK:
 			return backup_error
-	var replace_error := DirAccess.rename_absolute(
+	var replace_error := _rename_absolute(
 		ProjectSettings.globalize_path(temporary_path), ProjectSettings.globalize_path(final_path)
 	)
 	if replace_error != OK:
 		if FileAccess.file_exists(backup_path):
-			DirAccess.rename_absolute(
+			var restore_error := _rename_absolute(
 				ProjectSettings.globalize_path(backup_path), ProjectSettings.globalize_path(final_path)
 			)
+			if restore_error != OK:
+				return FAILED
 		return replace_error
 	if FileAccess.file_exists(backup_path):
 		var remove_final_backup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
@@ -53,6 +55,7 @@ func save(path: String, value: Variant) -> Error:
 
 func load(path: String) -> Dictionary:
 	var final_path := _path_for(path)
+	var temporary_path := "%s.tmp" % final_path
 	if not FileAccess.file_exists(final_path):
 		var backup_path := "%s.bak" % final_path
 		if FileAccess.file_exists(backup_path):
@@ -61,11 +64,14 @@ func load(path: String) -> Dictionary:
 			)
 			if recovery_error != OK:
 				return {"ok": false, "error": "backup_recovery_failed"}
-			var temporary_path := "%s.tmp" % final_path
 			if FileAccess.file_exists(temporary_path):
 				var cleanup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
 				if cleanup_error != OK:
 					return {"ok": false, "error": "backup_recovery_cleanup_failed"}
+	if FileAccess.file_exists(final_path) and FileAccess.file_exists(temporary_path):
+		var temporary_cleanup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+		if temporary_cleanup_error != OK:
+			return {"ok": false, "error": "temporary_cleanup_failed"}
 	var file := FileAccess.open(final_path, FileAccess.READ)
 	if file == null:
 		return {"ok": false, "error": "not_found"}
@@ -92,3 +98,6 @@ func load(path: String) -> Dictionary:
 
 func _path_for(path: String) -> String:
 	return "%s/%s" % [_base_path, path]
+
+func _rename_absolute(from_path: String, to_path: String) -> Error:
+	return DirAccess.rename_absolute(from_path, to_path)

@@ -5,6 +5,13 @@ const AtomicJsonStore = preload("res://src/persistence/atomic_json_store.gd")
 const DeviceIdentity = preload("res://src/persistence/device_identity.gd")
 const UuidV4 = preload("res://src/core/uuid_v4.gd")
 
+class FailingSaveStore extends AtomicJsonStore:
+	func _init() -> void:
+		super(BASE_PATH)
+
+	func save(_path: String, _value: Variant) -> Error:
+		return ERR_CANT_CREATE
+
 func run(_tree: SceneTree) -> void:
 	_cleanup_files(["device.json", "device.json.tmp", "device.json.bak"])
 
@@ -19,6 +26,11 @@ func run(_tree: SceneTree) -> void:
 	malformed_identity.close()
 	var replacement := DeviceIdentity.new(store).load_or_create()
 	assert_true(UuidV4.is_valid(replacement))
+
+	_cleanup_files(["device.json", "device.json.tmp", "device.json.bak"])
+	var failing_store := FailingSaveStore.new()
+	assert_eq(failing_store.save("device.json", {}), ERR_CANT_CREATE)
+	assert_eq(DeviceIdentity.new(failing_store).load_or_create(), "")
 
 	_cleanup_files(["device.json", "device.json.tmp", "device.json.bak"])
 
