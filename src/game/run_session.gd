@@ -35,6 +35,8 @@ func _init(
 	_session_id_factory = session_id_factory
 
 func start_run(activity: Dictionary, first_question: Dictionary) -> Dictionary:
+	if _blocked:
+		return {"ok": false, "error": "persistence_blocked"}
 	if _busy:
 		return {"ok": false, "error": "busy"}
 	if _active:
@@ -222,7 +224,9 @@ func _append_payload(payload: Dictionary) -> Dictionary:
 	if not result is Dictionary or not result.has("ok") or not result.ok is bool:
 		return {"ok": false, "error": "invalid_journal_result", "retry_safe": false}
 	if not result.ok:
-		var error := _result_error(result, "journal_append_failed")
+		if not result.has("error") or not result.error is String or result.error.is_empty():
+			return {"ok": false, "error": "invalid_journal_result", "retry_safe": false}
+		var error: String = result.error
 		return {"ok": false, "error": error, "retry_safe": error != "append_recovery_required"}
 	if not result.has("event") or not result.event is Dictionary:
 		return {"ok": false, "error": "invalid_journal_result", "retry_safe": false}

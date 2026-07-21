@@ -7,6 +7,7 @@ var operations: Array[String]
 var events: Array[Dictionary] = []
 var fail_next_error := ""
 var fail_event_type := ""
+var malformed_failure_next: Dictionary = {}
 var malformed_success_next := false
 var next_event_overrides: Dictionary = {}
 var _profile_id: String
@@ -37,6 +38,10 @@ func append(payload: Dictionary) -> Dictionary:
 	if not errors.is_empty():
 		return {"ok": false, "error": "invalid_event", "details": errors}
 	events.append(event.duplicate(true))
+	if not malformed_failure_next.is_empty():
+		var malformed_failure := malformed_failure_next.duplicate(true)
+		malformed_failure_next = {}
+		return malformed_failure
 	if malformed_success_next:
 		malformed_success_next = false
 		return {"ok": true}

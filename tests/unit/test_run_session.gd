@@ -14,6 +14,8 @@ func run(_tree: SceneTree) -> void:
 	_test_answer_is_journaled_then_reduced_then_signalled()
 	_test_journal_failure_leaves_state_unchanged_and_retryable()
 	_test_uncertain_journal_result_is_fail_stopped()
+	_test_fail_stop_blocks_reentrant_and_later_run_start()
+	_test_malformed_journal_failures_are_fail_stopped()
 	_test_journal_cannot_substitute_a_different_valid_event()
 	_test_terminal_answer_persists_completion_before_signals()
 	_test_terminal_completion_failure_emits_no_presentation()
@@ -98,6 +100,68 @@ func _test_uncertain_journal_result_is_fail_stopped() -> void:
 	assert_eq(fixture.controller.snapshot(), before)
 	assert_eq(failures, ["invalid_journal_result"])
 	assert_eq(fixture.session.submit_answer(fixture.question.correct_answer, 100, 0).get("error", ""), "persistence_blocked")
+
+func _test_fail_stop_blocks_reentrant_and_later_run_start() -> void:
+	var fixture := _fixture()
+	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	fixture.operations.clear()
+	var before: Dictionary = fixture.controller.snapshot()
+	var attempted := [false]
+	var reentrant_starts: Array[Dictionary] = []
+	var session = fixture.session
+	var handler := func(_code: String):
+		if attempted[0]:
+			return
+		attempted[0] = true
+		reentrant_starts.append(session.start_run(fixture.activity, fixture.question))
+	fixture.session.persistence_failed.connect(handler)
+	fixture.journal.fail_next_error = "append_recovery_required"
+	var failed: Dictionary = fixture.session.submit_answer(fixture.question.correct_answer, 100, 0)
+	fixture.session.persistence_failed.disconnect(handler)
+	assert_false(failed.ok)
+	assert_eq(failed.get("error", ""), "append_recovery_required")
+	assert_eq(reentrant_starts.size(), 1)
+	assert_eq(reentrant_starts[0].get("error", ""), "persistence_blocked")
+	assert_eq(fixture.operations, ["journal.append"], "reentrant start touched persistence after fail-stop")
+	assert_eq(fixture.controller.snapshot(), before)
+	assert_eq(fixture.journal.events.size(), 1)
+	assert_eq(fixture.progress.snapshot().last_sequence, 1)
+	fixture.operations.clear()
+	var later_start: Dictionary = fixture.session.start_run(fixture.activity, fixture.question)
+	assert_false(later_start.ok)
+	assert_eq(later_start.get("error", ""), "persistence_blocked")
+	assert_eq(fixture.operations, [], "blocked start touched persistence dependencies")
+
+func _test_malformed_journal_failures_are_fail_stopped() -> void:
+	var cases := [
+		{"name": "missing error", "result": {"ok": false}},
+		{"name": "non-string error", "result": {"ok": false, "error": 17}},
+		{"name": "empty error", "result": {"ok": false, "error": ""}},
+	]
+	for case in cases:
+		var fixture := _fixture()
+		assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+		fixture.operations.clear()
+		var before: Dictionary = fixture.controller.snapshot()
+		var failures: Array[String] = []
+		fixture.session.persistence_failed.connect(func(code: String): failures.append(code))
+		fixture.journal.malformed_failure_next = case.result.duplicate(true)
+		var failed: Dictionary = fixture.session.submit_answer(fixture.question.correct_answer, 100, 0)
+		assert_false(failed.ok)
+		assert_eq(failed.get("error", ""), "invalid_journal_result", case.name)
+		assert_eq(failures, ["invalid_journal_result"], case.name)
+		assert_eq(fixture.journal.events.size(), 2, "%s lost the uncertain durable event" % case.name)
+		assert_eq(fixture.progress.snapshot().last_sequence, 1, case.name)
+		assert_eq(fixture.controller.snapshot(), before, case.name)
+		fixture.operations.clear()
+		var later_start: Dictionary = fixture.session.start_run(fixture.activity, fixture.question)
+		var retry: Dictionary = fixture.session.submit_answer(fixture.question.correct_answer, 100, 0)
+		assert_eq(later_start.get("error", ""), "persistence_blocked", case.name)
+		assert_eq(retry.get("error", ""), "persistence_blocked", case.name)
+		assert_eq(fixture.operations, [], "%s allowed persistence after an indeterminate append" % case.name)
+		assert_eq(fixture.journal.events.size(), 2, case.name)
+		assert_eq(fixture.progress.snapshot().last_sequence, 1, case.name)
+		assert_eq(fixture.controller.snapshot(), before, case.name)
 
 func _test_journal_cannot_substitute_a_different_valid_event() -> void:
 	var fixture := _fixture()
