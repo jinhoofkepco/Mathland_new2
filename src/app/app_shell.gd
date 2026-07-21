@@ -1,10 +1,13 @@
 class_name AppShell
 extends Control
 
+signal diagnostic(code: String)
+
 const AppRouteScript = preload("res://src/app/app_route.gd")
 const AppRouterScript = preload("res://src/app/app_router.gd")
 const AudioServiceScript = preload("res://src/presentation/audio/audio_service.gd")
-const ContentRepositoryScript = preload("res://src/content/vertical_slice_content_repository.gd")
+const ContentRepositoryScript = preload("res://src/content/content_repository.gd")
+const QuestionEngineScript = preload("res://src/content/question_engine.gd")
 const AtomicJsonStoreScript = preload("res://src/persistence/atomic_json_store.gd")
 const DeviceIdentityScript = preload("res://src/persistence/device_identity.gd")
 const ProfileActivationServiceScript = preload("res://src/app/profile_activation_service.gd")
@@ -32,6 +35,7 @@ var _effects_service: Variant
 var _progress_service: Variant
 var _event_journal: Variant
 var _content_repository: Variant
+var _question_engine: Variant
 var _ui_policy: Variant
 var _profile_activation: Variant
 var _app_lifecycle: Variant
@@ -128,6 +132,7 @@ func _exit_tree() -> void:
 	_app_lifecycle = null
 	_profile_activation = null
 	_content_repository = null
+	_question_engine = null
 
 func _bootstrap_default_experience() -> void:
 	_profile_service = _dependency_overrides.get("profile_service", get_node_or_null("/root/ProfileService"))
@@ -135,7 +140,7 @@ func _bootstrap_default_experience() -> void:
 		return
 	_audio_service = _dependency_overrides.audio_service if _dependency_overrides.has("audio_service") else AudioServiceScript.new()
 	_add_service_child(_audio_service, "AudioService")
-	_content_repository = _dependency_overrides.content_repository if _dependency_overrides.has("content_repository") else ContentRepositoryScript.new()
+	_configure_content_runtime()
 	_ui_policy = _dependency_overrides.ui_policy if _dependency_overrides.has("ui_policy") else UiPolicyScript.new()
 	if _dependency_overrides.has("effects_service"):
 		_effects_service = _dependency_overrides.effects_service
@@ -165,6 +170,8 @@ func _bootstrap_default_experience() -> void:
 		_app_lifecycle = get_node_or_null("/root/LifecycleService")
 		if _app_lifecycle == null:
 			_app_lifecycle = AppLifecycleScript.new()
+		if not _inject_default_lifecycle_runtime():
+			diagnostic.emit("content_runtime_injection_failed")
 	_add_service_child(_app_lifecycle, "AppLifecycle")
 	var route_scenes := {}
 	for route in ROUTE_SCENE_PATHS:
@@ -202,6 +209,7 @@ func _base_route_params(profile_id: String = "") -> Dictionary:
 		"progress_service": _progress_service,
 		"journal": _event_journal,
 		"content_repository": _content_repository,
+		"question_engine": _question_engine,
 		"audio_service": _audio_service,
 		"effects_service": _effects_service,
 		"ui_policy": _ui_policy,
@@ -214,6 +222,36 @@ func _base_route_params(profile_id: String = "") -> Dictionary:
 	if _dependency_overrides.has("response_clock"):
 		params["response_clock"] = _dependency_overrides.response_clock
 	return params
+
+func _configure_content_runtime() -> void:
+	_question_engine = (
+		_dependency_overrides.question_engine
+		if _dependency_overrides.has("question_engine")
+		else QuestionEngineScript.new()
+	)
+	if _dependency_overrides.has("content_repository"):
+		_content_repository = _dependency_overrides.content_repository
+		return
+	_content_repository = ContentRepositoryScript.new()
+	var manifest_path := String(_dependency_overrides.get(
+		"content_manifest_path", "res://content/active-manifest.json"
+	))
+	var cache_root := String(_dependency_overrides.get("content_cache_root", "user://content"))
+	var initialized: Variant = _content_repository.initialize(manifest_path, cache_root)
+	if not initialized is Object or not bool(initialized.get("ok")):
+		diagnostic.emit("content_initialization_failed")
+
+func _inject_default_lifecycle_runtime() -> bool:
+	if (
+		_app_lifecycle == null
+		or not _app_lifecycle.has_method("configure_runtime_dependencies")
+	):
+		return false
+	var configured: Variant = _app_lifecycle.configure_runtime_dependencies(
+		_content_repository,
+		_question_engine
+	)
+	return configured is Dictionary and configured.get("ok", false)
 
 func _replace_progress_service(next_progress: Node) -> void:
 	var previous: Variant = _progress_service

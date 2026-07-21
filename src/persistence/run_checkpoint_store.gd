@@ -39,7 +39,7 @@ const RUN_STATE_KEYS := [
 	"completion_reason",
 	"status",
 ]
-const QUESTION_KEYS := [
+const LEGACY_QUESTION_KEYS := [
 	"question_id",
 	"activity_id",
 	"content_version",
@@ -48,6 +48,19 @@ const QUESTION_KEYS := [
 	"seed",
 	"resolved_parameters",
 	"prompt_key",
+	"correct_answer",
+	"answer_layout",
+	"manipulative",
+]
+const V1_QUESTION_KEYS := [
+	"contract_version",
+	"activity_id",
+	"content_version",
+	"generator_id",
+	"band_id",
+	"seed",
+	"resolved_parameters",
+	"prompt",
 	"correct_answer",
 	"answer_layout",
 	"manipulative",
@@ -204,9 +217,13 @@ func _is_valid_run_state(value: Variant, checkpoint: Dictionary) -> bool:
 	return true
 
 func _is_valid_question(value: Variant, activity_id: String, content_version: String) -> bool:
-	if not value is Dictionary or not _has_required_keys(value, QUESTION_KEYS):
+	if not value is Dictionary:
 		return false
 	var question: Dictionary = value
+	if question.has("contract_version"):
+		return _is_valid_v1_question(question, activity_id, content_version)
+	if not _has_required_keys(question, LEGACY_QUESTION_KEYS):
+		return false
 	if (
 		not _is_nonempty_string(question.question_id)
 		or question.activity_id != activity_id
@@ -221,6 +238,56 @@ func _is_valid_question(value: Variant, activity_id: String, content_version: St
 		or not _is_json_value(question, 0)
 	):
 		return false
+	return true
+
+func _is_valid_v1_question(question: Dictionary, activity_id: String, content_version: String) -> bool:
+	if not _has_exact_keys(question, V1_QUESTION_KEYS):
+		return false
+	var prompt: Variant = question.get("prompt")
+	var answer_layout: Variant = question.get("answer_layout")
+	var manipulative: Variant = question.get("manipulative")
+	if (
+		not _is_integer(question.get("contract_version"))
+		or int(question.get("contract_version")) != 1
+		or question.get("activity_id") != activity_id
+		or question.get("content_version") != content_version
+		or not _is_nonempty_string(question.get("generator_id"))
+		or not _is_nonempty_string(question.get("band_id"))
+		or not _is_nonnegative_integer(question.get("seed"))
+		or not question.get("resolved_parameters") is Dictionary
+		or not prompt is Dictionary
+		or not _has_exact_keys(prompt, ["key", "args"])
+		or not _is_nonempty_string(prompt.get("key"))
+		or not prompt.get("args") is Dictionary
+		or not _is_valid_v1_answer(question.get("correct_answer"))
+		or not answer_layout is Dictionary
+		or not _has_allowed_keys(answer_layout, ["id"], ["options"])
+		or not _is_nonempty_string(answer_layout.get("id"))
+		or (answer_layout.has("options") and not answer_layout.get("options") is Dictionary)
+		or not manipulative is Dictionary
+		or not _has_exact_keys(manipulative, ["id", "config", "initial_state"])
+		or not _is_nonempty_string(manipulative.get("id"))
+		or not manipulative.get("config") is Dictionary
+		or not manipulative.get("initial_state") is Dictionary
+		or not _is_json_value(question, 0)
+	):
+		return false
+	return true
+
+func _is_valid_v1_answer(value: Variant) -> bool:
+	if not value is Dictionary or not _is_nonempty_string(value.get("kind")):
+		return false
+	var answer: Dictionary = value
+	if answer.kind == "integer":
+		return _has_exact_keys(answer, ["kind", "value"]) and _is_integer(answer.get("value"))
+	if answer.kind != "integer_list" or not _has_exact_keys(answer, ["kind", "values", "order_matters"]):
+		return false
+	var values: Variant = answer.get("values")
+	if not values is Array or values.is_empty() or values.size() > 64 or not answer.get("order_matters") is bool:
+		return false
+	for item in values:
+		if not _is_integer(item):
+			return false
 	return true
 
 func _is_json_value(value: Variant, depth: int) -> bool:
@@ -275,6 +342,14 @@ func _normalize_json_numbers(value: Variant) -> Variant:
 			normalized_dictionary[key] = _normalize_json_numbers(value[key])
 		return normalized_dictionary
 	return value
+
+func _has_allowed_keys(value: Dictionary, required: Array, optional: Array) -> bool:
+	if not _has_required_keys(value, required):
+		return false
+	for key in value:
+		if key not in required and key not in optional:
+			return false
+	return true
 
 func _has_exact_keys(value: Dictionary, expected: Array) -> bool:
 	if value.size() != expected.size():

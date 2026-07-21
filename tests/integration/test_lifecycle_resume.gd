@@ -405,6 +405,8 @@ func _mount_shell(tree: SceneTree, profile_service: Node, profile_id: String, li
 		"audio_service": TestAudioService.new(),
 		"effects_service": null,
 		"app_lifecycle": lifecycle,
+		"content_repository": lifecycle.get("_content_repository"),
+		"question_engine": lifecycle.get("_question_engine"),
 		"progress_factory": func(): return ProgressServiceScript.new(AtomicJsonStoreScript.new("%s/profiles/%s" % [SHELL_BASE_PATH, profile_id])),
 		"journal_path_builder": func(candidate_profile_id: String): return "%s/profiles/%s/events.jsonl" % [SHELL_BASE_PATH, candidate_profile_id],
 	}))

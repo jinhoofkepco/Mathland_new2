@@ -337,11 +337,15 @@ func _assert_reward_sequence_fail_closed(activity: Control, event: Dictionary) -
 
 func _mount_shell(tree: SceneTree, profile_service: Node, profile_id: String, response_clock: RefCounted) -> Control:
 	var shell: Control = AppShellScene.instantiate()
+	var repository := ContentRepositoryScript.new()
+	var question_engine := QuestionEngineScript.new()
 	assert_true(shell.configure_dependencies({
 		"profile_service": profile_service,
 		"device_id": DEVICE_ID,
 		"audio_service": TestAudioService.new(),
 		"effects_service": null,
+		"content_repository": repository,
+		"question_engine": question_engine,
 		"progress_factory": func(): return ProgressServiceScript.new(AtomicJsonStoreScript.new("%s/%s" % [BASE_PATH, profile_id])),
 		"journal_path_builder": func(candidate_profile_id: String): return "%s/%s/events.jsonl" % [BASE_PATH, candidate_profile_id],
 		"response_clock": response_clock,

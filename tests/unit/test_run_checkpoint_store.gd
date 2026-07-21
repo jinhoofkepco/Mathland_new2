@@ -3,6 +3,7 @@ extends "res://tests/support/test_case.gd"
 const BASE_PATH := "user://tests/run_checkpoint_store"
 const PROFILE_ID := "11111111-1111-4111-8111-111111111111"
 const OTHER_PROFILE_ID := "22222222-2222-4222-8222-222222222222"
+const V1_PROFILE_ID := "55555555-5555-4555-8555-555555555555"
 const SESSION_ID := "33333333-3333-4333-8333-333333333333"
 const STORE_PATH := "res://src/persistence/run_checkpoint_store.gd"
 
@@ -14,6 +15,7 @@ func run(_tree: SceneTree) -> void:
 	var StoreScript: Variant = load(STORE_PATH)
 	var store: Variant = StoreScript.new(BASE_PATH)
 	_test_atomic_round_trip(store)
+	_test_v1_question_round_trip(store)
 	_test_profile_scope_and_schema_validation(store)
 	_test_malformed_and_semantic_values_are_quarantined(store)
 	_test_oversized_backup_is_rejected_before_recovery(store)
@@ -32,6 +34,16 @@ func _test_atomic_round_trip(store: Variant) -> void:
 	assert_eq(loaded.checkpoint, _checkpoint(PROFILE_ID), "checkpoint storage must deep-copy its input")
 	loaded.checkpoint.run_state.health = 0
 	assert_eq(store.load(PROFILE_ID, "a-vertical-1").checkpoint.run_state.health, 3)
+
+func _test_v1_question_round_trip(store: Variant) -> void:
+	var checkpoint := _v1_checkpoint(V1_PROFILE_ID)
+	var saved: Dictionary = store.save(checkpoint)
+	assert_true(saved.ok, "versioned content question checkpoint was rejected")
+	if not saved.get("ok", false):
+		return
+	var loaded: Dictionary = store.load(V1_PROFILE_ID, "1.0.0")
+	assert_true(loaded.ok)
+	assert_eq(loaded.get("checkpoint"), checkpoint)
 
 func _test_profile_scope_and_schema_validation(store: Variant) -> void:
 	assert_eq(store.load(OTHER_PROFILE_ID, "a-vertical-1").error, "not_found")
@@ -131,6 +143,52 @@ func _checkpoint(profile_id: String, session_id: String = SESSION_ID) -> Diction
 		},
 		"current_question": question,
 		"last_event_sequence": 2,
+	}
+
+func _v1_checkpoint(profile_id: String, session_id: String = SESSION_ID) -> Dictionary:
+	var question := {
+		"contract_version": 1,
+		"activity_id": "multiplication",
+		"content_version": "1.0.0",
+		"generator_id": "multiplication_v1",
+		"band_id": "intro",
+		"seed": 42,
+		"resolved_parameters": {"left": 5, "right": 1, "display": "horizontal"},
+		"prompt": {"key": "activity.multiplication.prompt", "args": {"left": 5, "right": 1}},
+		"correct_answer": {"kind": "integer", "value": 5},
+		"answer_layout": {"id": "numeric_keypad"},
+		"manipulative": {"id": "none", "config": {}, "initial_state": {}},
+	}
+	return {
+		"schema_version": 1,
+		"profile_id": profile_id,
+		"session_id": session_id,
+		"content_version": "1.0.0",
+		"activity_id": "multiplication",
+		"run_state": {
+			"revision": 2,
+			"session_id": session_id,
+			"activity_id": "multiplication",
+			"content_version": "1.0.0",
+			"stage_id": "intro",
+			"health": 3,
+			"score": 0,
+			"combo": 0,
+			"question_index": 1,
+			"current_question": question.duplicate(true),
+			"current_seed": 42,
+			"awaiting_answer": true,
+			"boss_state": false,
+			"earned_rewards": {},
+			"paused": false,
+			"timer_enabled": false,
+			"timer_started_at_ms": 0,
+			"timer_remaining_ms": 0,
+			"completion_reason": "",
+			"status": "running",
+		},
+		"current_question": question,
+		"last_event_sequence": 1,
 	}
 
 func _write_text(path: String, value: String) -> bool:

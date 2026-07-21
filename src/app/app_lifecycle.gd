@@ -33,6 +33,21 @@ func _init(
 	_content_repository = content_repository if content_repository != null else VerticalSliceContentRepositoryScript.new()
 	_question_engine = question_engine if question_engine != null else VerticalSliceQuestionEngineScript.new()
 
+func configure_runtime_dependencies(content_repository: Variant, question_engine: Variant) -> Dictionary:
+	if _active_session != null:
+		return {"ok": false, "error": "active_run"}
+	if (
+		content_repository == null
+		or not content_repository.has_method("get_activity")
+		or not content_repository.has_method("list_activities")
+		or question_engine == null
+		or not question_engine.has_method("generate_question")
+	):
+		return {"ok": false, "error": "invalid_runtime_dependencies"}
+	_content_repository = content_repository
+	_question_engine = question_engine
+	return {"ok": true}
+
 func configure(profile_id: String, journal: Variant, progress: Variant, router: Variant = null) -> Dictionary:
 	if (
 		not UuidV4Script.is_valid(profile_id)
