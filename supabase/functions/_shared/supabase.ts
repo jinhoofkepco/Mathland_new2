@@ -7,6 +7,7 @@ import type {
 import { SupabaseAuthVerifier } from "./auth.ts";
 import type {
   CommitPublicationInput,
+  CommitPublicationResult,
   ContentStudioRepository,
   DraftSource,
   RollbackSource,
@@ -230,6 +231,13 @@ type PublicationHistoryRow = {
   rollback_of_id?: unknown;
 };
 
+type PublicationCommitRow = {
+  publication_id?: unknown;
+  published_at?: unknown;
+  effective_at?: unknown;
+  status?: unknown;
+};
+
 const DRAFT_SELECT = "id,activityId:activity_id,title,revision,updatedAt:updated_at,package";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -411,21 +419,37 @@ export class SupabaseFunctionRepository
     return draftWire(rows[0]);
   }
 
-  async commitPublication(input: CommitPublicationInput): Promise<string> {
-    const result = await this.rpc.call<unknown>("commit_validated_content_publication", {
-      target_draft_id: input.draftId,
-      expected_revision: input.expectedRevision,
-      published_package: input.publishedPackage,
-      canonical_checksum: input.checksum,
-      validation_report: input.validationReport,
-      actor_user_id: input.actorUserId,
-      target_effective_at: input.effectiveAt.toISOString(),
-      publication_request_id: input.requestId,
-      publication_reason: input.reason,
-      rollback_publication_id: input.rollbackPublicationId,
-    });
-    if (typeof result !== "string") throw new SupabaseRpcError("rpc_invalid_response", 503);
-    return result;
+  async commitPublication(input: CommitPublicationInput): Promise<CommitPublicationResult> {
+    const result = await this.rpc.call<PublicationCommitRow[]>(
+      "commit_validated_content_publication_v2",
+      {
+        target_draft_id: input.draftId,
+        expected_revision: input.expectedRevision,
+        published_package: input.publishedPackage,
+        canonical_checksum: input.checksum,
+        validation_report: input.validationReport,
+        actor_user_id: input.actorUserId,
+        target_effective_at: input.effectiveAt?.toISOString() ?? null,
+        publication_request_id: input.requestId,
+        publication_reason: input.reason,
+        rollback_publication_id: input.rollbackPublicationId,
+      },
+    );
+    const row = result[0];
+    if (
+      result.length !== 1 || row === undefined ||
+      typeof row.publication_id !== "string" || typeof row.published_at !== "string" ||
+      typeof row.effective_at !== "string" ||
+      (row.status !== "active" && row.status !== "pending")
+    ) {
+      throw new SupabaseRpcError("rpc_invalid_response", 503);
+    }
+    return {
+      publicationId: row.publication_id,
+      publishedAt: row.published_at,
+      effectiveAt: row.effective_at,
+      status: row.status,
+    };
   }
 
   async getRollbackSource(publicationId: string): Promise<RollbackSource | undefined> {

@@ -3,6 +3,7 @@ import publishedFixture from "../../../content/packages/addition_ones/1.0.0.json
 };
 import type {
   ContentDraft,
+  ContentPublication,
   ContentPublicationHistoryItem,
   SaveDraftInput,
 } from "../../../packages/contracts/src/cloud/wire.ts";
@@ -85,7 +86,13 @@ function repository(
     getDraft: () => Promise.resolve(draftRecord()),
     saveDraft: (_token, input: SaveDraftInput) =>
       Promise.resolve(draftRecord((input.expectedRevision ?? 0) + 1)),
-    commitPublication: () => Promise.resolve("71000000-0000-4000-8000-000000000301"),
+    commitPublication: () =>
+      Promise.resolve({
+        publicationId: "71000000-0000-4000-8000-000000000301",
+        publishedAt: "2026-07-22T04:00:00.000Z",
+        effectiveAt: "2026-07-22T04:00:00.000Z",
+        status: "active",
+      }),
     getRollbackSource: () => Promise.resolve(undefined),
     listPublicationHistory: () => Promise.resolve([historyItem()]),
     ...overrides,
@@ -376,4 +383,47 @@ Deno.test("Studio role checks call the global-only authorization RPC", async () 
   assertEquals(await repository.hasRole("caller-token", "owner"), false);
   assertEquals(observedName, "has_global_studio_role");
   assertEquals(observedBody, { required_role: "owner" });
+});
+
+Deno.test("publication commits map the database-authoritative lifecycle row", async () => {
+  let observedName: string | undefined;
+  let observedBody: Record<string, unknown> | undefined;
+  const service = {
+    call: (name: string, body: Record<string, unknown>) => {
+      observedName = name;
+      observedBody = body;
+      return Promise.resolve([{
+        publication_id: "71000000-0000-4000-8000-000000000301",
+        published_at: "2026-07-22T04:00:05.000Z",
+        effective_at: "2026-07-22T04:00:05.000Z",
+        status: "active",
+      }]);
+    },
+  };
+  const repository = new SupabaseFunctionRepository(service as never, {} as never);
+  const packageValue = structuredClone(
+    publishedFixture,
+  ) as unknown as ContentPublication["package"];
+
+  const result = await repository.commitPublication({
+    draftId: DRAFT_ID,
+    expectedRevision: 3,
+    publishedPackage: packageValue,
+    checksum: packageValue.checksum,
+    validationReport: { valid: true, issues: [], samples: [] },
+    actorUserId: OWNER_ID,
+    effectiveAt: null,
+    requestId: "81000000-0000-4000-8000-000000000301",
+    reason: "DB 시각 매핑",
+    rollbackPublicationId: null,
+  });
+
+  assertEquals(observedName, "commit_validated_content_publication_v2");
+  assertEquals(observedBody?.target_effective_at, null);
+  assertEquals(result, {
+    publicationId: "71000000-0000-4000-8000-000000000301",
+    publishedAt: "2026-07-22T04:00:05.000Z",
+    effectiveAt: "2026-07-22T04:00:05.000Z",
+    status: "active",
+  });
 });

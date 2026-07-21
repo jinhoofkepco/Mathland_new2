@@ -298,6 +298,8 @@ export class FakeCloud implements CloudPort {
       activityId: draft.activityId,
       contentVersion: draft.package.content_version,
       publishedAt: now,
+      effectiveAt,
+      status: effectiveAt > now ? "pending" : "active",
       package: { ...clone(draft.package), checksum },
     };
   }
@@ -319,6 +321,8 @@ export class FakeCloud implements CloudPort {
       activityId: historical.activityId,
       contentVersion: historical.contentVersion,
       publishedAt: now,
+      effectiveAt: now,
+      status: "active",
       package: { ...clone(draft.package), content_version: historical.contentVersion, checksum: historical.checksum },
     };
   }

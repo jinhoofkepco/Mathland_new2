@@ -23,7 +23,6 @@ import { validatePublishedActivity } from "../../../packages/contracts/src/conte
 export type RollbackPublicationDependencies = {
   allowedOrigins: readonly string[];
   auth: AuthVerifier;
-  clock: { now(): Date };
   operationId: () => string;
   repository: ContentStudioRepository;
   requestId: () => string;
@@ -81,15 +80,14 @@ export async function rollbackPublication(
       draftRevision = currentDraft.revision;
     }
 
-    const now = dependencies.clock.now();
-    await dependencies.repository.commitPublication({
+    const committed = await dependencies.repository.commitPublication({
       draftId,
       expectedRevision: draftRevision,
       publishedPackage: source.package,
       checksum: source.checksum,
       validationReport: report,
       actorUserId: identity.id,
-      effectiveAt: new Date(now),
+      effectiveAt: null,
       requestId: dependencies.operationId(),
       reason: parsed.data.reason,
       rollbackPublicationId: source.publicationId,
@@ -97,7 +95,9 @@ export async function rollbackPublication(
     const response = ContentPublicationSchema.parse({
       activityId: source.activityId,
       contentVersion: source.contentVersion,
-      publishedAt: now.toISOString(),
+      publishedAt: committed.publishedAt,
+      effectiveAt: committed.effectiveAt,
+      status: committed.status,
       package: source.package,
     });
     return wireResponse(200, response, context.headers);
@@ -129,7 +129,6 @@ function runtimeDependencies(): RollbackPublicationDependencies {
   return {
     allowedOrigins: runtime.allowedOrigins,
     auth: runtime.auth,
-    clock: { now: () => new Date() },
     operationId: () => crypto.randomUUID(),
     repository: runtime.repository,
     requestId: () => crypto.randomUUID(),

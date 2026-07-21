@@ -262,6 +262,8 @@ export const ContentPublicationSchema = z.strictObject({
   activityId: z.string().min(1).max(128),
   contentVersion: z.string().regex(/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/),
   publishedAt: CloudTimestampSchema,
+  effectiveAt: CloudTimestampSchema,
+  status: z.enum(["active", "pending"]),
   package: ActivityPackageV1Schema,
 });
 export type ContentPublication = z.infer<typeof ContentPublicationSchema>;

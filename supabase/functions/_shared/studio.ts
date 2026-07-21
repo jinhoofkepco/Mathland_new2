@@ -35,17 +35,24 @@ export type CommitPublicationInput = {
   checksum: string;
   validationReport: ValidationReportWire;
   actorUserId: string;
-  effectiveAt: Date;
+  effectiveAt: Date | null;
   requestId: string;
   reason: string;
   rollbackPublicationId: string | null;
+};
+
+export type CommitPublicationResult = {
+  publicationId: string;
+  publishedAt: string;
+  effectiveAt: string;
+  status: "active" | "pending";
 };
 
 export interface ContentStudioRepository {
   hasRole(accessToken: string, role: StudioRole): Promise<boolean>;
   getDraft(draftIdOrActivityId: string): Promise<DraftSource | undefined>;
   saveDraft(accessToken: string, input: SaveDraftInput): Promise<ContentDraft>;
-  commitPublication(input: CommitPublicationInput): Promise<string>;
+  commitPublication(input: CommitPublicationInput): Promise<CommitPublicationResult>;
   getRollbackSource(publicationId: string): Promise<RollbackSource | undefined>;
   listPublicationHistory(
     accessToken: string,

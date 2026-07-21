@@ -198,3 +198,76 @@ revoke all on function public.get_content_publication_history(text)
 from public, anon, service_role;
 grant execute on function public.get_content_publication_history(text)
 to authenticated;
+
+-- A service caller cannot safely manufacture an immediate timestamp before the
+-- database statement begins. Resolve immediate publish and rollback times here,
+-- preserve genuinely future schedules, and return the committed lifecycle row.
+create function public.commit_validated_content_publication_v2(
+  target_draft_id uuid,
+  expected_revision integer,
+  published_package jsonb,
+  canonical_checksum text,
+  validation_report jsonb,
+  actor_user_id uuid,
+  target_effective_at timestamptz,
+  publication_request_id uuid,
+  publication_reason text,
+  rollback_publication_id uuid
+)
+returns table (
+  publication_id uuid,
+  published_at timestamptz,
+  effective_at timestamptz,
+  status text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  server_timestamp timestamptz := pg_catalog.statement_timestamp();
+  resolved_effective_at timestamptz;
+  committed_publication_id uuid;
+begin
+  resolved_effective_at := case
+    when rollback_publication_id is not null then server_timestamp
+    when target_effective_at is null
+      or target_effective_at <= server_timestamp then server_timestamp
+    else target_effective_at
+  end;
+
+  committed_publication_id := public.commit_validated_content_publication(
+    target_draft_id,
+    expected_revision,
+    published_package,
+    canonical_checksum,
+    validation_report,
+    actor_user_id,
+    resolved_effective_at,
+    publication_request_id,
+    publication_reason,
+    rollback_publication_id
+  );
+
+  return query
+  select
+    publication.id,
+    publication.published_at,
+    publication.effective_at,
+    publication.status
+  from public.content_publications publication
+  where publication.id = committed_publication_id;
+end;
+$$;
+
+comment on function public.commit_validated_content_publication_v2(
+  uuid, integer, jsonb, text, jsonb, uuid, timestamptz, uuid, text, uuid
+) is
+  'Service-only database-time publication wrapper. Null/past normal publication and every rollback commit immediately; future schedules preserve their requested effective instant and exact lifecycle metadata is returned.';
+
+revoke all on function public.commit_validated_content_publication_v2(
+  uuid, integer, jsonb, text, jsonb, uuid, timestamptz, uuid, text, uuid
+) from public, anon, authenticated, service_role;
+grant execute on function public.commit_validated_content_publication_v2(
+  uuid, integer, jsonb, text, jsonb, uuid, timestamptz, uuid, text, uuid
+) to service_role;

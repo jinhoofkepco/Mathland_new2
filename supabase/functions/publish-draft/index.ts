@@ -25,7 +25,6 @@ import { validateActivityDraft } from "../../../packages/contracts/src/content/v
 export type PublishDraftDependencies = {
   allowedOrigins: readonly string[];
   auth: AuthVerifier;
-  clock: { now(): Date };
   operationId: () => string;
   repository: ContentStudioRepository;
   requestId: () => string;
@@ -85,11 +84,10 @@ export async function publishDraft(
         retryable: false,
       });
     }
-    const now = dependencies.clock.now();
     const effectiveAt = parsed.data.effectiveAt === undefined
-      ? new Date(now)
+      ? null
       : new Date(parsed.data.effectiveAt);
-    await dependencies.repository.commitPublication({
+    const committed = await dependencies.repository.commitPublication({
       draftId: stored.id,
       expectedRevision: parsed.data.expectedRevision,
       publishedPackage: publishedValidation.data,
@@ -104,7 +102,9 @@ export async function publishDraft(
     const response = ContentPublicationSchema.parse({
       activityId: stored.activityId,
       contentVersion: publishedValidation.data.content_version,
-      publishedAt: now.toISOString(),
+      publishedAt: committed.publishedAt,
+      effectiveAt: committed.effectiveAt,
+      status: committed.status,
       package: publishedValidation.data,
     });
     return wireResponse(200, response, context.headers);
@@ -136,7 +136,6 @@ function runtimeDependencies(): PublishDraftDependencies {
   return {
     allowedOrigins: runtime.allowedOrigins,
     auth: runtime.auth,
-    clock: { now: () => new Date() },
     operationId: () => crypto.randomUUID(),
     repository: runtime.repository,
     requestId: () => crypto.randomUUID(),

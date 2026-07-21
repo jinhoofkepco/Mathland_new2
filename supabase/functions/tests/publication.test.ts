@@ -26,6 +26,19 @@ const DRAFT_ID = "60000000-0000-4000-8000-000000000301";
 const PUBLICATION_ID = "71000000-0000-4000-8000-000000000301";
 const OPERATION_ID = "81000000-0000-4000-8000-000000000301";
 const NOW = new Date("2026-07-22T04:00:00.000Z");
+const DATABASE_PUBLISHED_AT = "2026-07-22T04:00:05.000Z";
+
+function commitResult(
+  effectiveAt = DATABASE_PUBLISHED_AT,
+  status: "active" | "pending" = "active",
+) {
+  return {
+    publicationId: PUBLICATION_ID,
+    publishedAt: DATABASE_PUBLISHED_AT,
+    effectiveAt,
+    status,
+  };
+}
 
 function assert(condition: unknown, message = "assertion failed"): asserts condition {
   if (!condition) throw new Error(message);
@@ -94,7 +107,7 @@ function repository(
     getDraft: () => Promise.resolve(draftRecord()),
     saveDraft: (_token, input: SaveDraftInput) =>
       Promise.resolve(draftRecord(input.package, input.expectedRevision ?? 1)),
-    commitPublication: () => Promise.resolve(PUBLICATION_ID),
+    commitPublication: () => Promise.resolve(commitResult()),
     getRollbackSource: () => Promise.resolve(rollbackSource()),
     listPublicationHistory: () => Promise.resolve([] as ContentPublicationHistoryItem[]),
     ...overrides,
@@ -126,7 +139,6 @@ function publishDependencies(
       verifyBearer: () =>
         Promise.resolve({ id: OWNER_ID, isAnonymous: false, accessToken: "caller-token" }),
     },
-    clock: { now: () => new Date(NOW) },
     operationId: () => OPERATION_ID,
     repository: repository(),
     requestId: () => "request-publish",
@@ -143,7 +155,6 @@ function rollbackDependencies(
       verifyBearer: () =>
         Promise.resolve({ id: OWNER_ID, isAnonymous: false, accessToken: "caller-token" }),
     },
-    clock: { now: () => new Date(NOW) },
     operationId: () => OPERATION_ID,
     repository: repository(),
     requestId: () => "request-rollback",
@@ -163,7 +174,7 @@ Deno.test("publish-draft revalidates, checksums, and commits an owner publicatio
       repository: repository({
         commitPublication: (input) => {
           committed = input;
-          return Promise.resolve(PUBLICATION_ID);
+          return Promise.resolve(commitResult());
         },
       }),
     }),
@@ -175,7 +186,9 @@ Deno.test("publish-draft revalidates, checksums, and commits an owner publicatio
   assertEquals(response.status, 200);
   assertEquals(payload.activityId, "addition_ones");
   assertEquals(payload.contentVersion, "1.1.0");
-  assertEquals(payload.publishedAt, NOW.toISOString());
+  assertEquals(payload.publishedAt, DATABASE_PUBLISHED_AT);
+  assertEquals(payload.effectiveAt, DATABASE_PUBLISHED_AT);
+  assertEquals(payload.status, "active");
   assertEquals((payload.package as Record<string, unknown>).checksum, expectedChecksum);
   assert(!JSON.stringify(payload).includes("request_id"));
   assert(committed !== undefined);
@@ -187,6 +200,36 @@ Deno.test("publish-draft revalidates, checksums, and commits an owner publicatio
   assertEquals(committed.reason, "현장 난이도 조정");
   assertEquals(committed.requestId, OPERATION_ID);
   assertEquals(committed.rollbackPublicationId, null);
+  assertEquals(committed.effectiveAt, null);
+});
+
+Deno.test("publish-draft preserves a future schedule and returns database lifecycle metadata", async () => {
+  const future = "2026-07-23T04:00:00.000Z";
+  let committed: CommitPublicationInput | undefined;
+  const response = await publishDraft(
+    post("publish-draft", {
+      draftId: DRAFT_ID,
+      expectedRevision: 3,
+      effectiveAt: future,
+      reason: "내일 수업 전에 예약",
+    }),
+    publishDependencies({
+      repository: repository({
+        commitPublication: (input) => {
+          committed = input;
+          return Promise.resolve(commitResult(future, "pending"));
+        },
+      }),
+    }),
+  );
+  const payload = await responseJson(response) as Record<string, unknown>;
+
+  assertEquals(response.status, 200);
+  assertEquals(payload.publishedAt, DATABASE_PUBLISHED_AT);
+  assertEquals(payload.effectiveAt, future);
+  assertEquals(payload.status, "pending");
+  assert(committed !== undefined);
+  assertEquals(committed.effectiveAt?.toISOString(), future);
 });
 
 Deno.test("publish-draft rejects editors before reading or committing", async () => {
@@ -231,7 +274,7 @@ Deno.test("publish-draft rejects a semantic-invalid stored draft before commit",
         getDraft: () => Promise.resolve(draftRecord(invalid)),
         commitPublication: () => {
           committed = true;
-          return Promise.resolve(PUBLICATION_ID);
+          return Promise.resolve(commitResult());
         },
       }),
     }),
@@ -263,7 +306,7 @@ Deno.test("publish-draft rejects a poisoned validation answer before commit", as
         getDraft: () => Promise.resolve(draftRecord(poisoned)),
         commitPublication: () => {
           committed = true;
-          return Promise.resolve(PUBLICATION_ID);
+          return Promise.resolve(commitResult());
         },
       }),
     }),
@@ -315,7 +358,12 @@ Deno.test("rollback-publication independently validates and reactivates a retire
         getRollbackSource: () => Promise.resolve(source),
         commitPublication: (input) => {
           committed = input;
-          return Promise.resolve("71000000-0000-4000-8000-000000000399");
+          return Promise.resolve({
+            ...commitResult(),
+            publicationId: "71000000-0000-4000-8000-000000000399",
+            publishedAt: "2026-07-22T04:00:06.000Z",
+            effectiveAt: "2026-07-22T04:00:06.000Z",
+          });
         },
       }),
     }),
@@ -326,11 +374,15 @@ Deno.test("rollback-publication independently validates and reactivates a retire
   assertEquals(payload.activityId, "addition_ones");
   assertEquals(payload.contentVersion, "1.0.0");
   assertEquals(payload.package, source.package);
+  assertEquals(payload.publishedAt, "2026-07-22T04:00:06.000Z");
+  assertEquals(payload.effectiveAt, "2026-07-22T04:00:06.000Z");
+  assertEquals(payload.status, "active");
   assert(committed !== undefined);
   assertEquals(committed.expectedRevision, 8);
   assertEquals(committed.rollbackPublicationId, PUBLICATION_ID);
   assertEquals(committed.checksum, source.checksum);
   assertEquals(committed.reason, "현장 오류로 안정 버전 복원");
+  assertEquals(committed.effectiveAt, null);
 });
 
 Deno.test("rollback-publication rejects editors before reading history", async () => {
@@ -366,7 +418,7 @@ Deno.test("rollback-publication refuses a checksum-invalid historical package", 
         getRollbackSource: () => Promise.resolve(source),
         commitPublication: () => {
           committed = true;
-          return Promise.resolve(PUBLICATION_ID);
+          return Promise.resolve(commitResult());
         },
       }),
     }),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ChildProfileRowSchema,
+  ContentPublicationSchema,
   ContentPublicationHistoryItemSchema,
   CreateGuardianRewardInputSchema,
   CreatePairingCodeRequestSchema,
@@ -14,6 +15,7 @@ import {
   SessionStateSchema,
   UpdateGuardianRewardInputSchema,
 } from "../../src/cloud/wire.js";
+import { makePublished } from "../content/package_fixture.js";
 
 describe("cloud wire contracts", () => {
   it("keeps guardian and device pairing identities explicit and camelCase", () => {
@@ -166,5 +168,26 @@ describe("cloud wire contracts", () => {
     expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, package: {} })).toThrow();
     expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, checksum: "sha256:bad" }))
       .toThrow();
+  });
+
+  it("requires database-authoritative publication lifecycle fields", () => {
+    const publication = {
+      activityId: "addition_ones",
+      contentVersion: "1.0.0",
+      publishedAt: "2030-01-01T00:00:05.000Z",
+      effectiveAt: "2030-01-01T00:00:05.000Z",
+      status: "active",
+      package: makePublished(),
+    };
+
+    expect(ContentPublicationSchema.parse(publication)).toEqual(publication);
+    expect(() => {
+      const { effectiveAt: _effectiveAt, ...incomplete } = publication;
+      ContentPublicationSchema.parse(incomplete);
+    }).toThrow();
+    expect(() => {
+      const { status: _status, ...incomplete } = publication;
+      ContentPublicationSchema.parse(incomplete);
+    }).toThrow();
   });
 });
