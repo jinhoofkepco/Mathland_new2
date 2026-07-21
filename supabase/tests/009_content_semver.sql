@@ -5,7 +5,7 @@ grant usage on schema extensions to service_role;
 grant execute on all functions in schema extensions to service_role;
 select no_plan();
 
-insert into auth.users (id, app_metadata) values
+insert into auth.users (id, raw_app_meta_data) values
   ('00000000-0000-4000-8000-000000000091', '{"role":"owner"}');
 
 insert into public.content_drafts (

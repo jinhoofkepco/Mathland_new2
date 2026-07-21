@@ -12,7 +12,7 @@ select has_index(
   'persistent pairing rate-limit lookups use a bounded actor/time index'
 );
 
-insert into auth.users (id, app_metadata, is_anonymous) values
+insert into auth.users (id, raw_app_meta_data, is_anonymous) values
   ('00000000-0000-4000-8000-000000000201', '{}', false),
   ('00000000-0000-4000-8000-000000000202', '{}', true),
   ('00000000-0000-4000-8000-000000000203', '{}', true);

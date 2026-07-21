@@ -14,7 +14,7 @@ describe("GitHub Pages workflow", () => {
     expect(workflow).toMatch(/branches:\s*\[main\]/u);
     expect(workflow).toContain("VITE_MATHLAND_CLOUD_MODE: fake");
     expect(workflow).toContain("path: web/dist");
-    expect(workflow).toContain("actions/deploy-pages@v4");
+    expect(workflow).toContain("actions/deploy-pages@v5");
     expect(workflow).toContain("pages: write");
     expect(workflow).toContain("id-token: write");
     expect(workflow).not.toContain("pull_request_target");

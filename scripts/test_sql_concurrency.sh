@@ -149,7 +149,7 @@ MATHLAND_ACTIVATION_READY_KEY="$(sql_value "select pg_catalog.hashtextextended('
   -v activity_id="$MATHLAND_ACTIVITY_ID" \
   -v checksum_one="$MATHLAND_CHECKSUM_ONE" \
   -v checksum_two="$MATHLAND_CHECKSUM_TWO" <<'SQL' >/dev/null
-insert into auth.users (id, app_metadata) values (:'owner_id', '{"role":"owner"}');
+insert into auth.users (id, raw_app_meta_data) values (:'owner_id', '{"role":"owner"}');
 insert into public.content_drafts (
   id, activity_id, title, package, created_by, updated_by
 ) values (
