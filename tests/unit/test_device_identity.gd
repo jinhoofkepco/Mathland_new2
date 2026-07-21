@@ -14,6 +14,12 @@ func run(_tree: SceneTree) -> void:
 	assert_true(UuidV4.is_valid(first))
 	assert_eq(second, first)
 
+	var malformed_identity := FileAccess.open("%s/device.json" % BASE_PATH, FileAccess.WRITE)
+	malformed_identity.store_string("[]")
+	malformed_identity.close()
+	var replacement := DeviceIdentity.new(store).load_or_create()
+	assert_true(UuidV4.is_valid(replacement))
+
 	_cleanup_files(["device.json", "device.json.tmp", "device.json.bak"])
 
 func _cleanup_files(file_names: Array[String]) -> void:

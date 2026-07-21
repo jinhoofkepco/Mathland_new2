@@ -53,6 +53,19 @@ func save(path: String, value: Variant) -> Error:
 
 func load(path: String) -> Dictionary:
 	var final_path := _path_for(path)
+	if not FileAccess.file_exists(final_path):
+		var backup_path := "%s.bak" % final_path
+		if FileAccess.file_exists(backup_path):
+			var recovery_error := DirAccess.rename_absolute(
+				ProjectSettings.globalize_path(backup_path), ProjectSettings.globalize_path(final_path)
+			)
+			if recovery_error != OK:
+				return {"ok": false, "error": "backup_recovery_failed"}
+			var temporary_path := "%s.tmp" % final_path
+			if FileAccess.file_exists(temporary_path):
+				var cleanup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+				if cleanup_error != OK:
+					return {"ok": false, "error": "backup_recovery_cleanup_failed"}
 	var file := FileAccess.open(final_path, FileAccess.READ)
 	if file == null:
 		return {"ok": false, "error": "not_found"}
