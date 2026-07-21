@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +36,20 @@ describe("client secret scanner", () => {
     expect(() =>
       execFileSync("bash", [scanner, root], {
         env: { ...process.env, MATHLAND_RG_BIN: "/definitely/missing/rg" },
+        stdio: "pipe",
+      }),
+    ).toThrow();
+  });
+
+  it("fails closed when ripgrep reports an inspection error", () => {
+    const root = fixture('const key="sb_publishable_example123";');
+    const brokenScanner = path.join(root, "broken-rg");
+    writeFileSync(brokenScanner, "#!/bin/sh\nexit 2\n", "utf8");
+    chmodSync(brokenScanner, 0o700);
+
+    expect(() =>
+      execFileSync("bash", [scanner, root], {
+        env: { ...process.env, MATHLAND_RG_BIN: brokenScanner },
         stdio: "pipe",
       }),
     ).toThrow();

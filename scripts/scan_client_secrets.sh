@@ -20,12 +20,19 @@ MATHLAND_SECRET_PATTERN='sb_secret_[A-Za-z0-9._-]{8,}|service[_-]?role[._-][A-Za
 MATHLAND_TOKEN_PATTERN='eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}'
 MATHLAND_DEVELOPMENT_HOST_PATTERN='https?://(?:localhost|127(?:\.[0-9]{1,3}){3}|0\.0\.0\.0|\[::1\])(?::[0-9]+)?'
 
+MATHLAND_RG_STATUS=0
 MATHLAND_SECRET_FINDINGS="$("$MATHLAND_RG_BIN" --files-with-matches --hidden --no-ignore-vcs --pcre2 \
   --glob '!*.license' \
   --glob '!*.md' \
   --glob '!*.map' \
   -e "$MATHLAND_SECRET_PATTERN" \
-  "$MATHLAND_SCAN_TARGET" || true)"
+  "$MATHLAND_SCAN_TARGET")" || MATHLAND_RG_STATUS=$?
+if [[ "$MATHLAND_RG_STATUS" -gt 1 ]]; then
+  echo "FAIL: ripgrep could not inspect the client bundle" >&2
+  exit 1
+fi
+
+MATHLAND_RG_STATUS=0
 MATHLAND_FIRST_PARTY_FINDINGS="$("$MATHLAND_RG_BIN" --files-with-matches --hidden --no-ignore-vcs --pcre2 \
   --glob '!*.license' \
   --glob '!*.md' \
@@ -33,7 +40,11 @@ MATHLAND_FIRST_PARTY_FINDINGS="$("$MATHLAND_RG_BIN" --files-with-matches --hidde
   --glob '!*vendor*' \
   -e "$MATHLAND_TOKEN_PATTERN" \
   -e "$MATHLAND_DEVELOPMENT_HOST_PATTERN" \
-  "$MATHLAND_SCAN_TARGET" || true)"
+  "$MATHLAND_SCAN_TARGET")" || MATHLAND_RG_STATUS=$?
+if [[ "$MATHLAND_RG_STATUS" -gt 1 ]]; then
+  echo "FAIL: ripgrep could not inspect the first-party client bundle" >&2
+  exit 1
+fi
 MATHLAND_FINDINGS="$(printf '%s\n%s\n' "$MATHLAND_SECRET_FINDINGS" "$MATHLAND_FIRST_PARTY_FINDINGS" | sed '/^$/d' | sort -u)"
 
 if [[ -n "$MATHLAND_FINDINGS" ]]; then
