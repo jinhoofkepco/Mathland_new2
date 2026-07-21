@@ -16,6 +16,7 @@ const MAX_RESPONSE_DURATION_MS := 86_400_000
 var _journal: Variant
 var _question_engine: Variant
 var _run_session: Variant
+var _app_lifecycle: Variant
 var _response_clock: Variant = SystemClockScript.new()
 var _activity: Dictionary = {}
 var _question: Dictionary = {}
@@ -40,6 +41,7 @@ func configure(params: Dictionary) -> void:
 	_journal = params.get("journal")
 	_question_engine = params.get("question_engine")
 	_run_session = params.get("run_session")
+	_app_lifecycle = params.get("app_lifecycle")
 	var response_clock: Variant = params.get("response_clock")
 	if response_clock is Object and response_clock.has_method("now_ms"):
 		_response_clock = response_clock
@@ -122,13 +124,14 @@ func _start_activity() -> void:
 		return
 	_starting_apples = int(_snapshot().get("apples", 0))
 	_persistence_blocked = false
+	if bool(_params.get("restored_run", false)):
+		_restore_activity_run()
+		return
 	_question = _generate_question(_next_seed)
 	if _question.is_empty():
 		_show_error("question_unavailable")
 		return
-	_run_session.answer_committed.connect(_on_answer_committed)
-	_run_session.run_completed.connect(_on_run_completed)
-	_run_session.persistence_failed.connect(_on_persistence_failed)
+	_connect_run_session_signals()
 	var started: Variant = _run_session.start_run(_activity, _question)
 	if not started is Dictionary or not started.get("ok", false):
 		_show_error(String(started.get("error", "run_start_failed")) if started is Dictionary else "run_start_failed")
@@ -136,8 +139,60 @@ func _start_activity() -> void:
 	_state = started.state.duplicate(true)
 	_started = true
 	_present_question(_question)
+	_bind_lifecycle()
 	_update_status()
 	_update_interaction()
+
+func _restore_activity_run() -> void:
+	if _run_session == null or not _run_session.has_method("snapshot") or not _run_session.has_method("current_question"):
+		_show_error("restore_failed")
+		return
+	var restored_state: Variant = _run_session.snapshot()
+	var restored_question: Variant = _run_session.current_question()
+	if (
+		not restored_state is Dictionary
+		or not restored_question is Dictionary
+		or restored_state.get("status") != "running"
+		or restored_state.get("activity_id") != _activity.get("activity_id")
+		or restored_state.get("content_version") != _activity.get("content_version")
+		or restored_question.get("seed") != restored_state.get("current_seed")
+	):
+		_show_error("restore_failed")
+		return
+	_connect_run_session_signals()
+	_state = restored_state.duplicate(true)
+	_question = restored_question.duplicate(true)
+	_next_seed = int(_question.seed)
+	_initial_seed = int(_params.get("seed", _next_seed))
+	_starting_apples = maxi(
+		int(_snapshot().get("apples", 0)) - int(_state.get("earned_rewards", {}).get("apples", 0)),
+		0
+	)
+	_started = true
+	_introduction_open = false
+	if _introduction != null:
+		_introduction.visible = false
+	_present_question(_question)
+	_bind_lifecycle()
+	_update_status()
+	_update_interaction()
+
+func _connect_run_session_signals() -> void:
+	var answer_callable := Callable(self, "_on_answer_committed")
+	var completion_callable := Callable(self, "_on_run_completed")
+	var failure_callable := Callable(self, "_on_persistence_failed")
+	if not _run_session.answer_committed.is_connected(answer_callable):
+		_run_session.answer_committed.connect(answer_callable)
+	if not _run_session.run_completed.is_connected(completion_callable):
+		_run_session.run_completed.connect(completion_callable)
+	if not _run_session.persistence_failed.is_connected(failure_callable):
+		_run_session.persistence_failed.connect(failure_callable)
+
+func _bind_lifecycle() -> void:
+	if _app_lifecycle != null and _app_lifecycle.has_method("bind_active_run"):
+		var bound: Variant = _app_lifecycle.bind_active_run(_run_session, _activity)
+		if not bound is Dictionary or not bound.get("ok", false):
+			_show_error("checkpoint_unavailable")
 
 func _generate_question(seed: int) -> Dictionary:
 	if _question_engine == null or not _question_engine.has_method("generate_question"):
@@ -231,7 +286,12 @@ func _show_reward(kind: String, amount: int) -> void:
 	if is_instance_valid(_reward_overlay):
 		_reward_overlay.queue_free()
 	_reward_overlay = RewardOverlayScene.instantiate()
-	_reward_overlay.configure({"kind": kind, "amount": amount, "effects_service": _effects_service})
+	_reward_overlay.configure({
+		"kind": kind,
+		"amount": amount,
+		"effects_service": _effects_service,
+		"ui_policy": _ui_policy,
+	})
 	_reward_overlay.dismissed.connect(func():
 		if is_instance_valid(_reward_overlay):
 			_reward_overlay.queue_free()
@@ -271,7 +331,16 @@ func _build_ui() -> void:
 	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(_board)
 	_board.answer_submitted.connect(_on_board_answer)
+	_register_tactile_descendants(_board)
 	_build_introduction()
+
+func _register_tactile_descendants(parent: Node) -> void:
+	if _ui_policy == null or not _ui_policy.has_method("register_tactile"):
+		return
+	for child in parent.get_children():
+		if child is Control and child.has_signal("accepted") and "reduced_motion" in child:
+			_ui_policy.register_tactile(child)
+		_register_tactile_descendants(child)
 
 func _build_introduction() -> void:
 	_introduction = ColorRect.new()
@@ -370,9 +439,28 @@ func _is_safe_integer(value: Variant) -> bool:
 	)
 
 func _events_equal(left: Dictionary, right: Dictionary) -> bool:
-	var normalized_left: Variant = JSON.parse_string(JSON.stringify(left))
-	var normalized_right: Variant = JSON.parse_string(JSON.stringify(right))
-	return normalized_left is Dictionary and normalized_right is Dictionary and normalized_left == normalized_right
+	return _event_values_equal(left, right)
+
+func _event_values_equal(left: Variant, right: Variant) -> bool:
+	if (left is int or left is float) and (right is int or right is float):
+		return is_finite(float(left)) and is_finite(float(right)) and float(left) == float(right)
+	if typeof(left) != typeof(right):
+		return false
+	if left is Dictionary:
+		if left.size() != right.size():
+			return false
+		for key in left:
+			if not right.has(key) or not _event_values_equal(left[key], right[key]):
+				return false
+		return true
+	if left is Array:
+		if left.size() != right.size():
+			return false
+		for index in left.size():
+			if not _event_values_equal(left[index], right[index]):
+				return false
+		return true
+	return left == right
 
 func _show_error(code: String) -> void:
 	if _error_label != null:

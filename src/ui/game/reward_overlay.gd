@@ -7,6 +7,7 @@ const MathlandUiScript = preload("res://src/ui/shared/mathland_ui.gd")
 var _kind := "reward"
 var _amount := 0
 var _effects_service: Variant
+var _ui_policy: Variant
 var _dismissed := false
 
 func configure(params: Dictionary) -> void:
@@ -14,6 +15,7 @@ func configure(params: Dictionary) -> void:
 	_kind = requested_kind if requested_kind in ["reward", "collection", "coupon"] else "reward"
 	_amount = max(0, int(params.get("amount", 0)))
 	_effects_service = params.get("effects_service")
+	_ui_policy = params.get("ui_policy")
 	_dismissed = false
 
 func _ready() -> void:
@@ -50,6 +52,8 @@ func _ready() -> void:
 		column.add_child(amount)
 	var skip := MathlandUiScript.tactile_button("SkipRewardButton", "reward.tap_to_continue", "arrow_right", Vector2(0, 56), 17)
 	column.add_child(skip)
+	if _ui_policy != null and _ui_policy.has_method("register_tactile"):
+		_ui_policy.register_tactile(skip)
 	MathlandUiScript.connect_tactile(skip, dismiss)
 	if _effects_service != null and _effects_service.has_method("play"):
 		_effects_service.play(StringName(_kind), size * 0.5)

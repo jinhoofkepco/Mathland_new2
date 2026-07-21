@@ -8,6 +8,8 @@ const ContentRepositoryScript = preload("res://src/content/vertical_slice_conten
 const AtomicJsonStoreScript = preload("res://src/persistence/atomic_json_store.gd")
 const DeviceIdentityScript = preload("res://src/persistence/device_identity.gd")
 const ProfileActivationServiceScript = preload("res://src/app/profile_activation_service.gd")
+const AppLifecycleScript = preload("res://src/app/app_lifecycle.gd")
+const OfflineSyncServiceScript = preload("res://src/sync/offline_sync_service.gd")
 const UiPolicyScript = preload("res://src/ui/shared/ui_policy.gd")
 const EFFECTS_SERVICE_PATH := "res://src/presentation/effects/effects_service.gd"
 const ROUTE_SCENE_PATHS := {
@@ -32,6 +34,8 @@ var _event_journal: Variant
 var _content_repository: Variant
 var _ui_policy: Variant
 var _profile_activation: Variant
+var _app_lifecycle: Variant
+var _sync_service: Variant
 var _dependency_overrides: Dictionary = {}
 var _owns_router := false
 
@@ -70,8 +74,27 @@ func activate_profile(profile_id: String, pin: String, now_unix: int) -> Diction
 		return {"ok": false, "error": "invalid_progress_service"}
 	_replace_progress_service(next_progress)
 	_event_journal = activated.get("journal")
+	_sync_service = OfflineSyncServiceScript.new(_event_journal)
+	if _app_lifecycle != null:
+		var lifecycle_configured: Variant = _app_lifecycle.configure(
+			profile_id, _event_journal, _progress_service, _router
+		)
+		if not lifecycle_configured is Dictionary or not lifecycle_configured.get("ok", false):
+			return {"ok": false, "error": "lifecycle_config_failed"}
 	var result: Dictionary = activated.duplicate(false)
 	result["route_params"] = _base_route_params(profile_id)
+	if _app_lifecycle != null:
+		var recovery: Variant = _app_lifecycle.restore_if_present()
+		if recovery is Dictionary and recovery.get("ok", false) and recovery.get("restored", false):
+			result["resume_route"] = AppRouteScript.ACTIVITY_RUN
+			result.route_params["restored_run"] = true
+			result.route_params["run_session"] = recovery.run_session
+			result.route_params["activity_id"] = recovery.activity.activity_id
+			result.route_params["content_version"] = recovery.activity.content_version
+			result.route_params["seed"] = int(recovery.current_question.seed)
+			result.route_params["recovery_source"] = recovery.source
+		elif recovery is Dictionary and not recovery.get("ok", false):
+			result["recovery_error"] = String(recovery.get("error", "restore_failed"))
 	return result
 
 func handle_back_navigation() -> bool:
@@ -90,6 +113,8 @@ func _notification(what: int) -> void:
 func _exit_tree() -> void:
 	_dispose_owned_router()
 	_event_journal = null
+	_sync_service = null
+	_app_lifecycle = null
 	_profile_activation = null
 	_content_repository = null
 
@@ -123,6 +148,13 @@ func _bootstrap_default_experience() -> void:
 		progress_factory,
 		journal_path_builder
 	)
+	if _dependency_overrides.has("app_lifecycle"):
+		_app_lifecycle = _dependency_overrides.app_lifecycle
+	else:
+		_app_lifecycle = get_node_or_null("/root/LifecycleService")
+		if _app_lifecycle == null:
+			_app_lifecycle = AppLifecycleScript.new()
+	_add_service_child(_app_lifecycle, "AppLifecycle")
 	var route_scenes := {}
 	for route in ROUTE_SCENE_PATHS:
 		var packed: Variant = load(ROUTE_SCENE_PATHS[route])
@@ -133,6 +165,11 @@ func _bootstrap_default_experience() -> void:
 	_router.navigate(AppRouteScript.PROFILE_SELECT, _base_route_params())
 
 func _base_route_params(profile_id: String = "") -> Dictionary:
+	var sync_status := {"state": "offline", "pending_count": 0, "last_success_at": null}
+	if _sync_service != null and _sync_service.has_method("status"):
+		var reported: Variant = _sync_service.status()
+		if reported is Dictionary:
+			sync_status = reported.duplicate(true)
 	var params := {
 		"router": weakref(_router),
 		"profile_service": _profile_service,
@@ -143,9 +180,11 @@ func _base_route_params(profile_id: String = "") -> Dictionary:
 		"audio_service": _audio_service,
 		"effects_service": _effects_service,
 		"ui_policy": _ui_policy,
+		"app_lifecycle": _app_lifecycle,
+		"sync_service": _sync_service,
 		"profile_id": profile_id,
-		"online": false,
-		"sync_queue_count": 0,
+		"online": sync_status.get("state") == "online",
+		"sync_queue_count": maxi(int(sync_status.get("pending_count", 0)), 0),
 	}
 	if _dependency_overrides.has("response_clock"):
 		params["response_clock"] = _dependency_overrides.response_clock

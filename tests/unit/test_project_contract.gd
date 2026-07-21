@@ -5,4 +5,5 @@ func run(_tree: SceneTree) -> void:
 	assert_eq(ProjectSettings.get_setting("rendering/renderer/rendering_method"), "gl_compatibility")
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 1080)
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 1920)
+	assert_eq(ProjectSettings.get_setting("autoload/LifecycleService"), "*res://src/app/app_lifecycle.gd")
 	assert_not_null(load("res://scenes/app/app_shell.tscn"), "main scene must load")

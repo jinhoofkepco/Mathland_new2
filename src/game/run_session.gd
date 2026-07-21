@@ -105,6 +105,35 @@ func begin_question(question: Dictionary) -> Dictionary:
 	_current_question = question.duplicate(true)
 	return {"ok": true, "state": _controller.snapshot()}
 
+func restore_run(activity: Dictionary, state: Dictionary, current_question: Dictionary) -> Dictionary:
+	if _blocked:
+		return {"ok": false, "error": "persistence_blocked"}
+	if _busy or _active:
+		return {"ok": false, "error": "invalid_state"}
+	if not _dependencies_are_valid():
+		return {"ok": false, "error": "invalid_dependencies"}
+	var restored_session_id: Variant = state.get("session_id")
+	if (
+		state.get("status") != "running"
+		or not restored_session_id is String
+		or restored_session_id.is_empty()
+		or not state.get("current_question", null) is Dictionary
+		or not _values_equal(state.current_question, current_question)
+	):
+		return {"ok": false, "error": "invalid_checkpoint"}
+	var config := RunConfigScript.from_activity(activity)
+	if not config.is_valid() or not _controller.has_method("restore"):
+		return {"ok": false, "error": "invalid_activity"}
+	var restored: Variant = _controller.restore(config, state)
+	if not _successful_result(restored):
+		return {"ok": false, "error": "invalid_checkpoint"}
+	_session_id = restored_session_id
+	_current_question = current_question.duplicate(true)
+	_active = true
+	_busy = false
+	_blocked = false
+	return {"ok": true, "session_id": _session_id, "state": _controller.snapshot()}
+
 func submit_answer(answer: Variant, response_ms: int, hints: int = 0) -> Dictionary:
 	var ready := _ready_for_input()
 	if not ready.ok:
@@ -134,6 +163,9 @@ func snapshot() -> Dictionary:
 
 func session_id() -> String:
 	return _session_id
+
+func current_question() -> Dictionary:
+	return _current_question.duplicate(true)
 
 func is_blocked() -> bool:
 	return _blocked

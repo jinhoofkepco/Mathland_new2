@@ -73,7 +73,8 @@ func attempt_unlock(profile_id: String, pin: String, now_unix: int) -> Dictionar
 	_pin_input.clear()
 	var route_params: Dictionary = result.get("route_params", {}).duplicate(false)
 	route_params["profile_id"] = _profile_id
-	var routed := _route(AppRouteScript.ISLAND, route_params)
+	var destination := StringName(result.get("resume_route", AppRouteScript.ISLAND))
+	var routed := _route(destination, route_params)
 	if not routed.get("ok", false):
 		return _show_unlock_error({"ok": false, "error": "route_failed"})
 	return result.duplicate(true)

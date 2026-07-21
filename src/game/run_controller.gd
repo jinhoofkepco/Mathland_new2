@@ -8,6 +8,28 @@ const RunEventProjectionScript = preload("res://src/game/run_event_projection.gd
 const SystemClockScript = preload("res://src/core/system_clock.gd")
 const MAX_SAFE_INTEGER := 9007199254740991
 const MAX_PENDING_TRANSITIONS := 8
+const RUN_STATE_KEYS := [
+	"revision",
+	"session_id",
+	"activity_id",
+	"content_version",
+	"stage_id",
+	"health",
+	"score",
+	"combo",
+	"question_index",
+	"current_question",
+	"current_seed",
+	"awaiting_answer",
+	"boss_state",
+	"earned_rewards",
+	"paused",
+	"timer_enabled",
+	"timer_started_at_ms",
+	"timer_remaining_ms",
+	"completion_reason",
+	"status",
+]
 
 var _clock: Variant
 var _config: Variant
@@ -29,6 +51,17 @@ func start(config: Variant, session_id: String) -> Dictionary:
 	_clear_planned_transitions()
 	return {"ok": true, "state": snapshot()}
 
+func restore(config: Variant, state: Dictionary) -> Dictionary:
+	if not config is RunConfigScript or not config.is_valid():
+		return {"ok": false, "error": "invalid_config"}
+	var copied_config := RunConfigScript.new(config.to_dict())
+	if not copied_config.is_valid() or not _is_restorable_state(state, copied_config):
+		return {"ok": false, "error": "invalid_state"}
+	_config = copied_config
+	_state = state.duplicate(true)
+	_clear_planned_transitions()
+	return {"ok": true, "state": snapshot()}
+
 func begin_question(question: Dictionary) -> Dictionary:
 	if not _can_begin_question() or not _is_valid_question(question):
 		return {"ok": false, "error": "invalid_question"}
@@ -40,7 +73,7 @@ func begin_question(question: Dictionary) -> Dictionary:
 	next.boss_state = next.question_index in _config.boss_question_indices
 	next.paused = false
 	next.timer_enabled = _config.timer_allowed and _config.timer_duration_ms > 0
-	next.timer_started_at_ms = _clock.now_ms()
+	next.timer_started_at_ms = _clock.now_ms() if next.timer_enabled else 0
 	next.timer_remaining_ms = _config.timer_duration_ms if next.timer_enabled else 0
 	next.revision += 1
 	_state = next
@@ -262,10 +295,15 @@ func _can_answer() -> bool:
 	return _can_interact() and _state.get("awaiting_answer", false) and not _state.current_question.is_empty()
 
 func _is_valid_question(question: Dictionary) -> bool:
+	return _is_valid_question_for_config(question, _config)
+
+func _is_valid_question_for_config(question: Dictionary, config: Variant) -> bool:
+	if config == null:
+		return false
 	for key in ["question_id", "activity_id", "content_version", "generator_id", "band_id", "seed", "resolved_parameters", "prompt_key", "correct_answer", "answer_layout", "manipulative"]:
 		if not question.has(key):
 			return false
-	if question.activity_id != _config.activity_id or question.content_version != _config.content_version:
+	if question.activity_id != config.activity_id or question.content_version != config.content_version:
 		return false
 	if not _is_nonnegative_safe_integer(question.seed):
 		return false
@@ -282,6 +320,61 @@ func _is_valid_question(question: Dictionary) -> bool:
 	if not _is_resolved_parameters(question.resolved_parameters) or not question.manipulative is Dictionary:
 		return false
 	return _canonical_answer(question.correct_answer) != null
+
+func _is_restorable_state(state: Dictionary, config: Variant) -> bool:
+	if not _has_exact_keys(state, RUN_STATE_KEYS):
+		return false
+	if (
+		not _is_nonnegative_safe_integer(state.revision)
+		or not state.session_id is String
+		or state.session_id.is_empty()
+		or state.activity_id != config.activity_id
+		or state.content_version != config.content_version
+		or state.stage_id != config.stage_id
+		or not state.health is int
+		or state.health <= 0
+		or state.health > config.initial_health
+		or not _is_nonnegative_safe_integer(state.score)
+		or state.score >= config.target_score
+		or not _is_nonnegative_safe_integer(state.combo)
+		or not _is_nonnegative_safe_integer(state.question_index)
+		or not state.current_question is Dictionary
+		or not _is_valid_question_for_config(state.current_question, config)
+		or not _is_nonnegative_safe_integer(state.current_seed)
+		or state.current_seed != state.current_question.seed
+		or not state.awaiting_answer is bool
+		or not state.awaiting_answer
+		or not state.boss_state is bool
+		or state.boss_state != (state.question_index in config.boss_question_indices)
+		or not _is_reward_map(state.earned_rewards)
+		or not state.paused is bool
+		or not state.timer_enabled is bool
+		or (state.timer_enabled and not config.timer_allowed)
+		or not _is_nonnegative_safe_integer(state.timer_started_at_ms)
+		or not _is_nonnegative_safe_integer(state.timer_remaining_ms)
+		or state.timer_remaining_ms > config.timer_duration_ms
+		or (not state.timer_enabled and state.timer_remaining_ms != 0)
+		or state.completion_reason != ""
+		or state.status != "running"
+	):
+		return false
+	return true
+
+func _is_reward_map(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	for key in value:
+		if not key is String or key.is_empty() or not _is_nonnegative_safe_integer(value[key]):
+			return false
+	return true
+
+func _has_exact_keys(value: Dictionary, keys: Array) -> bool:
+	if value.size() != keys.size():
+		return false
+	for key in keys:
+		if not value.has(key):
+			return false
+	return true
 
 func _is_resolved_parameters(value: Variant) -> bool:
 	if not value is Dictionary:

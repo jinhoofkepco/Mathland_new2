@@ -8,13 +8,20 @@ var _apples := 0
 var _pending_review := 0
 var _online := false
 var _queued := 0
+var _sync_service: Variant
 
 func _ready() -> void:
 	var snapshot := _snapshot()
 	_apples = int(snapshot.get("apples", 0))
 	_pending_review = int(snapshot.get("pending_review", 0))
-	_online = bool(_params.get("online", false))
-	_queued = max(0, int(_params.get("sync_queue_count", 0)))
+	_sync_service = _params.get("sync_service")
+	var sync_status: Variant = _sync_service.status() if _sync_service != null and _sync_service.has_method("status") else {}
+	if sync_status is Dictionary and sync_status.has("state"):
+		_online = sync_status.get("state") == "online"
+		_queued = maxi(0, int(sync_status.get("pending_count", 0)))
+	else:
+		_online = bool(_params.get("online", false))
+		_queued = maxi(0, int(_params.get("sync_queue_count", 0)))
 	_objectives = DailyObjectiveServiceScript.new().objectives(_profile_id, _today())
 	var ui := MathlandUiScript.scaffold(self, "island.title", "island.subtitle")
 	var body: VBoxContainer = ui.body

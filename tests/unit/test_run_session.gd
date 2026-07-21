@@ -22,6 +22,7 @@ func run(_tree: SceneTree) -> void:
 	_test_timeout_uses_the_same_persistence_boundary()
 	_test_committed_signal_can_begin_the_next_question()
 	_test_progress_failure_is_fail_stopped_after_durable_append()
+	_test_restore_adopts_durable_state_without_appending_events()
 
 func _test_run_start_failure_does_not_publish_controller_state() -> void:
 	var fixture := _fixture()
@@ -291,6 +292,35 @@ func _test_progress_failure_is_fail_stopped_after_durable_append() -> void:
 	assert_eq(committed_count[0], 0)
 	assert_eq(failures.size(), 1)
 	assert_false(fixture.session.begin_question(_question(fixture.activity, 99)).ok, "a fail-stopped session accepted more input")
+
+func _test_restore_adopts_durable_state_without_appending_events() -> void:
+	var fixture := _fixture()
+	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	assert_true(fixture.session.submit_answer(fixture.question.correct_answer, 100, 0).ok)
+	var next_question := _question(fixture.activity, 77)
+	assert_true(fixture.session.begin_question(next_question).ok)
+	var expected: Dictionary = fixture.session.snapshot()
+	var before_count: int = fixture.journal.events.size()
+	var restored := RunSessionScript.new(RunControllerScript.new(fixture.clock), fixture.journal, fixture.progress)
+	assert_true(restored.has_method("restore_run"), "RunSession must restore a checkpoint without journal append")
+	assert_true(restored.has_method("current_question"), "RunSession must expose its checkpoint question")
+	if not restored.has_method("restore_run") or not restored.has_method("current_question"):
+		return
+	var result: Dictionary = restored.restore_run(fixture.activity, expected, next_question)
+	assert_true(result.ok)
+	assert_eq(restored.snapshot(), expected)
+	assert_eq(restored.current_question(), next_question)
+	assert_eq(fixture.journal.events.size(), before_count)
+	var mismatch: Dictionary = next_question.duplicate(true)
+	mismatch.seed = 78
+	var rejected := RunSessionScript.new(RunControllerScript.new(fixture.clock), fixture.journal, fixture.progress)
+	assert_eq(rejected.restore_run(fixture.activity, expected, mismatch).error, "invalid_checkpoint")
+	assert_eq(rejected.snapshot(), {})
+	var invalid_identity: Dictionary = expected.duplicate(true)
+	invalid_identity.session_id = 7
+	var safely_rejected := RunSessionScript.new(RunControllerScript.new(fixture.clock), fixture.journal, fixture.progress)
+	assert_eq(safely_rejected.restore_run(fixture.activity, invalid_identity, next_question).error, "invalid_checkpoint")
+	assert_eq(safely_rejected.snapshot(), {})
 
 func _fixture(activity_overrides: Dictionary = {}) -> Dictionary:
 	var operations: Array[String] = []

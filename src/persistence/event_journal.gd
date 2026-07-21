@@ -102,6 +102,10 @@ func unacknowledged(after_sequence: int, limit: int = 100) -> Array[Dictionary]:
 			result.append(event)
 	return result
 
+func flush() -> Error:
+	var replayed := replay()
+	return OK if replayed.get("ok", false) else FAILED
+
 func _replay_bytes(content: PackedByteArray, quarantine_syntax_tail: bool) -> Dictionary:
 	var events: Array[Dictionary] = []
 	var line_start := 0

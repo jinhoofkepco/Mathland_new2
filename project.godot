@@ -13,6 +13,7 @@ run/main_scene="res://scenes/app/app_shell.tscn"
 [autoload]
 
 ProfileService="*res://src/profiles/profile_service.gd"
+LifecycleService="*res://src/app/app_lifecycle.gd"
 
 [display/window]
 
