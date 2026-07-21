@@ -9,6 +9,10 @@ config/features=PackedStringArray("4.7")
 config/version="1.0.0"
 run/main_scene="res://scenes/app/app_shell.tscn"
 
+[autoload]
+
+ProfileService="*res://src/profiles/profile_service.gd"
+
 [display/window]
 
 size/viewport_width=1080
