@@ -142,6 +142,22 @@ select throws_like(
   '%permission denied%',
   'editor cannot forge server validation evidence'
 );
+select throws_like(
+  $$delete from public.content_drafts where activity_id = 'subtraction'$$,
+  '%permission denied%',
+  'editor cannot delete a draft to reset its protected revision'
+);
+select throws_like(
+  $$insert into public.content_drafts (activity_id, title, package)
+    values ('subtraction', 'revision reset', '{"activity_id":"subtraction","content_version":"1.0.0"}')$$,
+  '%duplicate key%',
+  'editor cannot recreate an existing activity at revision one'
+);
+select is(
+  (select revision from public.content_drafts where activity_id = 'subtraction'),
+  2,
+  'failed delete and recreate attack preserves the current revision'
+);
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000062', true);
 select set_config(

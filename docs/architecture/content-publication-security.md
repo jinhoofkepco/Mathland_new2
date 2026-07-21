@@ -6,7 +6,8 @@ Draft editing and publication are deliberately separate trust domains.
 
 - An authenticated `editor` or `owner` may select drafts and may insert only
   `activity_id`, `title`, and `package`. Draft updates are limited to `title`
-  and `package`.
+  and `package`. Authenticated users cannot delete drafts; otherwise deleting
+  and recreating an activity would reset its protected revision to one.
 - `revision`, creator/updater identity, timestamps, and validation evidence are
   server-owned. The draft trigger derives author metadata from `auth.uid()`,
   advances each authored update by exactly one revision, and clears stale
@@ -43,6 +44,14 @@ pointer, and appends the audit fact in one PostgreSQL transaction. A stale draft
 package/draft mismatch, unsuccessful report, invalid checksum shape, scheduling
 conflict, or any database error rolls the whole statement back.
 
+Rollback supplies the historical `rollback_publication_id` and its exact stored
+package/checksum identity to the same commit RPC. The transaction requires that
+the source is a retired publication for the same activity and version. It then
+retires the current active pointer and creates a new active publication pointing
+to the existing immutable `content_versions` row. It never inserts a duplicate
+version. Package substitution, a cross-activity source, or a version mismatch
+fails before the pointer or audit log changes.
+
 PostgreSQL intentionally does **not** claim to reproduce JavaScript parsing,
 Unicode handling, JSON canonicalization, generator execution, or sample
 validation. Reimplementing only part of that behavior in SQL would create a
@@ -50,8 +59,23 @@ second validator with misleading guarantees. Database checks protect the atomic
 commit and identity relationships; the deployed TypeScript Edge Function owns
 content validity and checksum computation.
 
-Scheduled activation and rollback must use the same Edge validation and
-service-role commit boundary. Deployment automation must verify that only
-`service_role` can execute `commit_validated_content_publication(...)`, while
-only `authenticated` and `service_role` can execute
-`get_active_content_packages()`.
+## Scheduled activation worker
+
+Inserting a `pending` publication does not make PostgreSQL run work when
+`effective_at` arrives. Time passing alone has no automatic activation guarantee,
+and devices continue to receive the prior active package.
+
+Deployment must configure a trusted scheduler or Edge worker to call
+`activate_due_content_publication(publication_id, request_id)` with the
+service-role credential for due rows. That RPC takes an activity advisory lock
+and publication row lock, rejects early activation, retires the prior active
+pointer, changes the pending row to active, and appends its audit fact in one
+transaction. Concurrent or repeated calls return the already-active publication
+without applying the transition or audit twice. Worker failures are retried with
+a new request UUID; the publication ID remains the idempotency identity.
+
+Scheduled activation and rollback must use these service-role boundaries.
+Deployment automation must verify that only `service_role` can execute
+`commit_validated_content_publication(...)` and
+`activate_due_content_publication(...)`, while only `authenticated` and
+`service_role` can execute `get_active_content_packages()`.
