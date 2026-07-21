@@ -13,6 +13,7 @@ const InMemoryProgressServiceScript = preload("res://tests/support/in_memory_pro
 const RecordingJournalScript = preload("res://tests/support/recording_journal.gd")
 const AppShellScene = preload("res://scenes/app/app_shell.tscn")
 const ActivityRunScene = preload("res://scenes/game/activity_run.tscn")
+const OfflineSyncServiceScript = preload("res://src/sync/offline_sync_service.gd")
 
 const BASE_PATH := "user://tests/offline_vertical_slice"
 const DEVICE_ID := "da640863-b3af-4ca2-8e27-e474831b57ed"
@@ -99,6 +100,7 @@ func run(tree: SceneTree) -> void:
 	assert_eq(progress.snapshot().last_sequence, 0, "injected progress was not loaded against its journal")
 	assert_eq(activation.route_params.journal, journal)
 	assert_eq(activation.route_params.progress_service, progress)
+	assert_eq(activation.route_params.sync_service.get_script(), OfflineSyncServiceScript, "missing public config must stay offline by default")
 	assert_false(activation.route_params.has("run_session"), "AppShell must leave per-run construction to ActivityRun")
 	assert_eq(shell.current_route(), AppRouteScript.ISLAND)
 	await tree.process_frame

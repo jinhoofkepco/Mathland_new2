@@ -85,6 +85,8 @@ func run(_tree: SceneTree) -> void:
 	_cleanup()
 	_test_valid_snapshot_replays_only_later_events()
 	_cleanup()
+	_test_compacted_journal_reopens_from_durable_snapshot()
+	_cleanup()
 	_test_semantically_invalid_snapshots_are_quarantined()
 	_cleanup()
 	_test_replay_errors_scope_mismatches_gaps_and_out_of_order_propagate()
@@ -92,6 +94,8 @@ func run(_tree: SceneTree) -> void:
 	_test_commit_requires_the_exact_next_already_journaled_event()
 	_cleanup()
 	_test_save_failure_rolls_back_without_signal()
+	_cleanup()
+	_test_load_recovery_must_persist_before_success()
 	_cleanup()
 	_test_successful_commit_persists_then_signals_and_snapshot_is_a_copy()
 	_cleanup()
@@ -130,6 +134,10 @@ func _test_corrupt_snapshot_is_quarantined_and_journal_replayed() -> void:
 	assert_eq(state.activity_progress.foundation_ten_rods.correct, 2)
 	assert_eq(state.pending_review, 1)
 	assert_eq(state.run_totals.health_depleted, 1)
+	var recovered_snapshot: Dictionary = store.load(SNAPSHOT_FILE)
+	assert_true(recovered_snapshot.ok, "replayed progress was not made durable")
+	if recovered_snapshot.get("ok", false):
+		assert_eq(recovered_snapshot.value.last_sequence, 4)
 	service.free()
 
 func _test_valid_snapshot_replays_only_later_events() -> void:
@@ -152,6 +160,31 @@ func _test_valid_snapshot_replays_only_later_events() -> void:
 	assert_eq(state.activity_progress.foundation_ten_rods.attempts, 3)
 	assert_eq(state.pending_review, 1)
 	service.free()
+
+func _test_compacted_journal_reopens_from_durable_snapshot() -> void:
+	var store := AtomicJsonStore.new(BASE_PATH)
+	var journal := _journal("compacted-events.jsonl")
+	var first: Dictionary = journal.append(_answer_payload(true, 2, 24)).event
+	var second: Dictionary = journal.append(_answer_payload(true, 2, 25)).event
+	var third: Dictionary = journal.append(_answer_payload(false, 0, 26)).event
+	var checkpoint := ProgressReducer.initial_state(PROFILE_ID)
+	checkpoint = ProgressReducer.apply(checkpoint, first)
+	checkpoint = ProgressReducer.apply(checkpoint, second)
+	assert_eq(store.save(SNAPSHOT_FILE, checkpoint), OK)
+	assert_eq(journal.compact_through(2), OK)
+
+	var service := ProgressService.new(store)
+	var loaded: Dictionary = service.load_profile(PROFILE_ID, journal)
+	assert_true(loaded.ok, "compacted suffix could not reopen from its durable snapshot: %s" % loaded)
+	if loaded.get("ok", false):
+		assert_eq(service.snapshot().last_sequence, third.sequence)
+		assert_eq(service.snapshot().activity_progress.foundation_ten_rods.attempts, 3)
+	service.free()
+	assert_eq(DirAccess.remove_absolute(ProjectSettings.globalize_path(_snapshot_path())), OK)
+	var missing_snapshot_service := ProgressService.new(store)
+	var missing_snapshot: Dictionary = missing_snapshot_service.load_profile(PROFILE_ID, journal)
+	assert_eq(missing_snapshot.get("error"), "snapshot_behind_compaction")
+	missing_snapshot_service.free()
 
 func _test_semantically_invalid_snapshots_are_quarantined() -> void:
 	var store := AtomicJsonStore.new(BASE_PATH)
@@ -290,6 +323,17 @@ func _test_save_failure_rolls_back_without_signal() -> void:
 	assert_eq(service.snapshot(), ProgressReducer.initial_state(PROFILE_ID))
 	assert_eq(signal_states.size(), 0)
 	assert_false(FileAccess.file_exists(_snapshot_path()))
+	service.free()
+
+func _test_load_recovery_must_persist_before_success() -> void:
+	var store := ToggleSaveStore.new(BASE_PATH)
+	var journal := _journal("load-save-failure.jsonl")
+	assert_true(journal.append(_answer_payload(true, 2, 62)).ok)
+	store.fail_saves = true
+	var service := ProgressService.new(store)
+	var loaded: Dictionary = service.load_profile(PROFILE_ID, journal)
+	assert_eq(loaded.get("error"), "snapshot_recovery_save_failed")
+	assert_eq(service.snapshot(), {}, "volatile replay state escaped after persistence failure")
 	service.free()
 
 func _test_successful_commit_persists_then_signals_and_snapshot_is_a_copy() -> void:
@@ -592,8 +636,8 @@ func _cleanup() -> void:
 	_remove_snapshot_artifacts("%s/collision-same-path/%s" % [BASE_PATH, SNAPSHOT_FILE])
 	_remove_snapshot_artifacts("%s/collision-direct/%s" % [BASE_PATH, SNAPSHOT_FILE])
 	_remove_snapshot_artifacts("user://profiles/test-progress-default-profile/%s" % SNAPSHOT_FILE)
-	for journal_name in ["corrupt-events.jsonl", "later-events.jsonl", "semantic-events.jsonl", "commit-guard.jsonl", "save-failure.jsonl", "successful-commit.jsonl", "profile-a-events.jsonl", "profile-b-events.jsonl", "failed-switch-a-events.jsonl", "snapshot-ahead-events.jsonl", "default-store-events.jsonl", "collision-same-instance-a-events.jsonl", "collision-same-instance-b-events.jsonl", "collision-same-path-a-events.jsonl", "collision-same-path-b-events.jsonl", "collision-direct-a-events.jsonl", "collision-direct-b-events.jsonl", "quarantine_stage-events.jsonl", "quarantine_rotation-events.jsonl", "quarantine_promotion-events.jsonl", "quarantine_restoration-events.jsonl", "quarantine_cleanup-events.jsonl"]:
-		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".recovery.tmp", ".recovery.bak"]:
+	for journal_name in ["corrupt-events.jsonl", "later-events.jsonl", "compacted-events.jsonl", "semantic-events.jsonl", "commit-guard.jsonl", "save-failure.jsonl", "load-save-failure.jsonl", "successful-commit.jsonl", "profile-a-events.jsonl", "profile-b-events.jsonl", "failed-switch-a-events.jsonl", "snapshot-ahead-events.jsonl", "default-store-events.jsonl", "collision-same-instance-a-events.jsonl", "collision-same-instance-b-events.jsonl", "collision-same-path-a-events.jsonl", "collision-same-path-b-events.jsonl", "collision-direct-a-events.jsonl", "collision-direct-b-events.jsonl", "quarantine_stage-events.jsonl", "quarantine_rotation-events.jsonl", "quarantine_promotion-events.jsonl", "quarantine_restoration-events.jsonl", "quarantine_cleanup-events.jsonl"]:
+		for suffix in ["", ".partial.corrupt", ".partial.corrupt.tmp", ".recovery.tmp", ".recovery.bak", ".compaction.cursor.json", ".compaction.cursor.json.tmp", ".compaction.cursor.json.bak", ".compact.tmp", ".compact.bak"]:
 			var path := "%s/%s%s" % [BASE_PATH, journal_name, suffix]
 			if FileAccess.file_exists(path):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

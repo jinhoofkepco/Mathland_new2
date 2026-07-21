@@ -13,6 +13,7 @@ const DeviceIdentityScript = preload("res://src/persistence/device_identity.gd")
 const ProfileActivationServiceScript = preload("res://src/app/profile_activation_service.gd")
 const AppLifecycleScript = preload("res://src/app/app_lifecycle.gd")
 const OfflineSyncServiceScript = preload("res://src/sync/offline_sync_service.gd")
+const CloudSyncCompositionScript = preload("res://src/sync/cloud_sync_composition.gd")
 const UiPolicyScript = preload("res://src/ui/shared/ui_policy.gd")
 const EFFECTS_SERVICE_PATH := "res://src/presentation/effects/effects_service.gd"
 const ROUTE_SCENE_PATHS := {
@@ -40,6 +41,10 @@ var _ui_policy: Variant
 var _profile_activation: Variant
 var _app_lifecycle: Variant
 var _sync_service: Variant
+var _cloud_runtime: Variant
+var _remote_content_updater: Variant
+var _content_cache_root := "user://content"
+var _device_id := ""
 var _dependency_overrides: Dictionary = {}
 var _owns_router := false
 
@@ -78,8 +83,10 @@ func activate_profile(profile_id: String, pin: String, now_unix: int) -> Diction
 			next_progress.free()
 		return {"ok": false, "error": "invalid_progress_service"}
 	_replace_progress_service(next_progress)
+	_disconnect_journal_sync()
 	_event_journal = activated.get("journal")
-	_sync_service = OfflineSyncServiceScript.new(_event_journal)
+	_sync_service = _create_sync_service(profile_id)
+	_connect_journal_sync()
 	if _app_lifecycle != null:
 		var lifecycle_configured: Variant = _app_lifecycle.configure(
 			profile_id, _event_journal, _progress_service, _router
@@ -100,6 +107,8 @@ func activate_profile(profile_id: String, pin: String, now_unix: int) -> Diction
 			result.route_params["recovery_source"] = recovery.source
 		elif recovery is Dictionary and not recovery.get("ok", false):
 			result["recovery_error"] = String(recovery.get("error", "restore_failed"))
+	if bool(_dependency_overrides.get("auto_sync_on_activation", true)):
+		call_deferred("_request_background_sync")
 	return result
 
 func handle_back_navigation() -> bool:
@@ -127,12 +136,14 @@ func _notification(what: int) -> void:
 
 func _exit_tree() -> void:
 	_dispose_owned_router()
+	_disconnect_journal_sync()
 	_event_journal = null
 	_sync_service = null
 	_app_lifecycle = null
 	_profile_activation = null
 	_content_repository = null
 	_question_engine = null
+	_remote_content_updater = null
 
 func _bootstrap_default_experience() -> void:
 	_profile_service = _dependency_overrides.get("profile_service", get_node_or_null("/root/ProfileService"))
@@ -149,14 +160,16 @@ func _bootstrap_default_experience() -> void:
 		if effects_script is GDScript:
 			_effects_service = effects_script.new()
 	_add_service_child(_effects_service, "EffectsService")
-	var device_id := String(_dependency_overrides.get("device_id", ""))
-	if device_id.is_empty():
-		device_id = DeviceIdentityScript.new(AtomicJsonStoreScript.new("user://.")).load_or_create()
+	_device_id = String(_dependency_overrides.get("device_id", ""))
+	if _device_id.is_empty():
+		_device_id = DeviceIdentityScript.new(AtomicJsonStoreScript.new("user://.")).load_or_create()
+	_configure_cloud_runtime()
+	_configure_remote_content_update()
 	var journal_factory: Callable = _dependency_overrides.get("journal_factory", Callable())
 	var progress_factory: Callable = _dependency_overrides.get("progress_factory", Callable())
 	var journal_path_builder: Callable = _dependency_overrides.get("journal_path_builder", Callable())
 	_profile_activation = ProfileActivationServiceScript.new(
-		device_id,
+		_device_id,
 		_audio_service,
 		_effects_service,
 		_ui_policy,
@@ -224,6 +237,7 @@ func _base_route_params(profile_id: String = "") -> Dictionary:
 	return params
 
 func _configure_content_runtime() -> void:
+	_content_cache_root = String(_dependency_overrides.get("content_cache_root", "user://content"))
 	_question_engine = (
 		_dependency_overrides.question_engine
 		if _dependency_overrides.has("question_engine")
@@ -236,8 +250,7 @@ func _configure_content_runtime() -> void:
 	var manifest_path := String(_dependency_overrides.get(
 		"content_manifest_path", "res://content/active-manifest.json"
 	))
-	var cache_root := String(_dependency_overrides.get("content_cache_root", "user://content"))
-	var initialized: Variant = _content_repository.initialize(manifest_path, cache_root)
+	var initialized: Variant = _content_repository.initialize(manifest_path, _content_cache_root)
 	if not initialized is Object or not bool(initialized.get("ok")):
 		diagnostic.emit("content_initialization_failed")
 
@@ -252,6 +265,56 @@ func _inject_default_lifecycle_runtime() -> bool:
 		_question_engine
 	)
 	return configured is Dictionary and configured.get("ok", false)
+
+func _configure_cloud_runtime() -> void:
+	_cloud_runtime = CloudSyncCompositionScript.new(_dependency_overrides, _device_id)
+	_cloud_runtime.attach_transport(self)
+
+func _configure_remote_content_update() -> void:
+	if _dependency_overrides.has("remote_content_updater"):
+		_remote_content_updater = _dependency_overrides.remote_content_updater
+	elif _cloud_runtime != null and _cloud_runtime.has_method("create_content_updater"):
+		_remote_content_updater = _cloud_runtime.create_content_updater(
+			_content_repository, _content_cache_root
+		)
+	if _remote_content_updater != null and _remote_content_updater.has_method("check_and_install"):
+		call_deferred("_run_remote_content_update")
+
+func _run_remote_content_update() -> void:
+	if _remote_content_updater == null or not _remote_content_updater.has_method("check_and_install"):
+		return
+	var result: Variant = await _remote_content_updater.check_and_install()
+	if not result is Dictionary or not result.get("ok", false):
+		diagnostic.emit("content_update_failed")
+
+func _create_sync_service(profile_id: String) -> Variant:
+	if _cloud_runtime == null or not _cloud_runtime.has_method("create_service"):
+		return OfflineSyncServiceScript.new(_event_journal)
+	var service: Variant = _cloud_runtime.create_service(
+		_event_journal, _progress_service, profile_id
+	)
+	return service if service != null else OfflineSyncServiceScript.new(_event_journal)
+
+func _connect_journal_sync() -> void:
+	if _event_journal == null or not _event_journal.has_signal("event_appended"):
+		return
+	var callback := Callable(self, "_on_journal_event_appended")
+	if not _event_journal.event_appended.is_connected(callback):
+		_event_journal.event_appended.connect(callback)
+
+func _disconnect_journal_sync() -> void:
+	if _event_journal == null or not _event_journal.has_signal("event_appended"):
+		return
+	var callback := Callable(self, "_on_journal_event_appended")
+	if _event_journal.event_appended.is_connected(callback):
+		_event_journal.event_appended.disconnect(callback)
+
+func _on_journal_event_appended(_event: Dictionary) -> void:
+	_request_background_sync()
+
+func _request_background_sync() -> void:
+	if _sync_service != null and _sync_service.has_method("request_sync"):
+		_sync_service.request_sync()
 
 func _replace_progress_service(next_progress: Node) -> void:
 	var previous: Variant = _progress_service

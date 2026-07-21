@@ -19,10 +19,13 @@ addons/mathland_secure_credentials/bin/
 .env
 .env.*
 !.env.example
+resources/config/cloud_public.json
+resources/config/content_update.json
 
 # JavaScript dependencies and build output
 node_modules/
 /dist/
+web/dist/
 coverage/
 playwright-report/
 test-results/

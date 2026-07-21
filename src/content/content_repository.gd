@@ -174,7 +174,8 @@ func _commit_candidate(candidate: Dictionary) -> void:
 		return
 	var manifest: Dictionary = manifest_value
 	var packages_by_path: Dictionary = packages_by_path_value
-	var next_packages := {}
+	# Keep immutable prior versions addressable for activity runs pinned at start.
+	var next_packages := _packages.duplicate(true)
 	var next_active_versions := {}
 	var entries: Array = manifest["packages"]
 	for entry_value in entries:

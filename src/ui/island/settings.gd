@@ -17,6 +17,10 @@ const VOLUME_CONTROLS := {
 var _settings: Dictionary = {}
 var _controls: Dictionary = {}
 var _updating_controls := false
+var _pairing_input: LineEdit
+var _pairing_status: Label
+var _pairing_button: Control
+var _pairing_in_flight := false
 
 func _ready() -> void:
 	_settings = _profile().get("settings", {}).duplicate(true)
@@ -34,6 +38,8 @@ func _ready() -> void:
 	_add_boolean(body, "voice_enabled")
 	for key in ["master_db", "music_db", "sfx_db", "voice_db"]:
 		_add_volume(body, key)
+	body.add_child(MathlandUiScript.section_label("settings.remote_monitoring"))
+	_add_pairing(body)
 	_refresh_controls()
 
 func current_settings() -> Dictionary:
@@ -51,6 +57,39 @@ func apply_setting(key: String, value: Variant) -> bool:
 	_apply_live_services(key)
 	_refresh_controls()
 	return true
+
+func submit_pairing_code(code: String) -> Dictionary:
+	if _pairing_in_flight:
+		return {"ok": false, "error": "pairing_in_progress"}
+	if _pairing_input != null:
+		_pairing_input.text = ""
+	if not _is_six_digit_code(code):
+		_set_pairing_status("settings.pairing.invalid", true)
+		return {"ok": false, "error": "invalid_pairing_code"}
+	var sync_service: Variant = _params.get("sync_service")
+	if sync_service == null or not sync_service.has_method("pair_device"):
+		_set_pairing_status("settings.pairing.unavailable", true)
+		return {"ok": false, "error": "pairing_unavailable"}
+	var profile := _profile()
+	var display_name := String(profile.get("nickname", "")).strip_edges()
+	if display_name.is_empty():
+		_set_pairing_status("settings.pairing.failed", true)
+		return {"ok": false, "error": "invalid_pairing_context"}
+	_pairing_in_flight = true
+	_set_pairing_enabled(false)
+	_set_pairing_status("settings.pairing.connecting", false)
+	var result: Variant = await sync_service.pair_device(code, _profile_id, display_name)
+	_pairing_in_flight = false
+	_set_pairing_enabled(true)
+	if not result is Dictionary:
+		_set_pairing_status("settings.pairing.failed", true)
+		return {"ok": false, "error": "invalid_pairing_result"}
+	var pairing_result: Dictionary = result
+	if pairing_result.get("ok", false):
+		_set_pairing_status("settings.pairing.connected", false)
+	else:
+		_set_pairing_status(_pairing_error_key(String(pairing_result.get("error", ""))), true)
+	return pairing_result.duplicate(true)
 
 func _add_boolean(body: VBoxContainer, key: String) -> void:
 	var control_info: Array = BOOLEAN_CONTROLS[key]
@@ -105,6 +144,70 @@ func _add_volume(body: VBoxContainer, key: String) -> void:
 	)
 	row.add_child(slider)
 	_controls[key] = slider
+
+func _add_pairing(body: VBoxContainer) -> void:
+	var helper := MathlandUiScript.label("settings.pairing.help", 15, MathlandUiScript.MUTED_INK)
+	helper.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(helper)
+	var row := HBoxContainer.new()
+	row.name = "PairingRow"
+	row.add_theme_constant_override("separation", 8)
+	body.add_child(row)
+	_pairing_input = LineEdit.new()
+	_pairing_input.name = "PairingCodeInput"
+	_pairing_input.placeholder_text = TranslationServer.translate("settings.pairing.placeholder")
+	_pairing_input.max_length = 6
+	_pairing_input.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	_pairing_input.secret = true
+	_pairing_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pairing_input.custom_minimum_size = Vector2(120, 56)
+	_pairing_input.add_theme_font_size_override("font_size", 22)
+	_pairing_input.text_submitted.connect(func(_value: String): _submit_pairing_input())
+	row.add_child(_pairing_input)
+	_pairing_button = MathlandUiScript.tactile_button(
+		"PairDeviceButton", "settings.pairing.action", "", Vector2(126, 56), 17
+	)
+	_connect_tactile(_pairing_button, _submit_pairing_input)
+	row.add_child(_pairing_button)
+	_pairing_status = MathlandUiScript.label("settings.pairing.ready", 14, MathlandUiScript.MUTED_INK)
+	_pairing_status.name = "PairingStatus"
+	_pairing_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(_pairing_status)
+
+func _submit_pairing_input() -> void:
+	if _pairing_input == null:
+		return
+	var code := _pairing_input.text
+	await submit_pairing_code(code)
+
+func _set_pairing_enabled(enabled: bool) -> void:
+	if _pairing_input != null:
+		_pairing_input.editable = enabled
+	if _pairing_button != null and _pairing_button.has_method("set_enabled"):
+		_pairing_button.set_enabled(enabled)
+
+func _set_pairing_status(key: String, is_error: bool) -> void:
+	if _pairing_status == null:
+		return
+	_pairing_status.text = TranslationServer.translate(key)
+	_pairing_status.add_theme_color_override(
+		"font_color", MathlandUiScript.CORAL if is_error else MathlandUiScript.DEEP_TEAL
+	)
+
+func _pairing_error_key(error: String) -> String:
+	if error in ["permission", "pairing_code_unavailable", "invalid_pairing_request"]:
+		return "settings.pairing.code_failed"
+	if error in ["pairing_network", "network", "authentication_network"]:
+		return "settings.pairing.network"
+	return "settings.pairing.failed"
+
+func _is_six_digit_code(code: String) -> bool:
+	if code.length() != 6:
+		return false
+	for character in code:
+		if character < "0" or character > "9":
+			return false
+	return true
 
 func _apply_live_services(changed_key: String) -> void:
 	if changed_key in ["master_db", "music_db", "sfx_db", "voice_db", "voice_enabled"]:

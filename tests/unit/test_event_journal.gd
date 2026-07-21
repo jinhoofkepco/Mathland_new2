@@ -164,7 +164,7 @@ func _test_append_reopen_and_tail_recovery() -> void:
 	var reopened := EventJournal.new()
 	assert_true(reopened.configure("profile-a", "device-a", path).ok)
 	assert_eq(reopened.replay().events.size(), 2)
-	assert_eq(reopened.unacknowledged(0, 100).map(func(event): return event.sequence), [1, 2])
+	assert_eq(reopened.unacknowledged(0, 100).events.map(func(event): return event.sequence), [1, 2])
 	var tail := FileAccess.open(path, FileAccess.READ_WRITE)
 	tail.seek_end()
 	tail.store_string("{broken")
@@ -257,12 +257,12 @@ func _test_unacknowledged_caps_at_one_hundred_without_mutation() -> void:
 	for index in 101:
 		assert_true(journal.append(_answer_payload("session-limit", index)).ok)
 	var before := _read_text(path)
-	var first_batch := journal.unacknowledged(0, 101)
+	var first_batch: Array = journal.unacknowledged(0, 101).events
 	assert_eq(first_batch.size(), 100)
 	assert_eq(first_batch[0].sequence, 1)
 	assert_eq(first_batch[99].sequence, 100)
-	assert_eq(journal.unacknowledged(99, 100).map(func(event): return event.sequence), [100, 101])
-	assert_eq(journal.unacknowledged(0, 0), [])
+	assert_eq(journal.unacknowledged(99, 100).events.map(func(event): return event.sequence), [100, 101])
+	assert_eq(journal.unacknowledged(0, 0).events, [])
 	assert_eq(_read_text(path), before)
 
 func _test_tail_quarantine_preserves_exact_bytes() -> void:

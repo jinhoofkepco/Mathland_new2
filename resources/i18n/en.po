@@ -258,6 +258,42 @@ msgstr "Voice"
 msgid "settings.voice_enabled"
 msgstr "Enable question voice button"
 
+msgid "settings.remote_monitoring"
+msgstr "Guardian remote monitoring"
+
+msgid "settings.pairing.help"
+msgstr "Enter the six-digit code shown on the guardian screen. Learning stays on this device if pairing fails."
+
+msgid "settings.pairing.placeholder"
+msgstr "Six digits"
+
+msgid "settings.pairing.action"
+msgstr "Connect"
+
+msgid "settings.pairing.ready"
+msgstr "Pairing codes are never saved"
+
+msgid "settings.pairing.invalid"
+msgstr "Check the six-digit code"
+
+msgid "settings.pairing.unavailable"
+msgstr "You can keep playing safely offline"
+
+msgid "settings.pairing.connecting"
+msgstr "Connecting to the guardian screen…"
+
+msgid "settings.pairing.connected"
+msgstr "Connected to the guardian screen"
+
+msgid "settings.pairing.code_failed"
+msgstr "The code is invalid or expired"
+
+msgid "settings.pairing.network"
+msgstr "Reconnect to the internet and try again"
+
+msgid "settings.pairing.failed"
+msgstr "Could not connect. Learning remains safely stored on this device."
+
 msgid "effect.correct.caption"
 msgstr "Correct!"
 

@@ -1,6 +1,8 @@
 class_name EventJournal
 extends RefCounted
 
+signal event_appended(event: Dictionary)
+
 const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 
 const CORRUPT_SUFFIX := ".partial.corrupt"
@@ -12,18 +14,28 @@ const RECOVERY_ROTATION_SUFFIX := ".recovery.rotate"
 const RECOVERY_STAGE_SUFFIX := ".recovery.stage"
 const APPEND_ROLLBACK_TEMP_SUFFIX := ".append.rollback.tmp"
 const APPEND_FAILED_BACKUP_SUFFIX := ".append.failed.bak"
+const COMPACTION_TEMP_SUFFIX := ".compact.tmp"
+const COMPACTION_BACKUP_SUFFIX := ".compact.bak"
+const COMPACTION_CURSOR_SUFFIX := ".compaction.cursor.json"
+const MAX_SAFE_INTEGER := 9007199254740991
+const AtomicJsonStoreScript = preload("res://src/persistence/atomic_json_store.gd")
 
 var _profile_id := ""
 var _device_id := ""
 var _path := ""
 var _next_sequence := 1
 var _append_blocked := false
+var _compacted_through := 0
 
 func configure(profile_id: String, device_id: String, path: String) -> Dictionary:
 	_profile_id = profile_id
 	_device_id = device_id
 	_path = path
 	_next_sequence = 1
+	_compacted_through = 0
+	var loaded_cursor := _load_compaction_cursor()
+	if not loaded_cursor.get("ok", false):
+		return loaded_cursor
 	if _recover_interrupted_corrupt_artifact() != OK:
 		return {"ok": false, "error": "tail_recovery_failed"}
 	var interrupted_recovery := _recover_interrupted_quarantine()
@@ -34,6 +46,7 @@ func configure(profile_id: String, device_id: String, path: String) -> Dictionar
 		return replayed
 	for event in replayed.events:
 		_next_sequence = maxi(_next_sequence, event.sequence + 1)
+	_next_sequence = maxi(_next_sequence, _compacted_through + 1)
 	_append_blocked = false
 	return {"ok": true, "quarantined_tail": replayed.get("quarantined_tail", false)}
 
@@ -78,6 +91,7 @@ func append(payload: Dictionary) -> Dictionary:
 	if write_error != OK:
 		return _reconcile_failed_append(before, output, event)
 	_next_sequence += 1
+	event_appended.emit(event.duplicate(true))
 	return {"ok": true, "event": event}
 
 func replay() -> Dictionary:
@@ -91,42 +105,93 @@ func replay() -> Dictionary:
 		return {"ok": true, "events": [], "quarantined_tail": false}
 	return _replay_bytes(content, true)
 
-func unacknowledged(after_sequence: int, limit: int = 100) -> Array[Dictionary]:
+func unacknowledged(after_sequence: int, limit: int = 100) -> Dictionary:
 	var replayed := replay()
 	if not replayed.get("ok", false):
-		return []
+		return {
+			"ok": false,
+			"error": String(replayed.get("error", "journal_replay_failed")),
+		}
 	var result: Array[Dictionary] = []
 	var capped_limit := clampi(limit, 0, 100)
 	for event in replayed.events:
 		if event.sequence > after_sequence and result.size() < capped_limit:
 			result.append(event)
-	return result
+	return {"ok": true, "events": result}
+
+func compact_through(sequence: int) -> Error:
+	if sequence < 0 or sequence > _next_sequence - 1:
+		return ERR_INVALID_PARAMETER
+	var target_sequence := maxi(sequence, _compacted_through)
+	var replayed := replay()
+	if not replayed.get("ok", false):
+		return ERR_FILE_CORRUPT
+	var retained: Array[Dictionary] = []
+	for event in replayed.events:
+		if int(event.sequence) > target_sequence:
+			retained.append(event)
+	if target_sequence <= _compacted_through and retained.size() == replayed.events.size():
+		return OK
+	var output := PackedByteArray()
+	for event in retained:
+		output.append_array((JSON.stringify(event) + "\n").to_utf8_buffer())
+	if target_sequence > _compacted_through:
+		var cursor_error := _save_compaction_cursor(target_sequence)
+		if cursor_error != OK:
+			return cursor_error
+	# The durable cursor is written first; accepting either the old full journal
+	# or the compacted suffix keeps crash recovery readable at every boundary.
+	_compacted_through = target_sequence
+	var temp_path := "%s%s" % [_path, COMPACTION_TEMP_SUFFIX]
+	var backup_path := "%s%s" % [_path, COMPACTION_BACKUP_SUFFIX]
+	if _file_exists(temp_path) or _file_exists(backup_path):
+		return ERR_ALREADY_EXISTS
+	if _write_bytes(temp_path, output) != OK:
+		return ERR_CANT_CREATE
+	var had_journal := _file_exists(_path)
+	if had_journal and _rename_path(_path, backup_path) != OK:
+		_remove_path(temp_path)
+		return ERR_CANT_CREATE
+	if _rename_path(temp_path, _path) != OK:
+		if had_journal:
+			_rename_path(backup_path, _path)
+		return ERR_CANT_CREATE
+	if had_journal and _remove_path(backup_path) != OK:
+		return ERR_CANT_CREATE
+	return OK
 
 func flush() -> Error:
 	var replayed := replay()
 	return OK if replayed.get("ok", false) else FAILED
 
+func compacted_through() -> int:
+	return _compacted_through
+
 func _replay_bytes(content: PackedByteArray, quarantine_syntax_tail: bool) -> Dictionary:
 	var events: Array[Dictionary] = []
 	var line_start := 0
 	var line_number := 1
+	var expected_sequence := -1
 	for index in content.size():
 		if content[index] != 0x0a:
 			continue
 		var complete_line := content.slice(line_start, index)
-		var parsed_line := _validated_record(complete_line, events.size() + 1)
+		var parsed_line := _validated_record(complete_line, expected_sequence)
 		if not parsed_line.get("ok", false):
 			var line_error: String = parsed_line.error
 			return {"ok": false, "error": "invalid_record" if line_error == "invalid_syntax" else line_error, "line": line_number}
 		var event: Dictionary = parsed_line.event
+		if expected_sequence < 0 and event.sequence != 1 and event.sequence != _compacted_through + 1:
+			return {"ok": false, "error": "invalid_sequence", "line": line_number}
 		if event.profile_id != _profile_id or event.device_id != _device_id:
 			return {"ok": false, "error": "scope_mismatch", "line": line_number}
 		events.append(event)
+		expected_sequence = int(event.sequence) + 1
 		line_start = index + 1
 		line_number += 1
 	if line_start < content.size():
 		var tail := content.slice(line_start, content.size())
-		var parsed_tail := _validated_record(tail, events.size() + 1)
+		var parsed_tail := _validated_record(tail, expected_sequence)
 		if not parsed_tail.get("ok", false):
 			if parsed_tail.error == "invalid_syntax":
 				if not quarantine_syntax_tail:
@@ -135,6 +200,8 @@ func _replay_bytes(content: PackedByteArray, quarantine_syntax_tail: bool) -> Di
 				return _quarantine_tail(events, prefix, tail)
 			return {"ok": false, "error": parsed_tail.error, "line": line_number}
 		var tail_event: Dictionary = parsed_tail.event
+		if expected_sequence < 0 and tail_event.sequence != 1 and tail_event.sequence != _compacted_through + 1:
+			return {"ok": false, "error": "invalid_sequence", "line": line_number}
 		if tail_event.profile_id != _profile_id or tail_event.device_id != _device_id:
 			return {"ok": false, "error": "scope_mismatch", "line": line_number}
 		events.append(tail_event)
@@ -154,7 +221,7 @@ func _validated_record(bytes: PackedByteArray, expected_sequence: int) -> Dictio
 		return {"ok": false, "error": "invalid_record"}
 	var event: Dictionary = parsed
 	event.sequence = int(event.sequence)
-	if event.sequence != expected_sequence:
+	if expected_sequence >= 0 and event.sequence != expected_sequence:
 		return {"ok": false, "error": "invalid_sequence"}
 	return {"ok": true, "event": event}
 
@@ -168,7 +235,9 @@ func _quarantine_tail(events: Array[Dictionary], prefix: PackedByteArray, tail: 
 	var stage_path := "%s%s" % [_path, RECOVERY_STAGE_SUFFIX]
 	var append_temp_path := "%s%s" % [_path, APPEND_ROLLBACK_TEMP_SUFFIX]
 	var append_backup_path := "%s%s" % [_path, APPEND_FAILED_BACKUP_SUFFIX]
-	if _file_exists(corrupt_temp_path) or _file_exists(corrupt_backup_path) or _file_exists(recovery_temp_path) or _file_exists(backup_path) or _file_exists(rotation_path) or _file_exists(stage_path) or _file_exists(append_temp_path) or _file_exists(append_backup_path):
+	var compact_temp_path := "%s%s" % [_path, COMPACTION_TEMP_SUFFIX]
+	var compact_backup_path := "%s%s" % [_path, COMPACTION_BACKUP_SUFFIX]
+	if _file_exists(corrupt_temp_path) or _file_exists(corrupt_backup_path) or _file_exists(recovery_temp_path) or _file_exists(backup_path) or _file_exists(rotation_path) or _file_exists(stage_path) or _file_exists(append_temp_path) or _file_exists(append_backup_path) or _file_exists(compact_temp_path) or _file_exists(compact_backup_path):
 		return {"ok": false, "error": "tail_quarantine_failed"}
 	if _write_bytes(corrupt_temp_path, tail) != OK:
 		return {"ok": false, "error": "tail_quarantine_failed"}
@@ -198,6 +267,8 @@ func _recover_interrupted_quarantine() -> Dictionary:
 		"%s%s" % [_path, RECOVERY_STAGE_SUFFIX],
 		"%s%s" % [_path, APPEND_ROLLBACK_TEMP_SUFFIX],
 		"%s%s" % [_path, APPEND_FAILED_BACKUP_SUFFIX],
+		"%s%s" % [_path, COMPACTION_TEMP_SUFFIX],
+		"%s%s" % [_path, COMPACTION_BACKUP_SUFFIX],
 	]
 	var has_auxiliary := false
 	for path in auxiliary_paths:
@@ -351,11 +422,13 @@ func _reconcile_failed_append(before: PackedByteArray, output: PackedByteArray, 
 	committed.append_array(output)
 	if actual == committed:
 		_next_sequence += 1
+		event_appended.emit(event.duplicate(true))
 		return {"ok": true, "event": event}
 	if not output.is_empty() and output[-1] == 0x0a:
 		var committed_without_newline := committed.slice(0, committed.size() - 1)
 		if actual == committed_without_newline:
 			_next_sequence += 1
+			event_appended.emit(event.duplicate(true))
 			return {"ok": true, "event": event}
 	if actual == before:
 		return {"ok": false, "error": "journal_write_failed"}
@@ -395,6 +468,50 @@ func _read_bytes(path: String) -> Dictionary:
 	var read_error := file.get_error()
 	file.close()
 	return {"ok": read_error == OK, "bytes": bytes}
+
+func _load_compaction_cursor() -> Dictionary:
+	if _path.is_empty():
+		return {"ok": true}
+	var store := AtomicJsonStoreScript.new(_path.get_base_dir())
+	var loaded: Dictionary = store.load("%s%s" % [_path.get_file(), COMPACTION_CURSOR_SUFFIX])
+	if not loaded.get("ok", false):
+		return {"ok": true} if loaded.get("error") == "not_found" else {"ok": false, "error": "compaction_cursor_failed"}
+	var value: Variant = loaded.get("value", {})
+	if not value is Dictionary:
+		return {"ok": false, "error": "compaction_cursor_failed"}
+	var cursor: Dictionary = value
+	if (
+		cursor.size() != 4
+		or cursor.get("schema_version") != 1
+		or cursor.get("profile_id") != _profile_id
+		or cursor.get("device_id") != _device_id
+		or not _is_nonnegative_safe_integer(cursor.get("acknowledged_sequence"))
+	):
+		return {"ok": false, "error": "compaction_cursor_failed"}
+	_compacted_through = int(cursor.acknowledged_sequence)
+	return {"ok": true}
+
+func _save_compaction_cursor(sequence: int) -> Error:
+	if not _is_nonnegative_safe_integer(sequence):
+		return ERR_INVALID_PARAMETER
+	var store := AtomicJsonStoreScript.new(_path.get_base_dir())
+	return store.save("%s%s" % [_path.get_file(), COMPACTION_CURSOR_SUFFIX], {
+		"schema_version": 1,
+		"profile_id": _profile_id,
+		"device_id": _device_id,
+		"acknowledged_sequence": sequence,
+	})
+
+func _is_nonnegative_safe_integer(value: Variant) -> bool:
+	if value is int:
+		return value >= 0 and value <= MAX_SAFE_INTEGER
+	return (
+		value is float
+		and is_finite(value)
+		and value >= 0
+		and value <= MAX_SAFE_INTEGER
+		and value == floor(value)
+	)
 
 func _write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	var file := FileAccess.open(path, FileAccess.WRITE)

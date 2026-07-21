@@ -103,6 +103,17 @@ class FakeEffectsService extends RefCounted:
 		policies.append({"quality": quality, "reduced_motion": reduced_motion})
 		return true
 
+class FakePairingSyncService extends RefCounted:
+	var calls: Array[Dictionary] = []
+	var next_result := {"ok": true, "family_id": "family-1"}
+
+	func pair_device(code: String, profile_id: String, display_name: String) -> Dictionary:
+		calls.append({"code": code, "profile_id": profile_id, "display_name": display_name})
+		return next_result.duplicate(true)
+
+	func status() -> Dictionary:
+		return {"state": "offline", "pending_count": 3, "last_success_at": null}
+
 func run(tree: SceneTree) -> void:
 	_cleanup_profile_files()
 	var profile_service := ProfileServiceScript.new(AtomicJsonStoreScript.new(PROFILE_BASE_PATH))
@@ -115,6 +126,7 @@ func run(tree: SceneTree) -> void:
 		"content_repository": FakeContentRepository.new(),
 		"audio_service": FakeAudioService.new(),
 		"effects_service": FakeEffectsService.new(),
+		"sync_service": FakePairingSyncService.new(),
 		"profile_id": created.profile.profile_id,
 		"date": "2026-07-21",
 		"online": false,
@@ -369,6 +381,7 @@ func _test_offline_copy_is_explicit(tree: SceneTree, services: Dictionary) -> vo
 	tree.root.add_child(viewport)
 	var scene: PackedScene = load("res://scenes/island/exploration_island.tscn")
 	var zero_params := services.duplicate(false)
+	zero_params.erase("sync_service")
 	zero_params.online = false
 	zero_params.sync_queue_count = 0
 	var zero_screen: Control = scene.instantiate()
@@ -379,6 +392,7 @@ func _test_offline_copy_is_explicit(tree: SceneTree, services: Dictionary) -> vo
 	zero_screen.queue_free()
 	await tree.process_frame
 	var queued_params := services.duplicate(false)
+	queued_params.erase("sync_service")
 	queued_params.online = false
 	queued_params.sync_queue_count = 3
 	var queued_screen: Control = scene.instantiate()
@@ -416,6 +430,26 @@ func _test_settings_are_profile_scoped_and_live(tree: SceneTree, services: Dicti
 		assert_true(services.ui_policy.reduced_motion_enabled())
 		var back_button: Control = screen.find_child("BackButton", true, false)
 		assert_true(back_button.reduced_motion, "current tactile button must update immediately")
+	var code_input: LineEdit = screen.find_child("PairingCodeInput", true, false)
+	var pair_button: Control = screen.find_child("PairDeviceButton", true, false)
+	var pairing_status: Label = screen.find_child("PairingStatus", true, false)
+	assert_not_null(code_input)
+	assert_not_null(pair_button)
+	assert_not_null(pairing_status)
+	if code_input != null and pair_button != null and pairing_status != null:
+		assert_eq(code_input.max_length, 6)
+		var invalid_result: Dictionary = await screen.submit_pairing_code("12x456")
+		assert_eq(invalid_result.get("error"), "invalid_pairing_code")
+		assert_eq((services.sync_service as FakePairingSyncService).calls, [])
+		var valid_result: Dictionary = await screen.submit_pairing_code("123456")
+		assert_true(valid_result.ok)
+		assert_eq((services.sync_service as FakePairingSyncService).calls.back(), {
+			"code": "123456",
+			"profile_id": services.profile_id,
+			"display_name": "모아",
+		})
+		assert_eq(code_input.text, "", "one-use pairing code must not remain in the UI")
+		assert_false(pairing_status.text.strip_edges().is_empty())
 	viewport.queue_free()
 	await tree.process_frame
 

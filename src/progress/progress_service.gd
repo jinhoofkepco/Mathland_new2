@@ -52,11 +52,13 @@ func load_profile(profile_id: String, journal: Variant) -> Dictionary:
 	if not recovered_quarantine.get("ok", false):
 		return recovered_quarantine
 	var candidate := ProgressReducerScript.initial_state(profile_id)
+	var durable_sequence := 0
 	var quarantined_snapshot: bool = recovered_quarantine.get("recovered", false)
 	var loaded_snapshot: Dictionary = target_store.load(SNAPSHOT_FILE)
 	if loaded_snapshot.get("ok", false):
 		if _is_valid_snapshot(loaded_snapshot.get("value", null), profile_id):
 			candidate = _normalized_snapshot(loaded_snapshot.value)
+			durable_sequence = int(candidate.last_sequence)
 		else:
 			var quarantined := _quarantine_snapshot(target_store)
 			if not quarantined.get("ok", false):
@@ -81,13 +83,16 @@ func load_profile(profile_id: String, journal: Variant) -> Dictionary:
 		if not replayed.get("error", null) is String or replayed.error.is_empty():
 			return {"ok": false, "error": "invalid_replay_result"}
 		return replayed.duplicate(true)
-	var validated := _validate_replay(replayed, profile_id)
+	var compacted_through := _journal_compacted_through(journal)
+	if compacted_through > int(candidate.last_sequence):
+		return {"ok": false, "error": "snapshot_behind_compaction"}
+	var validated := _validate_replay(replayed, profile_id, compacted_through)
 	if not validated.get("ok", false):
 		return validated
 
-	var highest_sequence := 0
+	var highest_sequence := compacted_through
 	for event in validated.events:
-		highest_sequence = int(event.sequence)
+		highest_sequence = maxi(highest_sequence, int(event.sequence))
 		if highest_sequence <= int(candidate.last_sequence):
 			continue
 		if highest_sequence != int(candidate.last_sequence) + 1:
@@ -102,6 +107,14 @@ func load_profile(profile_id: String, journal: Variant) -> Dictionary:
 		candidate = next
 	if int(candidate.last_sequence) > highest_sequence:
 		return {"ok": false, "error": "snapshot_ahead"}
+	if int(candidate.last_sequence) != durable_sequence:
+		var recovery_save_error := target_store.save(SNAPSHOT_FILE, candidate)
+		if recovery_save_error != OK:
+			return {
+				"ok": false,
+				"error": "snapshot_recovery_save_failed",
+				"code": recovery_save_error,
+			}
 
 	_store = target_store
 	_journal = journal
@@ -174,7 +187,7 @@ func commit(event: Dictionary) -> Error:
 		or (replayed.has("quarantined_tail") and not replayed.quarantined_tail is bool)
 	):
 		return FAILED
-	var validated := _validate_replay(replayed, _profile_id)
+	var validated := _validate_replay(replayed, _profile_id, _journal_compacted_through(_journal))
 	if not validated.get("ok", false):
 		return ERR_INVALID_DATA
 	var journaled_event: Dictionary = {}
@@ -200,17 +213,25 @@ func commit(event: Dictionary) -> Error:
 func snapshot() -> Dictionary:
 	return _state.duplicate(true)
 
-func _validate_replay(replayed: Dictionary, profile_id: String) -> Dictionary:
+func _validate_replay(replayed: Dictionary, profile_id: String, compacted_sequence: int = 0) -> Dictionary:
 	var events_value: Variant = replayed.get("events", null)
 	if not events_value is Array:
 		return {"ok": false, "error": "invalid_replay_result"}
 	var events: Array = events_value
-	var expected_sequence := 1
+	var expected_sequence := -1
 	for event in events:
 		if not event is Dictionary or not LearningEventV1Script.validate(event).is_empty():
-			return {"ok": false, "error": "invalid_record", "sequence": expected_sequence}
+			return {"ok": false, "error": "invalid_record", "sequence": maxi(expected_sequence, 1)}
 		if event.profile_id != profile_id:
 			return {"ok": false, "error": "scope_mismatch", "sequence": int(event.sequence)}
+		if expected_sequence < 0:
+			if int(event.sequence) != 1 and int(event.sequence) != compacted_sequence + 1:
+				return {
+					"ok": false,
+					"error": "invalid_sequence",
+					"sequence": int(event.sequence),
+				}
+			expected_sequence = int(event.sequence)
 		if int(event.sequence) != expected_sequence:
 			return {
 				"ok": false,
@@ -219,6 +240,12 @@ func _validate_replay(replayed: Dictionary, profile_id: String) -> Dictionary:
 			}
 		expected_sequence += 1
 	return {"ok": true, "events": events}
+
+func _journal_compacted_through(journal: Variant) -> int:
+	if journal == null or not journal.has_method("compacted_through"):
+		return 0
+	var value: Variant = journal.compacted_through()
+	return int(value) if _is_nonnegative_safe_integer(value) else 0
 
 func _events_equal(left: Dictionary, right: Dictionary) -> bool:
 	var normalized_left: Variant = JSON.parse_string(JSON.stringify(left))

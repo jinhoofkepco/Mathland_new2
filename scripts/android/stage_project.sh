@@ -38,6 +38,7 @@ rsync -a \
   --exclude='assets/source/' \
   --exclude='.env' \
   --exclude='.env.*' \
+  --exclude='resources/config/cloud_public.json' \
   --exclude='*.keystore' \
   --exclude='*.jks' \
   --exclude='*.p12' \

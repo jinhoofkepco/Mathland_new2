@@ -24,6 +24,15 @@ env npm --prefix "$MATHLAND_PROJECT_ROOT" run verify:toolchain
 bash "$MATHLAND_PROJECT_ROOT/scripts/android/stage_project.sh" \
   "$MATHLAND_PROJECT_ROOT" \
   "$MATHLAND_STAGE_ROOT"
+if [ -n "${MATHLAND_SUPABASE_URL:-}" ] || [ -n "${MATHLAND_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
+  if [ -z "${MATHLAND_SUPABASE_URL:-}" ] || [ -z "${MATHLAND_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
+    echo "Both public Supabase configuration values must be provided together" >&2
+    exit 1
+  fi
+  MATHLAND_CLOUD_CONFIG_PATH="$MATHLAND_STAGE_ROOT/resources/config/cloud_public.json" \
+  MATHLAND_RELEASE_BUILD=1 \
+    "$MATHLAND_PROJECT_ROOT/scripts/android/write_public_cloud_config.sh"
+fi
 mkdir -p "$MATHLAND_STAGE_ROOT/dist"
 GRADLE_OPTS="$MATHLAND_GRADLE_OPTS" "$MATHLAND_GODOT_BIN" \
   --headless \

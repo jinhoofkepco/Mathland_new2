@@ -258,6 +258,42 @@ msgstr "목소리"
 msgid "settings.voice_enabled"
 msgstr "문제 음성 버튼 사용"
 
+msgid "settings.remote_monitoring"
+msgstr "보호자 원격 확인"
+
+msgid "settings.pairing.help"
+msgstr "보호자 화면에 표시된 숫자 6자리를 입력하세요. 실패해도 이 기기의 학습 기록은 그대로 남아요."
+
+msgid "settings.pairing.placeholder"
+msgstr "숫자 6자리"
+
+msgid "settings.pairing.action"
+msgstr "연결하기"
+
+msgid "settings.pairing.ready"
+msgstr "연결 코드는 저장하지 않아요"
+
+msgid "settings.pairing.invalid"
+msgstr "숫자 6자리를 확인해 주세요"
+
+msgid "settings.pairing.unavailable"
+msgstr "지금은 오프라인으로 안전하게 이용할 수 있어요"
+
+msgid "settings.pairing.connecting"
+msgstr "보호자 화면과 연결 중…"
+
+msgid "settings.pairing.connected"
+msgstr "보호자 화면과 연결됐어요"
+
+msgid "settings.pairing.code_failed"
+msgstr "코드가 만료되었거나 맞지 않아요"
+
+msgid "settings.pairing.network"
+msgstr "인터넷 연결 후 다시 시도해 주세요"
+
+msgid "settings.pairing.failed"
+msgstr "연결하지 못했어요. 학습 기록은 이 기기에 안전하게 남아 있어요"
+
 msgid "effect.correct.caption"
 msgstr "정답!"
 
