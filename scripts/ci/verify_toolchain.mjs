@@ -8,6 +8,7 @@ const REQUIRED_JAVA_MAJOR = "17";
 const REQUIRED_PLATFORM = "android-35";
 const REQUIRED_BUILD_TOOLS = "35.0.1";
 const REQUIRED_EXECUTABLES = ["adb", "apksigner", "zipalign", "aapt2"];
+const ANDROID_JAR_SENTINEL = "android/app/Activity.class";
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
 
 export function validateProbe(probe) {
@@ -92,11 +93,12 @@ async function isValidAndroidJar(jarCommand, androidJar, timeoutMs) {
   } catch {
     return false;
   }
-  return commandIsUsable(jarCommand, ["tf", androidJar], {
-    acceptedStatuses: [0],
-    ignoreOutput: true,
-    timeoutMs,
-  });
+  try {
+    const listing = capture(jarCommand, ["tf", androidJar, ANDROID_JAR_SENTINEL], timeoutMs);
+    return listing === ANDROID_JAR_SENTINEL;
+  } catch {
+    return false;
+  }
 }
 
 export async function probeToolchain(env = process.env, options = {}) {

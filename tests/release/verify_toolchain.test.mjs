@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { probeToolchain, validateProbe } from "../../scripts/ci/verify_toolchain.mjs";
 
 const EXACT_GODOT_VERSION = "4.7.1.stable.official.a13da4feb";
+const ANDROID_JAR_SENTINEL = "android/app/Activity.class";
 const scriptPath = fileURLToPath(new URL("../../scripts/ci/verify_toolchain.mjs", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -26,6 +27,32 @@ async function writeExecutable(file, body) {
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, `#!/usr/bin/env node\n${body}\n`, "utf8");
   await chmod(file, 0o755);
+}
+
+function createJarWithEmptyEntry(entryName) {
+  const name = Buffer.from(entryName, "utf8");
+  const localHeader = Buffer.alloc(30 + name.length);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt16LE(name.length, 26);
+  name.copy(localHeader, 30);
+
+  const centralHeader = Buffer.alloc(46 + name.length);
+  centralHeader.writeUInt32LE(0x02014b50, 0);
+  centralHeader.writeUInt16LE(20, 4);
+  centralHeader.writeUInt16LE(20, 6);
+  centralHeader.writeUInt16LE(name.length, 28);
+  centralHeader.writeUInt32LE(0, 42);
+  name.copy(centralHeader, 46);
+
+  const endOfCentralDirectory = Buffer.alloc(22);
+  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+  endOfCentralDirectory.writeUInt16LE(1, 8);
+  endOfCentralDirectory.writeUInt16LE(1, 10);
+  endOfCentralDirectory.writeUInt32LE(centralHeader.length, 12);
+  endOfCentralDirectory.writeUInt32LE(localHeader.length, 16);
+
+  return Buffer.concat([localHeader, centralHeader, endOfCentralDirectory]);
 }
 
 async function createToolchainFixture(t) {
@@ -57,7 +84,8 @@ if (process.argv[2] !== "-version") process.exit(9);
 console.log("javac 17.0.19");
 `);
   await writeExecutable(path.join(jdk, "bin", "jar"), `
-if (process.argv[2] !== "tf" || !process.argv[3]) process.exit(9);
+if (process.argv[2] !== "tf" || !process.argv[3] || process.argv[4] !== "${ANDROID_JAR_SENTINEL}") process.exit(9);
+console.log("${ANDROID_JAR_SENTINEL}");
 process.exit(0);
 `);
   await mkdir(path.dirname(platformJar), { recursive: true });
@@ -167,6 +195,38 @@ test("fails closed when JAVA_HOME has a runtime but no javac", async (t) => {
 test("rejects a nonempty android.jar that the JDK cannot list", async (t) => {
   const fixture = await createToolchainFixture(t);
   await writeExecutable(path.join(fixture.paths.jdk, "bin", "jar"), "process.exit(1);");
+
+  const probe = await probeToolchain(fixture.env, { timeoutMs: 5_000 });
+
+  assert.equal(probe.androidPlatformJarValid, false);
+  assert.match(validateProbe(probe).join("\n"), /android-35\/android\.jar is missing or invalid/);
+});
+
+test("rejects a valid but empty android.jar listing", async (t) => {
+  const fixture = await createToolchainFixture(t);
+  await writeFile(fixture.paths.platformJar, Buffer.from("UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==", "base64"));
+  await writeExecutable(path.join(fixture.paths.jdk, "bin", "jar"), `
+if (process.argv[2] !== "tf" || !process.argv[3]) process.exit(9);
+process.exit(0);
+`);
+
+  const probe = await probeToolchain(fixture.env, { timeoutMs: 5_000 });
+
+  assert.equal(probe.androidPlatformJarValid, false);
+  assert.match(validateProbe(probe).join("\n"), /android-35\/android\.jar is missing or invalid/);
+});
+
+test("rejects a structurally valid non-Android android.jar", async (t) => {
+  const fixture = await createToolchainFixture(t);
+  await writeFile(
+    fixture.paths.platformJar,
+    createJarWithEmptyEntry("com/example/NotAndroid.class"),
+  );
+  await writeExecutable(path.join(fixture.paths.jdk, "bin", "jar"), `
+if (process.argv[2] !== "tf" || !process.argv[3]) process.exit(9);
+console.log("com/example/NotAndroid.class");
+process.exit(0);
+`);
 
   const probe = await probeToolchain(fixture.env, { timeoutMs: 5_000 });
 
