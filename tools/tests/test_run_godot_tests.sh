@@ -17,6 +17,7 @@ printf '%s\n' 'esac' >> "$fake_godot"
 chmod u+x "$fake_godot"
 
 FAKE_MODE=success GODOT_BIN="$fake_godot" "$runner" unit >/dev/null
+FAKE_MODE=success GODOT_BIN="$fake_godot" "$runner" content >/dev/null
 
 if FAKE_MODE=script_error GODOT_BIN="$fake_godot" "$runner" unit >/dev/null 2>&1; then
 	echo "runner accepted SCRIPT ERROR output" >&2

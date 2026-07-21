@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "content_version": "1.0.0",
+  "activity_id": "foundations_ten_frame",
+  "localizations": {
+    "ko-KR": {
+      "title": "foundations_ten_frame 탐험",
+      "description": "놀이하며 수학 원리를 익혀요.",
+      "tutorial_steps": [
+        "그림을 살펴보고 답을 골라요."
+      ]
+    }
+  },
+  "icon_id": "foundations_ten_frame",
+  "scene_id": "activity_run",
+  "run": {
+    "starting_hearts": 3,
+    "goal": {
+      "kind": "correct_answers",
+      "target": 10
+    },
+    "timer": {
+      "enabled": true,
+      "seconds": 60,
+      "profile_can_disable": true
+    },
+    "rewards": {
+      "apples_per_correct": 2,
+      "completion_apples": 5
+    },
+    "combo_thresholds": [
+      2,
+      4,
+      7
+    ],
+    "boss_every_correct": 5,
+    "effects": {
+      "correct": "correct",
+      "wrong": "wrong",
+      "combo": "combo_1",
+      "boss": "boss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "health_loss": "health_loss"
+    }
+  },
+  "difficulty_bands": [
+    {
+      "band_id": "intro",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": {
+        "operand_min": 0,
+        "operand_max": 9,
+        "carry": "forbid"
+      },
+      "answer_layout": {
+        "id": "numeric_keypad"
+      },
+      "manipulative": {
+        "id": "none",
+        "config": {},
+        "initial_state": {}
+      }
+    },
+    {
+      "band_id": "practice",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": {
+        "operand_min": 1,
+        "operand_max": 10,
+        "carry": "allow"
+      },
+      "answer_layout": {
+        "id": "numeric_keypad"
+      },
+      "manipulative": {
+        "id": "none",
+        "config": {},
+        "initial_state": {}
+      }
+    },
+    {
+      "band_id": "challenge",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": {
+        "operand_min": 2,
+        "operand_max": 11,
+        "carry": "allow"
+      },
+      "answer_layout": {
+        "id": "numeric_keypad"
+      },
+      "manipulative": {
+        "id": "none",
+        "config": {},
+        "initial_state": {}
+      }
+    }
+  ],
+  "adaptive_policy": {
+    "enabled_by_default": false,
+    "min_band_id": "intro",
+    "max_band_id": "challenge",
+    "window_size": 5,
+    "promote_correctness": 0.8,
+    "demote_correctness": 0.4
+  },
+  "validation_samples": [
+    {
+      "band_id": "intro",
+      "seed": 1,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    {
+      "band_id": "intro",
+      "seed": 7,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 7
+      }
+    },
+    {
+      "band_id": "intro",
+      "seed": 42,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 2
+      }
+    },
+    {
+      "band_id": "intro",
+      "seed": 20260721,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    {
+      "band_id": "practice",
+      "seed": 1,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    {
+      "band_id": "practice",
+      "seed": 7,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 7
+      }
+    },
+    {
+      "band_id": "practice",
+      "seed": 42,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 2
+      }
+    },
+    {
+      "band_id": "practice",
+      "seed": 20260721,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    {
+      "band_id": "challenge",
+      "seed": 1,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    {
+      "band_id": "challenge",
+      "seed": 7,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 7
+      }
+    },
+    {
+      "band_id": "challenge",
+      "seed": 42,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 2
+      }
+    },
+    {
+      "band_id": "challenge",
+      "seed": 20260721,
+      "expected_answer": {
+        "kind": "integer",
+        "value": 1
+      }
+    }
+  ],
+  "checksum": "sha256:e57fe073997fcb59d3d24640864375c60559571af8dcac1e2ba4db2e6e873aeb"
+}
