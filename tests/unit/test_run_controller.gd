@@ -14,8 +14,11 @@ func run(_tree: SceneTree) -> void:
 	_test_disabled_and_paused_timers()
 	_test_question_cannot_be_skipped_or_rewarded_twice()
 	_test_forged_and_mutated_transitions_are_rejected()
+	_test_transition_public_projection_is_immutable_and_preflighted()
+	_test_failed_plans_can_be_discarded_and_pending_set_is_bounded()
 	_test_timeout_transition_can_be_journaled()
 	_test_reward_overflow_is_rejected()
+	_test_safe_reward_boundaries_are_accepted()
 	_test_event_metadata_validation_matches_journal_contract()
 	_test_config_is_derived_without_mutating_activity()
 	_test_invalid_config_and_question_are_contained()
@@ -156,6 +159,7 @@ func _test_forged_and_mutated_transitions_are_rejected() -> void:
 	assert_true(controller.start(_config({"target_score": 10}), "session-provenance").ok)
 	assert_true(controller.begin_question(_question(1, 1)).ok)
 	var genuine = controller.plan_answer(1, 10, 0)
+	var sealed_event = controller.prepare_commit(genuine).event
 	var forged_state: Dictionary = genuine.next_state
 	forged_state.score = 999
 	forged_state.earned_rewards = {"apples": 999}
@@ -177,50 +181,154 @@ func _test_forged_and_mutated_transitions_are_rejected() -> void:
 	assert_false(forged_result.ok)
 	assert_eq(forged_result.get("error", ""), "unplanned_transition")
 	assert_eq(controller.snapshot().score, 0)
-	genuine.correctness = false
+	genuine._correctness = false
+	var mutated_prepare := controller.prepare_commit(genuine)
+	assert_false(mutated_prepare.ok)
+	assert_eq(mutated_prepare.get("error", ""), "mutated_transition")
 	var mutated_result := controller.commit(genuine)
 	assert_false(mutated_result.ok)
 	assert_eq(mutated_result.get("error", ""), "mutated_transition")
 	assert_eq(controller.snapshot().score, 0)
+	genuine._correctness = true
+	assert_true(sealed_event.correctness, "a sealed journal projection must survive transition tampering and restoration")
+	assert_true(controller.commit(genuine).ok)
+	assert_eq(controller.snapshot().score, 1)
+
+func _test_transition_public_projection_is_immutable_and_preflighted() -> void:
+	var controller := RunControllerScript.new(FakeClockScript.new())
+	assert_true(controller.start(_config({"target_score": 10}), "session-sealed").ok)
+	var correct_answer := {"kind": "integer_list", "values": [2, 3], "order_matters": true}
+	assert_true(controller.begin_question(_question(1, correct_answer)).ok)
+	var transition = controller.plan_answer(correct_answer, 10, 1)
+	var canonical: Dictionary = transition.to_dict()
+	transition.from_revision = 999
+	transition.kind = "timeout"
+	transition.submitted_answer = 0
+	transition.correct_answer = 0
+	transition.correctness = false
+	transition.response_duration_ms = 999
+	transition.hints = 999
+	transition.health_delta = -3
+	transition.effect_name = "wrong"
+	transition.follow_up_effect_name = "health_depleted"
+	transition.effect_intensity = 0.0
+	var submitted_copy: Dictionary = transition.submitted_answer
+	submitted_copy.values[0] = 99
+	var correct_copy: Dictionary = transition.correct_answer
+	correct_copy.values[0] = 99
+	var reward_copy: Dictionary = transition.reward_delta
+	reward_copy.apples = 999
+	var effects_copy: Array[String] = transition.effect_names
+	effects_copy.append("wrong")
+	var state_copy: Dictionary = transition.next_state
+	state_copy.combo = 999
+	assert_eq(transition.to_dict(), canonical, "public transition fields must be immutable projections")
+	var prepared: Dictionary = controller.prepare_commit(transition)
+	assert_true(prepared.ok)
+	var projection = prepared.event
+	assert_eq(projection.to_dict(), {
+		"kind": "answer",
+		"submitted_answer": correct_answer,
+		"correct_answer": correct_answer,
+		"correctness": true,
+		"response_duration_ms": 10,
+		"hints": 1,
+		"health_delta": 0,
+		"combo": 1,
+		"reward_delta": {"apples": 2},
+	})
+	projection.correctness = false
+	var leaked_projection: Dictionary = projection.to_dict()
+	leaked_projection.correctness = false
+	leaked_projection.reward_delta.apples = 999
+	assert_true(projection.correctness)
+	assert_eq(projection.reward_delta, {"apples": 2})
+	assert_true(controller.commit(transition).ok, "caller writes must not affect the sealed journal projection")
+	assert_eq(controller.snapshot().combo, 1)
+
+func _test_failed_plans_can_be_discarded_and_pending_set_is_bounded() -> void:
+	var controller := RunControllerScript.new(FakeClockScript.new())
+	assert_true(controller.start(_config({"target_score": 10}), "session-discard").ok)
+	assert_true(controller.begin_question(_question(1, 1)).ok)
+	for index in 32:
+		var failed_plan = controller.plan_answer(1, index, 0)
+		assert_true(controller.discard(failed_plan), "failed persistence plan was not discarded")
+		assert_false(controller.discard(failed_plan), "discard must be idempotent")
+		assert_eq(controller.commit(failed_plan).get("error", ""), "unplanned_transition")
+	var oldest = controller.plan_answer(1, 100, 0)
+	var newest = oldest
+	for index in RunControllerScript.MAX_PENDING_TRANSITIONS:
+		newest = controller.plan_answer(1, 101 + index, 0)
+	assert_eq(controller.prepare_commit(oldest).get("error", ""), "unplanned_transition", "pending plans must be bounded")
+	assert_true(controller.prepare_commit(newest).ok)
+	assert_true(controller.commit(newest).ok)
 
 func _test_timeout_transition_can_be_journaled() -> void:
-	var clock := FakeClockScript.new()
-	var controller := RunControllerScript.new(clock)
-	assert_true(controller.start(_config({"timer_allowed": true, "timer_duration_ms": 1}), "session-timeout-event").ok)
-	var question := _question(8, 7)
-	assert_true(controller.begin_question(question).ok)
-	clock.advance_ms(1)
-	var transition = controller.plan_timeout()
-	assert_not_null(transition)
-	assert_not_null(transition.submitted_answer)
-	var event := LearningEventV1Script.create(
-		{"profile_id": "profile-a", "device_id": "device-a", "sequence": 1},
-		{
-			"session_id": "session-timeout-event",
-			"client_timestamp": "2026-07-21T09:00:00Z",
-			"event_type": "answer_submitted",
-			"activity_id": question.activity_id,
-			"content_version": question.content_version,
-			"question_seed": question.seed,
-			"generator_id": question.generator_id,
-			"band_id": question.band_id,
-			"resolved_parameters": question.resolved_parameters,
-			"submitted_answer": transition.submitted_answer,
-			"correct_answer": transition.correct_answer,
-			"correctness": transition.correctness,
-			"response_duration_ms": transition.response_duration_ms,
-			"hints": transition.hints,
-			"health_delta": transition.health_delta,
-			"combo": transition.next_state.combo,
-			"reward_delta": transition.reward_delta,
-		}
-	)
-	assert_eq(LearningEventV1Script.validate(event), PackedStringArray())
+	var answers := [
+		7,
+		-9007199254740991,
+		9007199254740991,
+		{"kind": "integer_list", "values": [], "order_matters": false},
+		{"kind": "integer_list", "values": [-9007199254740991, 9007199254740991], "order_matters": true},
+	]
+	for index in answers.size():
+		var clock := FakeClockScript.new()
+		var controller := RunControllerScript.new(clock)
+		var session_id := "session-timeout-event-%d" % index
+		assert_true(controller.start(_config({"timer_allowed": true, "timer_duration_ms": 1}), session_id).ok)
+		var question := _question(8 + index, answers[index])
+		assert_true(controller.begin_question(question).ok)
+		clock.advance_ms(1)
+		var transition = controller.plan_timeout()
+		assert_not_null(transition)
+		assert_not_null(transition.submitted_answer)
+		assert_true(JSON.stringify(transition.submitted_answer) != JSON.stringify(transition.correct_answer))
+		var fields = controller.prepare_commit(transition).event
+		var event := LearningEventV1Script.create(
+			{"profile_id": "profile-a", "device_id": "device-a", "sequence": 1},
+			{
+				"session_id": session_id,
+				"client_timestamp": "2026-07-21T09:00:00Z",
+				"event_type": "answer_submitted",
+				"activity_id": question.activity_id,
+				"content_version": question.content_version,
+				"question_seed": question.seed,
+				"generator_id": question.generator_id,
+				"band_id": question.band_id,
+				"resolved_parameters": question.resolved_parameters,
+				"submitted_answer": fields.submitted_answer,
+				"correct_answer": fields.correct_answer,
+				"correctness": fields.correctness,
+				"response_duration_ms": fields.response_duration_ms,
+				"hints": fields.hints,
+				"health_delta": fields.health_delta,
+				"combo": fields.combo,
+				"reward_delta": fields.reward_delta,
+			}
+		)
+		assert_eq(LearningEventV1Script.validate(event), PackedStringArray())
 
 func _test_reward_overflow_is_rejected() -> void:
 	var unsafe := _config({"target_score": 2, "reward_per_correct": {"apples": 9007199254740991}})
 	assert_false(unsafe.is_valid())
 	assert_false(RunControllerScript.new(FakeClockScript.new()).start(unsafe, "session-overflow").ok)
+
+func _test_safe_reward_boundaries_are_accepted() -> void:
+	var max_single := RunControllerScript.new(FakeClockScript.new())
+	assert_true(max_single.start(_config({"target_score": 1, "reward_per_correct": {"stars": 9007199254740991}}), "session-max-single").ok)
+	assert_true(max_single.begin_question(_question(1, 1)).ok)
+	var max_transition = max_single.plan_answer(1, 0, 0)
+	assert_not_null(max_transition)
+	assert_eq(max_transition.next_state.earned_rewards, {"stars": 9007199254740991})
+	assert_true(max_single.commit(max_transition).ok)
+	var max_pair := RunControllerScript.new(FakeClockScript.new())
+	assert_true(max_pair.start(_config({"target_score": 2, "reward_per_correct": {"stars": 4503599627370495}}), "session-max-pair").ok)
+	for index in 2:
+		assert_true(max_pair.begin_question(_question(10 + index, 1)).ok)
+		var transition = max_pair.plan_answer(1, 0, 0)
+		assert_not_null(transition)
+		assert_true(max_pair.commit(transition).ok)
+	assert_eq(max_pair.snapshot().earned_rewards, {"stars": 9007199254740990})
 
 func _test_event_metadata_validation_matches_journal_contract() -> void:
 	for invalid_parameters in [

@@ -4,13 +4,16 @@ extends RefCounted
 const RunConfigScript = preload("res://src/game/run_config.gd")
 const RunStateScript = preload("res://src/game/run_state.gd")
 const RunTransitionScript = preload("res://src/game/run_transition.gd")
+const RunEventProjectionScript = preload("res://src/game/run_event_projection.gd")
 const SystemClockScript = preload("res://src/core/system_clock.gd")
 const MAX_SAFE_INTEGER := 9007199254740991
+const MAX_PENDING_TRANSITIONS := 8
 
 var _clock: Variant
 var _config: Variant
 var _state: Dictionary = {}
 var _planned_transitions: Dictionary = {}
+var _planned_transition_order: Array[int] = []
 
 func _init(clock: Variant = null) -> void:
 	_clock = clock if clock != null else SystemClockScript.new()
@@ -23,7 +26,7 @@ func start(config: Variant, session_id: String) -> Dictionary:
 		return {"ok": false, "error": "invalid_config"}
 	_config = copied_config
 	_state = RunStateScript.initial(_config.to_dict(), session_id)
-	_planned_transitions.clear()
+	_clear_planned_transitions()
 	return {"ok": true, "state": snapshot()}
 
 func begin_question(question: Dictionary) -> Dictionary:
@@ -41,7 +44,7 @@ func begin_question(question: Dictionary) -> Dictionary:
 	next.timer_remaining_ms = _config.timer_duration_ms if next.timer_enabled else 0
 	next.revision += 1
 	_state = next
-	_planned_transitions.clear()
+	_clear_planned_transitions()
 	return {"ok": true, "state": snapshot()}
 
 func plan_answer(answer: Variant, response_ms: int, hints: int = 0) -> Variant:
@@ -60,26 +63,47 @@ func plan_timeout() -> Variant:
 		return null
 	return _plan_outcome("timeout", null, false, _config.timer_duration_ms, 0)
 
-func commit(transition: Variant) -> Dictionary:
+func prepare_commit(transition: Variant) -> Dictionary:
+	var validated := _validated_planned_transition(transition)
+	if not validated.get("ok", false):
+		return validated
+	var planned: Dictionary = validated.data
+	return {
+		"ok": true,
+		"event": RunEventProjectionScript.new({
+			"kind": planned.kind,
+			"submitted_answer": _deep_copy(planned.submitted_answer),
+			"correct_answer": _deep_copy(planned.correct_answer),
+			"correctness": planned.correctness,
+			"response_duration_ms": planned.response_duration_ms,
+			"hints": planned.hints,
+			"health_delta": planned.health_delta,
+			"combo": planned.next_state.combo,
+			"reward_delta": planned.reward_delta.duplicate(true),
+		})
+	}
+
+func discard(transition: Variant) -> bool:
 	if not transition is RunTransitionScript:
-		return {"ok": false, "error": "invalid_transition"}
-	if _state.is_empty() or transition.from_revision != _state.revision:
-		return {"ok": false, "error": "stale_transition"}
+		return false
 	var transition_id: int = transition.get_instance_id()
 	if not _planned_transitions.has(transition_id):
-		return {"ok": false, "error": "unplanned_transition"}
+		return false
 	var record: Dictionary = _planned_transitions[transition_id]
 	if record.instance != transition:
-		return {"ok": false, "error": "unplanned_transition"}
-	var planned: Dictionary = record.data
-	if transition.to_dict() != planned:
-		return {"ok": false, "error": "mutated_transition"}
+		return false
+	_retire_planned_transition(transition_id)
+	return true
+
+func commit(transition: Variant) -> Dictionary:
+	var validated := _validated_planned_transition(transition)
+	if not validated.get("ok", false):
+		return validated
+	var planned: Dictionary = validated.data
 	var candidate: Dictionary = planned.next_state.duplicate(true)
-	if not _is_valid_transition_state(candidate):
-		return {"ok": false, "error": "invalid_transition"}
 	candidate.revision = _state.revision + 1
 	_state = candidate
-	_planned_transitions.clear()
+	_clear_planned_transitions()
 	return {"ok": true, "state": snapshot()}
 
 func pause() -> bool:
@@ -91,7 +115,7 @@ func pause() -> bool:
 	next.paused = true
 	next.revision += 1
 	_state = next
-	_planned_transitions.clear()
+	_clear_planned_transitions()
 	return true
 
 func resume() -> bool:
@@ -103,7 +127,7 @@ func resume() -> bool:
 		next.timer_started_at_ms = _clock.now_ms()
 	next.revision += 1
 	_state = next
-	_planned_transitions.clear()
+	_clear_planned_transitions()
 	return true
 
 func time_remaining_ms() -> int:
@@ -175,11 +199,41 @@ func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms
 		"effect_names": effects,
 		"next_state": next,
 	})
-	_planned_transitions[transition.get_instance_id()] = {
+	while _planned_transition_order.size() >= MAX_PENDING_TRANSITIONS:
+		_retire_planned_transition(_planned_transition_order[0])
+	var transition_id: int = transition.get_instance_id()
+	_planned_transitions[transition_id] = {
 		"instance": transition,
 		"data": transition.to_dict(),
 	}
+	_planned_transition_order.append(transition_id)
 	return transition
+
+func _validated_planned_transition(transition: Variant) -> Dictionary:
+	if not transition is RunTransitionScript:
+		return {"ok": false, "error": "invalid_transition"}
+	if _state.is_empty() or transition.from_revision != _state.revision:
+		return {"ok": false, "error": "stale_transition"}
+	var transition_id: int = transition.get_instance_id()
+	if not _planned_transitions.has(transition_id):
+		return {"ok": false, "error": "unplanned_transition"}
+	var record: Dictionary = _planned_transitions[transition_id]
+	if record.instance != transition:
+		return {"ok": false, "error": "unplanned_transition"}
+	var planned: Dictionary = record.data
+	if transition.to_dict() != planned:
+		return {"ok": false, "error": "mutated_transition"}
+	if not _is_valid_transition_state(planned.next_state):
+		return {"ok": false, "error": "invalid_transition"}
+	return {"ok": true, "data": planned}
+
+func _retire_planned_transition(transition_id: int) -> void:
+	_planned_transitions.erase(transition_id)
+	_planned_transition_order.erase(transition_id)
+
+func _clear_planned_transitions() -> void:
+	_planned_transitions.clear()
+	_planned_transition_order.clear()
 
 func _combo_effect(combo: int) -> String:
 	if _config.combo_thresholds.size() >= 2 and combo >= _config.combo_thresholds[1]:
@@ -317,3 +371,8 @@ func _is_safe_integer(value: Variant) -> bool:
 	if value is int:
 		return value >= -MAX_SAFE_INTEGER and value <= MAX_SAFE_INTEGER
 	return value is float and is_finite(value) and value == floor(value) and value >= -MAX_SAFE_INTEGER and value <= MAX_SAFE_INTEGER
+
+func _deep_copy(value: Variant) -> Variant:
+	if value is Dictionary or value is Array:
+		return value.duplicate(true)
+	return value
