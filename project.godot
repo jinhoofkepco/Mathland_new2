@@ -6,6 +6,7 @@ config_version=5
 
 config/name="Mathland"
 config/features=PackedStringArray("4.7")
+config/icon="res://assets/ui/app/mathland_launcher.svg"
 config/quit_on_go_back=false
 config/version="1.0.0"
 run/main_scene="res://scenes/app/app_shell.tscn"
@@ -35,3 +36,4 @@ enabled=PackedStringArray("res://addons/mathland_secure_credentials/plugin.cfg")
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
