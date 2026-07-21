@@ -190,8 +190,34 @@ func _assert_persisted_reward_presets(tree: SceneTree, activity: Control, journa
 	assert_eq(collection_overlay.preset_kind(), "collection")
 	collection_overlay.dismiss()
 	await tree.process_frame
-	var coupon_append: Dictionary = journal.append({
+	_assert_reward_sequence_fail_closed(activity, collection_append.event)
+	var duplicate_collection_append: Dictionary = journal.append({
 		"client_timestamp": "2026-07-21T00:00:41Z",
+		"event_type": "collection_unlocked",
+		"collection_id": "ten_rod_cartographer",
+	})
+	assert_true(duplicate_collection_append.ok)
+	var collection_presentations := 0
+	var collection_before_commit: bool = activity.present_persisted_reward_event(duplicate_collection_append.event)
+	collection_presentations += 1 if collection_before_commit else 0
+	assert_false(collection_before_commit, "a repeated collection ID bypassed its event sequence commit")
+	if collection_before_commit:
+		var premature_collection: Control = activity.find_child("RewardOverlay", true, false)
+		if premature_collection != null:
+			premature_collection.dismiss()
+			await tree.process_frame
+	assert_eq(progress.commit(duplicate_collection_append.event), OK)
+	var collection_after_commit: bool = activity.present_persisted_reward_event(duplicate_collection_append.event)
+	collection_presentations += 1 if collection_after_commit else 0
+	assert_true(collection_after_commit)
+	assert_eq(collection_presentations, 1, "a repeated collection reward was not presented exactly once after commit")
+	var duplicate_collection_overlay: Control = activity.find_child("RewardOverlay", true, false)
+	assert_not_null(duplicate_collection_overlay)
+	assert_eq(duplicate_collection_overlay.preset_kind(), "collection")
+	duplicate_collection_overlay.dismiss()
+	await tree.process_frame
+	var coupon_append: Dictionary = journal.append({
+		"client_timestamp": "2026-07-21T00:00:42Z",
 		"event_type": "coupon_earned",
 		"coupon_id": "island_ferry_pass",
 	})
@@ -206,6 +232,44 @@ func _assert_persisted_reward_presets(tree: SceneTree, activity: Control, journa
 	assert_eq(coupon_overlay.preset_kind(), "coupon")
 	coupon_overlay.dismiss()
 	await tree.process_frame
+	_assert_reward_sequence_fail_closed(activity, coupon_append.event)
+	var duplicate_coupon_append: Dictionary = journal.append({
+		"client_timestamp": "2026-07-21T00:00:43Z",
+		"event_type": "coupon_earned",
+		"coupon_id": "island_ferry_pass",
+	})
+	assert_true(duplicate_coupon_append.ok)
+	var coupon_presentations := 0
+	var coupon_before_commit: bool = activity.present_persisted_reward_event(duplicate_coupon_append.event)
+	coupon_presentations += 1 if coupon_before_commit else 0
+	assert_false(coupon_before_commit, "a repeated coupon ID bypassed its event sequence commit")
+	if coupon_before_commit:
+		var premature_coupon: Control = activity.find_child("RewardOverlay", true, false)
+		if premature_coupon != null:
+			premature_coupon.dismiss()
+			await tree.process_frame
+	assert_eq(progress.commit(duplicate_coupon_append.event), OK)
+	var coupon_after_commit: bool = activity.present_persisted_reward_event(duplicate_coupon_append.event)
+	coupon_presentations += 1 if coupon_after_commit else 0
+	assert_true(coupon_after_commit)
+	assert_eq(coupon_presentations, 1, "a repeated coupon reward was not presented exactly once after commit")
+	var duplicate_coupon_overlay: Control = activity.find_child("RewardOverlay", true, false)
+	assert_not_null(duplicate_coupon_overlay)
+	assert_eq(duplicate_coupon_overlay.preset_kind(), "coupon")
+	duplicate_coupon_overlay.dismiss()
+	await tree.process_frame
+
+func _assert_reward_sequence_fail_closed(activity: Control, event: Dictionary) -> void:
+	var missing_sequence := event.duplicate(true)
+	missing_sequence.erase("sequence")
+	assert_false(activity.call("_reward_event_is_reduced", missing_sequence), "missing reward sequence did not fail closed")
+	for invalid_sequence in [null, true, "1", 0, -1, 1.5, INF, 9007199254740992]:
+		var invalid_event := event.duplicate(true)
+		invalid_event["sequence"] = invalid_sequence
+		assert_false(
+			activity.call("_reward_event_is_reduced", invalid_event),
+			"invalid reward sequence did not fail closed: %s" % invalid_sequence,
+		)
 
 func _mount_shell(tree: SceneTree, profile_service: Node, profile_id: String, response_clock: RefCounted) -> Control:
 	var shell: Control = AppShellScene.instantiate()

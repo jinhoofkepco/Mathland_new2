@@ -10,6 +10,7 @@ const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 const SystemClockScript = preload("res://src/core/system_clock.gd")
 const TenRodBoardScene = preload("res://scenes/game/manipulatives/ten_rod_board.tscn")
 const RewardOverlayScene = preload("res://scenes/game/reward_overlay.tscn")
+const MAX_SAFE_INTEGER := 9007199254740991
 const MAX_RESPONSE_DURATION_MS := 86_400_000
 
 var _journal: Variant
@@ -340,12 +341,33 @@ func _event_is_durable(event: Dictionary) -> bool:
 
 func _reward_event_is_reduced(event: Dictionary) -> bool:
 	var progress := _snapshot()
+	var event_sequence: Variant = event.get("sequence")
+	var progress_sequence: Variant = progress.get("last_sequence")
+	if (
+		not _is_safe_integer(event_sequence)
+		or event_sequence <= 0
+		or not _is_safe_integer(progress_sequence)
+		or progress_sequence < 0
+		or int(progress_sequence) < int(event_sequence)
+	):
+		return false
 	match String(event.event_type):
 		"collection_unlocked":
 			return progress.get("collections", null) is Array and event.collection_id in progress.collections
 		"coupon_earned":
 			return progress.get("coupons", null) is Array and event.coupon_id in progress.coupons
 	return false
+
+func _is_safe_integer(value: Variant) -> bool:
+	if value is int:
+		return value >= -MAX_SAFE_INTEGER and value <= MAX_SAFE_INTEGER
+	return (
+		value is float
+		and is_finite(value)
+		and value >= -MAX_SAFE_INTEGER
+		and value <= MAX_SAFE_INTEGER
+		and value == floor(value)
+	)
 
 func _events_equal(left: Dictionary, right: Dictionary) -> bool:
 	var normalized_left: Variant = JSON.parse_string(JSON.stringify(left))
