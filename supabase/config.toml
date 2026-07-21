@@ -28,3 +28,12 @@ enable_anonymous_sign_ins = true
 
 [analytics]
 enabled = false
+
+[functions.create-pairing-code]
+verify_jwt = false
+
+[functions.pair-device]
+verify_jwt = false
+
+[functions.ingest-events]
+verify_jwt = false

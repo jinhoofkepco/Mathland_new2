@@ -145,8 +145,8 @@ select is(
     where namespace.nspname = 'public'
       and pg_catalog.has_function_privilege('service_role', procedure.oid, 'execute')
   ),
-  9::bigint,
-  'service role receives all nine required exact RPCs'
+  11::bigint,
+  'service role receives all eleven required exact RPCs'
 );
 select is(
   (
@@ -157,6 +157,7 @@ select is(
       and pg_catalog.has_function_privilege('service_role', procedure.oid, 'execute')
       and procedure.proname not in (
         'activate_due_content_publication',
+        'claim_device_pairing_for_service',
         'commit_validated_content_publication',
         'commit_device_pairing_for_service',
         'create_pairing_challenge_for_service',
@@ -164,11 +165,12 @@ select is(
         'get_content_publication_for_rollback',
         'get_due_content_publication_ids',
         'get_pairing_challenge_for_service',
+        'ingest_learning_event_batch_for_service',
         'ingest_learning_events_for_service'
       )
   ),
   0::bigint,
-  'service role executes only the nine exact lifecycle, pairing, and ingest RPCs'
+  'service role executes only the eleven exact lifecycle, pairing, and ingest RPCs'
 );
 select is(
   (
