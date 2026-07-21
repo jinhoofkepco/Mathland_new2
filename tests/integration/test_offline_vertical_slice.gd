@@ -11,14 +11,11 @@ const QuestionEngineScript = preload("res://src/content/vertical_slice_question_
 const FakeClockScript = preload("res://tests/support/fake_clock.gd")
 const InMemoryProgressServiceScript = preload("res://tests/support/in_memory_progress_service.gd")
 const RecordingJournalScript = preload("res://tests/support/recording_journal.gd")
-const ProfileSelectScene = preload("res://scenes/profile/profile_select.tscn")
-const IslandScene = preload("res://scenes/island/exploration_island.tscn")
-const FreePlayScene = preload("res://scenes/island/free_play.tscn")
+const AppShellScene = preload("res://scenes/app/app_shell.tscn")
 const ActivityRunScene = preload("res://scenes/game/activity_run.tscn")
-const RunResultScene = preload("res://scenes/game/run_result.tscn")
 
 const BASE_PATH := "user://tests/offline_vertical_slice"
-const DEVICE_ID := "test-device"
+const DEVICE_ID := "da640863-b3af-4ca2-8e27-e474831b57ed"
 const MAX_RESPONSE_DURATION_MS := 86_400_000
 
 class RecordingRouter extends RefCounted:
@@ -35,6 +32,19 @@ class RecordingRouter extends RefCounted:
 	func back() -> bool:
 		return true
 
+class TestAudioService extends Node:
+	func apply_settings(_settings: Dictionary) -> bool:
+		return true
+
+	func play_sfx(_sfx_id: StringName) -> bool:
+		return false
+
+	func play_voice(_dialogue_id: StringName) -> bool:
+		return false
+
+	func stop_voice() -> void:
+		pass
+
 func run(tree: SceneTree) -> void:
 	_remove_tree(BASE_PATH)
 	var profile_store := AtomicJsonStoreScript.new("%s/profile_index" % BASE_PATH)
@@ -43,64 +53,33 @@ func run(tree: SceneTree) -> void:
 	assert_true(created.ok)
 	var profile_id: String = created.profile.profile_id
 	var journal_path := "%s/%s/events.jsonl" % [BASE_PATH, profile_id]
-	var journal := EventJournalScript.new()
-	assert_true(journal.configure(profile_id, DEVICE_ID, journal_path).ok)
-	var progress_store := AtomicJsonStoreScript.new("%s/%s" % [BASE_PATH, profile_id])
-	var progress := ProgressServiceScript.new(progress_store)
-	assert_true(progress.load_profile(profile_id, journal).ok)
-	var repository := ContentRepositoryScript.new()
-	var question_engine := QuestionEngineScript.new()
-	var router := RecordingRouter.new()
-	var timestamp_counter := {"value": 0}
-	var session_counter := {"value": 0}
-	var timestamp_provider := func() -> String:
-		timestamp_counter.value += 1
-		return "2026-07-21T00:00:%02dZ" % timestamp_counter.value
-	var run_session := RunSessionScript.new(
-		null,
-		journal,
-		progress,
-		timestamp_provider,
-		func() -> String:
-			session_counter.value += 1
-			return "offline-session-%d" % session_counter.value
-	)
+	var response_clock := FakeClockScript.new(10_000)
+	var shell := await _mount_shell(tree, profile_service, profile_id, response_clock)
+	assert_eq(shell.current_route(), AppRouteScript.PROFILE_SELECT, "cold boot bypassed PIN selection")
+	var profile_screen: Control = _current_screen(shell)
+	var activation: Dictionary = profile_screen.attempt_unlock(profile_id, "2468", 1000)
+	assert_true(activation.ok)
+	var journal: Variant = activation.get("journal")
+	var progress: Variant = activation.get("progress_service")
 	assert_true(journal.get_script() == EventJournalScript, "activation must inject a real EventJournal")
 	assert_true(progress.get_script() == ProgressServiceScript, "activation must inject a real ProgressService")
 	assert_eq(progress.snapshot().profile_id, profile_id)
 	assert_eq(progress.snapshot().last_sequence, 0, "injected progress was not loaded against its journal")
-	var shared_params := {
-		"router": router,
-		"profile_service": profile_service,
-		"progress_service": progress,
-		"content_repository": repository,
-		"audio_service": null,
-		"effects_service": null,
-		"profile_id": profile_id,
-		"date": "2026-07-21",
-		"online": false,
-		"sync_queue_count": 0,
-	}
-
-	var profile_screen := await _mount(tree, ProfileSelectScene, shared_params)
-	assert_true(profile_screen.attempt_unlock(profile_id, "2468", 1000).ok)
-	assert_eq(router.calls.back().route, AppRouteScript.ISLAND)
-	var island := await _mount(tree, IslandScene, shared_params)
+	assert_eq(activation.route_params.journal, journal)
+	assert_eq(activation.route_params.progress_service, progress)
+	assert_false(activation.route_params.has("run_session"), "AppShell must leave per-run construction to ActivityRun")
+	assert_eq(shell.current_route(), AppRouteScript.ISLAND)
+	await tree.process_frame
+	var island: Control = _current_screen(shell)
 	island.open_free_play()
-	assert_eq(router.calls.back().route, AppRouteScript.FREE_PLAY)
-	var free_play := await _mount(tree, FreePlayScene, shared_params)
+	assert_eq(shell.current_route(), AppRouteScript.FREE_PLAY)
+	await tree.process_frame
+	var free_play: Control = _current_screen(shell)
 	var activity_button: Control = free_play.find_child("ActivityButton_0", true, false)
 	activity_button.accepted.emit()
-	assert_eq(router.calls.back().route, AppRouteScript.ACTIVITY_RUN)
-	var activity_params: Dictionary = router.calls.back().params.duplicate(false)
-	activity_params["journal"] = journal
-	activity_params["progress_service"] = progress
-	activity_params["question_engine"] = question_engine
-	activity_params["run_session"] = run_session
-	activity_params["seed"] = 42
-	var response_clock := FakeClockScript.new(10_000)
-	activity_params["response_clock"] = response_clock
-	var activity := await _mount(tree, ActivityRunScene, activity_params)
+	assert_eq(shell.current_route(), AppRouteScript.ACTIVITY_RUN)
+	await tree.process_frame
+	var activity: Control = _current_screen(shell)
 	assert_true(activity.introduction_visible())
 	assert_false(activity.can_answer())
 	activity.skip_introduction()
@@ -109,7 +88,7 @@ func run(tree: SceneTree) -> void:
 	assert_not_null(speaker)
 	assert_true(speaker.is_visible_in_tree())
 	var first_session_id: String = activity.session_id()
-	assert_eq(first_session_id, "offline-session-1")
+	assert_false(first_session_id.is_empty(), "ActivityRun did not construct its RunSession from activated dependencies")
 	assert_eq(activity.pinned_content_version(), "a-vertical-1")
 	var expected_answer_event_count := 0
 	var answer_counts_when_presented: Array[int] = []
@@ -151,39 +130,68 @@ func run(tree: SceneTree) -> void:
 				assert_eq(reward_overlay.preset_kind(), "reward")
 			reward_overlay.dismiss()
 			await tree.process_frame
+		if index == 1:
+			await _assert_persisted_reward_presets(tree, activity, journal, progress)
 
 	assert_eq(activity.current_state().health, 0)
 	assert_eq(activity.current_state().completion_reason, "health_depleted")
 	assert_eq(progress.snapshot().apples, 4)
 	assert_eq(progress.snapshot().pending_review, 3)
-	assert_eq(router.calls.back().mode, "replace")
-	assert_eq(router.calls.back().route, AppRouteScript.RESULT)
-	var result_params: Dictionary = router.calls.back().params.duplicate(false)
-	var result := await _mount(tree, RunResultScene, result_params)
+	assert_eq(shell.current_route(), AppRouteScript.RESULT)
+	var result: Control = _current_screen(shell)
 	assert_eq(result.reason(), "health_depleted")
 	assert_eq(result.earned_apples(), 4)
 	assert_eq(result.pending_review(), 3)
+	result.restart()
+	assert_eq(shell.current_route(), AppRouteScript.ACTIVITY_RUN)
+	await tree.process_frame
+	var restarted: Control = _current_screen(shell)
+	assert_ne(restarted.session_id(), first_session_id)
+	assert_eq(restarted.pinned_content_version(), "a-vertical-1")
+
+	activation.clear()
+	journal = null
+	progress = null
+	shell.queue_free()
+	await tree.process_frame
+	var restored_shell := await _mount_shell(tree, profile_service, profile_id, FakeClockScript.new(20_000))
+	assert_eq(restored_shell.current_route(), AppRouteScript.PROFILE_SELECT, "restart bypassed the PIN gate")
+	var restored_profile_screen: Control = _current_screen(restored_shell)
+	var restored_activation: Dictionary = restored_profile_screen.attempt_unlock(profile_id, "2468", 2000)
+	assert_true(restored_activation.ok)
+	assert_true(restored_activation.journal.get_script() == EventJournalScript)
+	assert_true(restored_activation.progress_service.get_script() == ProgressServiceScript)
+	assert_eq(restored_activation.snapshot.profile_id, profile_id)
+	await tree.process_frame
+	var restored_island: Control = _current_screen(restored_shell)
+	assert_eq(restored_island.apple_balance(), 4)
+	assert_eq(restored_island.pending_review_count(), 3)
+	restored_activation.clear()
+	restored_shell.queue_free()
+	await tree.process_frame
+	await _test_activity_persistence_failure_lock(tree, ContentRepositoryScript.new(), QuestionEngineScript.new())
+	profile_service.free()
+	await tree.process_frame
+	assert_false(FileAccess.file_exists(ProjectSettings.globalize_path(journal_path + ".partial.corrupt")))
+	_remove_tree(BASE_PATH)
+
+func _assert_persisted_reward_presets(tree: SceneTree, activity: Control, journal: RefCounted, progress: Node) -> void:
 	var collection_append: Dictionary = journal.append({
-		"client_timestamp": timestamp_provider.call(),
+		"client_timestamp": "2026-07-21T00:00:40Z",
 		"event_type": "collection_unlocked",
 		"collection_id": "ten_rod_cartographer",
 	})
 	assert_true(collection_append.ok)
-	assert_true(activity.has_method("present_persisted_reward_event"), "ActivityRun must accept committed reward events")
-	if activity.has_method("present_persisted_reward_event"):
-		assert_false(activity.present_persisted_reward_event(collection_append.event), "journal-only reward advanced presentation before progress commit")
+	assert_false(activity.present_persisted_reward_event(collection_append.event), "journal-only reward advanced presentation before progress commit")
 	assert_eq(progress.commit(collection_append.event), OK)
-	if activity.has_method("present_persisted_reward_event"):
-		assert_true(activity.present_persisted_reward_event(collection_append.event))
+	assert_true(activity.present_persisted_reward_event(collection_append.event))
 	var collection_overlay: Control = activity.find_child("RewardOverlay", true, false)
 	assert_not_null(collection_overlay)
-	if collection_overlay != null and collection_overlay.has_method("preset_kind"):
-		assert_eq(collection_overlay.preset_kind(), "collection")
-	if collection_overlay != null:
-		collection_overlay.dismiss()
-		await tree.process_frame
+	assert_eq(collection_overlay.preset_kind(), "collection")
+	collection_overlay.dismiss()
+	await tree.process_frame
 	var coupon_append: Dictionary = journal.append({
-		"client_timestamp": timestamp_provider.call(),
+		"client_timestamp": "2026-07-21T00:00:41Z",
 		"event_type": "coupon_earned",
 		"coupon_id": "island_ferry_pass",
 	})
@@ -191,50 +199,31 @@ func run(tree: SceneTree) -> void:
 	assert_eq(progress.commit(coupon_append.event), OK)
 	var forged_coupon: Dictionary = coupon_append.event.duplicate(true)
 	forged_coupon.coupon_id = "forged_coupon"
-	if activity.has_method("present_persisted_reward_event"):
-		assert_false(activity.present_persisted_reward_event(forged_coupon), "an event absent from the durable journal reached presentation")
-		assert_true(activity.present_persisted_reward_event(coupon_append.event))
+	assert_false(activity.present_persisted_reward_event(forged_coupon), "an event absent from the durable journal reached presentation")
+	assert_true(activity.present_persisted_reward_event(coupon_append.event))
 	var coupon_overlay: Control = activity.find_child("RewardOverlay", true, false)
 	assert_not_null(coupon_overlay)
-	if coupon_overlay != null and coupon_overlay.has_method("preset_kind"):
-		assert_eq(coupon_overlay.preset_kind(), "coupon")
-	if coupon_overlay != null:
-		coupon_overlay.dismiss()
-		await tree.process_frame
-	result.restart()
-	assert_eq(router.calls.back().route, AppRouteScript.ACTIVITY_RUN)
-	var restart_params: Dictionary = router.calls.back().params.duplicate(false)
-	assert_eq(restart_params.content_version, "a-vertical-1")
-	var restarted := await _mount(tree, ActivityRunScene, restart_params)
-	assert_ne(restarted.session_id(), first_session_id)
-	assert_eq(restarted.pinned_content_version(), "a-vertical-1")
+	assert_eq(coupon_overlay.preset_kind(), "coupon")
+	coupon_overlay.dismiss()
+	await tree.process_frame
 
-	for node in [profile_screen, island, free_play, activity, result, restarted]:
-		node.queue_free()
+func _mount_shell(tree: SceneTree, profile_service: Node, profile_id: String, response_clock: RefCounted) -> Control:
+	var shell: Control = AppShellScene.instantiate()
+	assert_true(shell.configure_dependencies({
+		"profile_service": profile_service,
+		"device_id": DEVICE_ID,
+		"audio_service": TestAudioService.new(),
+		"effects_service": null,
+		"progress_factory": func(): return ProgressServiceScript.new(AtomicJsonStoreScript.new("%s/%s" % [BASE_PATH, profile_id])),
+		"journal_path_builder": func(candidate_profile_id: String): return "%s/%s/events.jsonl" % [BASE_PATH, candidate_profile_id],
+		"response_clock": response_clock,
+	}))
+	tree.root.add_child(shell)
 	await tree.process_frame
-	var restarted_journal := EventJournalScript.new()
-	assert_true(restarted_journal.configure(profile_id, DEVICE_ID, journal_path).ok)
-	var restarted_progress := ProgressServiceScript.new(AtomicJsonStoreScript.new("%s/%s" % [BASE_PATH, profile_id]))
-	assert_true(restarted_progress.load_profile(profile_id, restarted_journal).ok)
-	var restarted_island_params := shared_params.duplicate(false)
-	restarted_island_params["progress_service"] = restarted_progress
-	var restored_island := await _mount(tree, IslandScene, restarted_island_params)
-	assert_eq(restored_island.apple_balance(), 4)
-	assert_eq(restored_island.pending_review_count(), 3)
-	restored_island.queue_free()
-	await tree.process_frame
-	await _test_activity_persistence_failure_lock(tree, repository, question_engine)
-	router.calls.clear()
-	shared_params.clear()
-	activity_params.clear()
-	result_params.clear()
-	restart_params.clear()
-	restarted_island_params.clear()
-	profile_service.free()
-	progress.free()
-	restarted_progress.free()
-	await tree.process_frame
-	_remove_tree(BASE_PATH)
+	return shell
+
+func _current_screen(shell: Control) -> Control:
+	return shell.route_host.get_child(shell.route_host.get_child_count() - 1) as Control
 
 func _test_activity_persistence_failure_lock(tree: SceneTree, repository: RefCounted, question_engine: RefCounted) -> void:
 	for case in [

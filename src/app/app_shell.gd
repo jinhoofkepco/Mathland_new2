@@ -133,7 +133,7 @@ func _bootstrap_default_experience() -> void:
 	_router.navigate(AppRouteScript.PROFILE_SELECT, _base_route_params())
 
 func _base_route_params(profile_id: String = "") -> Dictionary:
-	return {
+	var params := {
 		"router": weakref(_router),
 		"profile_service": _profile_service,
 		"profile_activator": weakref(self),
@@ -147,6 +147,9 @@ func _base_route_params(profile_id: String = "") -> Dictionary:
 		"online": false,
 		"sync_queue_count": 0,
 	}
+	if _dependency_overrides.has("response_clock"):
+		params["response_clock"] = _dependency_overrides.response_clock
+	return params
 
 func _replace_progress_service(next_progress: Node) -> void:
 	var previous: Variant = _progress_service
