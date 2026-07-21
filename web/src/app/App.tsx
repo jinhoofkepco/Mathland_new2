@@ -1,4 +1,18 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Link, Route, Routes } from "react-router-dom";
+
+import { AuthCallbackPage } from "../auth/AuthCallbackPage";
+import { LoginPage } from "../auth/LoginPage";
+import { RequireRole } from "../auth/require_role";
+import { RequireSession } from "../auth/require_session";
+import { DashboardPage } from "../dashboard/DashboardPage";
+import { DataControlsPage } from "../data/DataControlsPage";
+import { DevicesPage } from "../devices/DevicesPage";
+import { AppLayout } from "../layout/AppLayout";
+
+const DraftEditorPage = lazy(() => import("../studio/DraftEditorPage").then((module) => ({ default: module.DraftEditorPage })));
+const HistoryPage = lazy(() => import("../studio/HistoryPage").then((module) => ({ default: module.HistoryPage })));
+const StudioPage = lazy(() => import("../studio/StudioPage").then((module) => ({ default: module.StudioPage })));
 
 function WelcomePage() {
   return (
@@ -34,13 +48,11 @@ function WelcomePage() {
   );
 }
 
-function LoginPlaceholder() {
+function ProtectedPage({ children }: { children: ReactNode }) {
   return (
-    <main id="main-content" className="simple-page">
-      <Link to="/">← 돌아가기</Link>
-      <h1>보호자 로그인</h1>
-      <p>안전한 이메일 링크로 로그인합니다.</p>
-    </main>
+    <RequireSession>
+      <AppLayout>{children}</AppLayout>
+    </RequireSession>
   );
 }
 
@@ -50,10 +62,42 @@ export function App() {
       <a className="skip-link" href="#main-content">
         본문으로 바로가기
       </a>
+      <Suspense fallback={<main className="state-page" aria-busy="true">화면을 준비하는 중…</main>}>
       <Routes>
         <Route path="/" element={<WelcomePage />} />
-        <Route path="/login" element={<LoginPlaceholder />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/dashboard" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+        <Route path="/dashboard/:familyId/:profileId" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
+        <Route path="/devices" element={<ProtectedPage><DevicesPage /></ProtectedPage>} />
+        <Route path="/data" element={<ProtectedPage><DataControlsPage /></ProtectedPage>} />
+        <Route
+          path="/studio"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["editor", "owner"]}><StudioPage /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route
+          path="/studio/drafts/:draftId"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["editor", "owner"]}><DraftEditorPage /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route
+          path="/studio/history"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["owner"]}><HistoryPage /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route path="*" element={<main className="state-page"><h1>화면을 찾을 수 없습니다</h1><Link to="/">처음으로</Link></main>} />
       </Routes>
+      </Suspense>
     </>
   );
 }

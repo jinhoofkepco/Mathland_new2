@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("/node_modules/@supabase/")) return "cloud-vendor";
+            if (/\/node_modules\/(?:react|react-dom|react-router|react-router-dom|scheduler)\//u.test(id)) return "react-vendor";
+            if (id.includes("/node_modules/zod/")) return "validation-vendor";
+            return undefined;
+          },
+        },
+      },
     },
   };
 });

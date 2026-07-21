@@ -80,4 +80,28 @@ describe("SupabaseCloud", () => {
       /list children/i,
     );
   });
+
+  it("loads publication history only through the function boundary", async () => {
+    const invoke = vi.fn(async () => ({
+      data: [{
+        id: "40000000-0000-4000-8000-000000000001",
+        activityId: "addition_ones",
+        contentVersion: "1.0.0",
+        checksum: `sha256:${"a".repeat(64)}`,
+        status: "active",
+        publishedAt: "2030-01-01T00:00:00.000Z",
+        effectiveAt: "2030-01-01T00:00:00.000Z",
+        publishedBy: "00000000-0000-4000-8000-000000000001",
+        sourceRevision: 3,
+        rollbackOfId: null,
+        reason: "첫 배포",
+        validationValid: true,
+      }],
+      error: null,
+    }));
+    const client = { functions: { invoke } } as unknown as SupabaseClient;
+
+    await expect(new SupabaseCloud(client).listPublicationHistory("addition_ones")).resolves.toHaveLength(1);
+    expect(invoke).toHaveBeenCalledWith("content-history", { body: { activityId: "addition_ones" } });
+  });
 });

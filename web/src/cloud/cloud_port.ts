@@ -4,6 +4,8 @@ import type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
+  DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -11,7 +13,7 @@ import type {
   SaveDraftInput,
   SessionState,
   ValidationReportWire,
-} from "@mathland/contracts";
+} from "@mathland/contracts/cloud";
 
 export type {
   AiPatchResult,
@@ -19,6 +21,8 @@ export type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
+  DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -27,7 +31,7 @@ export type {
   SaveDraftInput,
   SessionState,
   ValidationReportWire,
-} from "@mathland/contracts";
+} from "@mathland/contracts/cloud";
 
 export interface CloudPort {
   session(): Promise<SessionState>;
@@ -43,11 +47,13 @@ export interface CloudPort {
   listDrafts(): Promise<ContentDraftSummary[]>;
   loadDraft(draftId: string): Promise<ContentDraft>;
   saveDraft(input: SaveDraftInput): Promise<ContentDraft>;
-  validateDraft(draftId: string): Promise<ValidationReportWire>;
-  publishDraft(draftId: string, expectedRevision: number): Promise<ContentPublication>;
-  rollbackPublication(
-    activityId: string,
-    contentVersion: string,
+  validateDraft(draftId: string, packageDraft?: ContentDraft["package"]): Promise<ValidationReportWire>;
+  publishDraft(
+    draftId: string,
+    expectedRevision: number,
+    options?: { effectiveAt?: string; reason?: string },
   ): Promise<ContentPublication>;
+  listPublicationHistory(activityId?: string): Promise<ContentPublicationHistoryItem[]>;
+  rollbackPublication(publicationId: string, reason: string): Promise<ContentPublication>;
   requestAiPatch(draftId: string, instruction: string): Promise<AiPatchResult>;
 }

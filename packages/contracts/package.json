@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./content": "./src/content/index.ts"
+    "./cloud": "./src/cloud/index.ts",
+    "./content": "./src/content/index.ts",
+    "./content/ids": "./src/content/ids.ts",
+    "./content/schema": "./src/content/schema.ts"
   },
   "scripts": {
     "test": "vitest run",
