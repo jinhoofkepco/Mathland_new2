@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 
+import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,8 +9,28 @@ import {
   ContentManifestV1Schema,
   generateContentJsonSchemas,
   renderJsonSchema,
+  type ActivityPackageV1,
 } from "../../src/index.js";
 import { makeAllPublishedPackages, makePublished, makeValidDraft, makeValidManifest } from "./package_fixture.js";
+
+async function compileCheckedInActivitySchema(): Promise<ValidateFunction> {
+  const schemaUrl = new URL(
+    "../../src/content/activity-package-v1.schema.json",
+    import.meta.url,
+  );
+  const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  ajv.addKeyword({
+    keyword: "x-mathland-semantic-validation",
+    schemaType: "array",
+    valid: true,
+  });
+  return ajv.compile(schema);
+}
+
+function validationErrors(validate: ValidateFunction): string {
+  return JSON.stringify(validate.errors, null, 2);
+}
 
 describe("content package schemas", () => {
   it("accepts the strict draft and published package shapes", () => {
@@ -78,5 +99,69 @@ describe("checked-in JSON Schemas", () => {
       expect(JSON.parse(checkedIn)).toEqual(schema);
       expect(checkedIn).toBe(renderJsonSchema(schema));
     }
+  });
+
+  it.each([
+    [
+      "short combo_thresholds",
+      (value: ActivityPackageV1) => ({
+        ...value,
+        run: { ...value.run, combo_thresholds: value.run.combo_thresholds.slice(0, 2) },
+      }),
+    ],
+    [
+      "long combo_thresholds",
+      (value: ActivityPackageV1) => ({
+        ...value,
+        run: { ...value.run, combo_thresholds: [...value.run.combo_thresholds, 9] },
+      }),
+    ],
+    [
+      "short difficulty_bands",
+      (value: ActivityPackageV1) => ({
+        ...value,
+        difficulty_bands: value.difficulty_bands.slice(0, 2),
+      }),
+    ],
+    [
+      "long difficulty_bands",
+      (value: ActivityPackageV1) => ({
+        ...value,
+        difficulty_bands: [...value.difficulty_bands, value.difficulty_bands[2]],
+      }),
+    ],
+  ])("reject %s through a Draft 2020-12 validator", async (_label, makeInvalid) => {
+    const validate = await compileCheckedInActivitySchema();
+
+    const validPackage = makePublished();
+    expect(validate(validPackage), validationErrors(validate)).toBe(true);
+    expect(validate(makeInvalid(validPackage)), validationErrors(validate)).toBe(false);
+  });
+
+  it.each([
+    ["title leading whitespace", "title", " 덧셈"],
+    ["title trailing whitespace", "title", "덧셈 "],
+    ["title whitespace only", "title", "   "],
+    ["description leading whitespace", "description", " 설명"],
+    ["description trailing whitespace", "description", "설명 "],
+    ["description whitespace only", "description", "\t"],
+    ["tutorial leading whitespace", "tutorial_steps", " 단계"],
+    ["tutorial trailing whitespace", "tutorial_steps", "단계 "],
+    ["tutorial whitespace only", "tutorial_steps", "\n"],
+  ] as const)("rejects %s through a Draft 2020-12 validator", async (_label, field, badText) => {
+    const validate = await compileCheckedInActivitySchema();
+    const validPackage = makePublished();
+    const localization = validPackage.localizations["ko-KR"];
+    const invalidLocalization =
+      field === "tutorial_steps"
+        ? { ...localization, tutorial_steps: [badText] }
+        : { ...localization, [field]: badText };
+    const invalidPackage = {
+      ...validPackage,
+      localizations: { "ko-KR": invalidLocalization },
+    };
+
+    expect(validate(validPackage), validationErrors(validate)).toBe(true);
+    expect(validate(invalidPackage), validationErrors(validate)).toBe(false);
   });
 });

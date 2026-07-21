@@ -8,20 +8,24 @@ export type ContentJsonSchemaFileName =
 export type JsonSchemaDocument = Record<string, unknown>;
 
 export function generateContentJsonSchemas(): Record<ContentJsonSchemaFileName, JsonSchemaDocument> {
+  const activityPackageSchema = decorateSchema(
+    z.toJSONSchema(ActivityPackageV1Schema, { target: "draft-2020-12" }),
+    "https://mathland.local/schemas/activity-package-v1.schema.json",
+    "MathLand Activity Package v1",
+    [
+      "activity generator matches activity_id",
+      "combo thresholds strictly increase",
+      "adaptive bounds reference ordered bands and default off",
+      "each band includes validation seeds 1, 7, 42, and 20260721",
+      "tuning strings are identifiers, not paths, URLs, or executable code",
+      "checksum equals SHA-256 of canonical JSON without the root checksum",
+    ],
+  );
+  closeTuple(activityPackageSchema, ["properties", "run", "properties", "combo_thresholds"], 3);
+  closeTuple(activityPackageSchema, ["properties", "difficulty_bands"], 3);
+
   return {
-    "activity-package-v1.schema.json": decorateSchema(
-      z.toJSONSchema(ActivityPackageV1Schema, { target: "draft-2020-12" }),
-      "https://mathland.local/schemas/activity-package-v1.schema.json",
-      "MathLand Activity Package v1",
-      [
-        "activity generator matches activity_id",
-        "combo thresholds strictly increase",
-        "adaptive bounds reference ordered bands and default off",
-        "each band includes validation seeds 1, 7, 42, and 20260721",
-        "tuning strings are identifiers, not paths, URLs, or executable code",
-        "checksum equals SHA-256 of canonical JSON without the root checksum",
-      ],
-    ),
+    "activity-package-v1.schema.json": activityPackageSchema,
     "content-manifest-v1.schema.json": decorateSchema(
       z.toJSONSchema(ContentManifestV1Schema, { target: "draft-2020-12" }),
       "https://mathland.local/schemas/content-manifest-v1.schema.json",
@@ -33,6 +37,23 @@ export function generateContentJsonSchemas(): Record<ContentJsonSchemaFileName, 
       ],
     ),
   };
+}
+
+function closeTuple(schema: JsonSchemaDocument, path: readonly string[], length: number): void {
+  let node = schema;
+  for (const segment of path) {
+    const child = node[segment];
+    if (child === null || typeof child !== "object" || Array.isArray(child)) {
+      throw new TypeError(`Expected JSON Schema object at ${path.join(".")}`);
+    }
+    node = child as JsonSchemaDocument;
+  }
+  if (!Array.isArray(node.prefixItems) || node.prefixItems.length !== length) {
+    throw new TypeError(`Expected ${length} prefixItems at ${path.join(".")}`);
+  }
+  node.minItems = length;
+  node.maxItems = length;
+  node.items = false;
 }
 
 export function renderJsonSchema(schema: JsonSchemaDocument): string {

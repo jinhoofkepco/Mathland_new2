@@ -15,6 +15,7 @@ export const SHA256_CHECKSUM_PATTERN = /^sha256:[0-9a-f]{64}$/;
 export const PACKAGE_PATH_PATTERN = new RegExp(
   `^content/packages/(?:${ACTIVITY_IDS.join("|")})/(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.json$`,
 );
+const NONEMPTY_TRIMMED_PATTERN = /^\S(?:[\s\S]*\S)?$/u;
 
 const SafeIntegerSchema = z.int();
 const PositiveIntegerSchema = z.int().positive();
@@ -27,7 +28,7 @@ function trimmedText(maxLength: number) {
     .string()
     .min(1)
     .max(maxLength)
-    .refine((value) => value === value.trim(), "Text must not have leading or trailing whitespace");
+    .regex(NONEMPTY_TRIMMED_PATTERN, "Text must not have leading or trailing whitespace");
 }
 
 const AnswerValueV1Schema = z.discriminatedUnion("kind", [
