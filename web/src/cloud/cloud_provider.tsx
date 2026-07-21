@@ -20,7 +20,15 @@ export interface CloudProviderProps extends PropsWithChildren {
 
 export function CloudProvider({ cloud, children }: CloudProviderProps) {
   const value = useMemo(
-    () => cloud ?? createCloud(parseRuntimeEnv(import.meta.env)),
+    () =>
+      cloud ??
+      createCloud(
+        parseRuntimeEnv({
+          VITE_MATHLAND_CLOUD_MODE: import.meta.env.VITE_MATHLAND_CLOUD_MODE,
+          VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+          VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        }),
+      ),
     [cloud],
   );
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;

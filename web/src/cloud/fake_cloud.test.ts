@@ -22,6 +22,9 @@ const dataset: FakeCloudDataset = {
         { runId: "run-new", profileId: "child-a1", startedAt: "2026-07-21T07:50:00.000Z", score: 9 },
         { runId: "run-old", profileId: "child-a2", startedAt: "2026-07-20T06:00:00.000Z", score: 7 },
       ],
+      activities: [],
+      errors: [],
+      rewards: [],
     },
   },
 };

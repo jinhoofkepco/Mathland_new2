@@ -1,11 +1,16 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
-export default defineConfig({
-  base: "/Mathland_new2/",
-  plugins: [react()],
-  build: {
-    outDir: "dist",
-    sourcemap: true,
-  },
+import { assertSafeClientEnvKeys } from "./src/config/runtime_env";
+
+export default defineConfig(({ mode }) => {
+  assertSafeClientEnvKeys(loadEnv(mode, process.cwd(), ""));
+  return {
+    base: "/Mathland_new2/",
+    plugins: [react()],
+    build: {
+      outDir: "dist",
+      sourcemap: true,
+    },
+  };
 });

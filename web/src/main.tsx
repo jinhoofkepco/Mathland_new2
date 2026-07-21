@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
 
 import { App } from "./app/App";
+import { MathLandRouter } from "./app/router";
 import "./styles/tokens.css";
 import "./styles/global.css";
 
@@ -14,8 +14,8 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <MathLandRouter>
       <App />
-    </BrowserRouter>
+    </MathLandRouter>
   </StrictMode>,
 );

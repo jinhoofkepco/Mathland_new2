@@ -43,4 +43,22 @@ describe("parseRuntimeEnv", () => {
   it("supports an explicit credential-free fake mode", () => {
     expect(parseRuntimeEnv({ VITE_MATHLAND_CLOUD_MODE: "fake" })).toEqual({ mode: "fake" });
   });
+
+  it.each(["VITE_SUPABASE_SERVICE_ROLE_KEY", "VITE_OPENAI_API_KEY", "VITE_AI_SECRET"])(
+    "rejects forbidden client environment names even in fake mode: %s",
+    (name) => {
+      expect(() =>
+        parseRuntimeEnv({ VITE_MATHLAND_CLOUD_MODE: "fake", [name]: "must-not-bundle" }),
+      ).toThrow(/not allowed in the browser/i);
+    },
+  );
+
+  it("rejects cloud credentials left behind while fake mode is selected", () => {
+    expect(() =>
+      parseRuntimeEnv({
+        VITE_MATHLAND_CLOUD_MODE: "fake",
+        VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_accidental-key",
+      }),
+    ).toThrow(/fake mode/i);
+  });
 });
