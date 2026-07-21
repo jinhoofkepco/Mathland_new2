@@ -7,6 +7,8 @@ func run(tree: SceneTree) -> void:
 	await _test_bounds_reset_and_invalid_state_are_contained(tree)
 
 func _test_state_visuals_submission_and_interaction_lock(tree: SceneTree) -> void:
+	var prior_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("ko")
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(360, 800)
 	tree.root.add_child(viewport)
@@ -69,6 +71,7 @@ func _test_state_visuals_submission_and_interaction_lock(tree: SceneTree) -> voi
 			assert_true(action.size.x >= 48.0 and action.size.y >= 48.0)
 	viewport.queue_free()
 	await tree.process_frame
+	TranslationServer.set_locale(prior_locale)
 
 func _test_bounds_reset_and_invalid_state_are_contained(tree: SceneTree) -> void:
 	var board: Control = TenRodBoardScene.instantiate()
