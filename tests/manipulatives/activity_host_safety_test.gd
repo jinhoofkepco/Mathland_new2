@@ -244,11 +244,12 @@ func _test_internal_tactile_sfx_reaches_host_audio(tree: SceneTree) -> void:
 		tree.root.add_child(screen)
 		await tree.process_frame
 		var root: Control = screen.find_child("Manipulative", true, false)
-		var button := _first_sfx_control(root)
-		assert_not_null(button, manipulative_id)
-		if button != null:
-			button.emit_signal("sfx_requested", &"button_down")
-		assert_eq(audio.played, [&"button_down"], manipulative_id)
+		var controls := _sfx_controls(root)
+		assert_true(not controls.is_empty(), manipulative_id)
+		for control in controls:
+			audio.played.clear()
+			control.emit_signal("sfx_requested", &"button_down")
+			assert_eq(audio.played, [&"button_down"], "%s/%s" % [manipulative_id, control.name])
 		screen.queue_free()
 		await tree.process_frame
 
@@ -265,11 +266,12 @@ func _test_internal_tactile_sfx_reaches_host_audio(tree: SceneTree) -> void:
 		tree.root.add_child(screen)
 		await tree.process_frame
 		var root: Control = screen.find_child("AnswerInput", true, false)
-		var button := _first_sfx_control(root)
-		assert_not_null(button, layout_id)
-		if button != null:
-			button.emit_signal("sfx_requested", &"button_down")
-		assert_eq(audio.played, [&"button_down"], layout_id)
+		var controls := _sfx_controls(root)
+		assert_true(not controls.is_empty(), layout_id)
+		for control in controls:
+			audio.played.clear()
+			control.emit_signal("sfx_requested", &"button_down")
+			assert_eq(audio.played, [&"button_down"], "%s/%s" % [layout_id, control.name])
 		screen.queue_free()
 		await tree.process_frame
 
@@ -371,12 +373,13 @@ func _manipulative_config(id: String) -> Dictionary:
 	return {}
 
 
-func _first_sfx_control(root: Node) -> Control:
+func _sfx_controls(root: Node) -> Array[Control]:
+	var result: Array[Control] = []
 	if root == null:
-		return null
+		return result
 	if root is Control and root.has_signal("sfx_requested"):
-		return root
+		result.append(root)
 	for candidate in root.find_children("*", "Control", true, false):
 		if candidate.has_signal("sfx_requested"):
-			return candidate
-	return null
+			result.append(candidate)
+	return result

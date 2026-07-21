@@ -459,14 +459,15 @@ func _build_ui() -> void:
 	body.add_child(_answer_input_host)
 	_build_introduction()
 
-func _register_tactile_descendants(parent: Node) -> void:
-	for child in parent.get_children():
-		if child is Control and child.has_signal("accepted") and "reduced_motion" in child:
-			if _ui_policy != null and _ui_policy.has_method("register_tactile"):
-				_ui_policy.register_tactile(child)
-			if _audio_service != null and _audio_service.has_method("play_sfx") and child.has_signal("sfx_requested"):
-				child.sfx_requested.connect(func(sfx_id: StringName): _audio_service.play_sfx(sfx_id))
-		_register_tactile_descendants(child)
+func _register_dynamic_tactile_tree(root: Node) -> void:
+	if root == null:
+		return
+	if root.is_node_ready():
+		_register_tactile_tree(root)
+		return
+	var ready_callback := Callable(self, "_register_tactile_tree").bind(root)
+	if not root.ready.is_connected(ready_callback):
+		root.ready.connect(ready_callback, CONNECT_ONE_SHOT)
 
 func _build_introduction() -> void:
 	_introduction = ColorRect.new()
@@ -521,7 +522,7 @@ func _prepare_question_controls(question: Dictionary) -> bool:
 		_board.configure({"maximum": 99}, question)
 		_board.answer_submitted.connect(_on_board_answer)
 		_manipulative = _board
-		_register_tactile_descendants(_board)
+		_register_dynamic_tactile_tree(_board)
 		_manipulative_host.visible = true
 		_answer_input_host.visible = false
 		return true
@@ -544,7 +545,7 @@ func _prepare_question_controls(question: Dictionary) -> bool:
 		_manipulative_host.add_child(_manipulative)
 		var config: Variant = manipulative_data.get("config", {})
 		_manipulative.configure(config if config is Dictionary else {}, question)
-		_register_tactile_tree(_manipulative)
+		_register_dynamic_tactile_tree(_manipulative)
 		if layout_id == &"manipulative_submit":
 			_manipulative.answer_submitted.connect(_on_board_answer)
 	if layout_id != &"manipulative_submit":
@@ -556,14 +557,10 @@ func _prepare_question_controls(question: Dictionary) -> bool:
 		_answer_input.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_answer_input_host.add_child(_answer_input)
 		_answer_input.configure(question)
-		_register_tactile_tree(_answer_input)
+		_register_dynamic_tactile_tree(_answer_input)
 		_answer_input.answer_submitted.connect(_on_board_answer)
 	_manipulative_host.visible = _manipulative != null
 	_answer_input_host.visible = _answer_input != null
-	if _manipulative != null:
-		_register_tactile_descendants(_manipulative)
-	if _answer_input != null:
-		_register_tactile_descendants(_answer_input)
 	return true
 
 func _clear_presentation_controls() -> void:
