@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/ui/profile/profile_create_dialog.gd" id="1_dialog"]
 
-[node name="ProfileCreateDialog" type="Control"]
+[node name="ProfileCreateDialog" type="Control" unique_id=1]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

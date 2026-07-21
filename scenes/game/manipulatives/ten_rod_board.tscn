@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/game/manipulatives/ten_rod_board.gd" id="1_board"]
 
-[node name="TenRodBoard" type="Control"]
+[node name="TenRodBoard" type="Control" unique_id=1]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
