@@ -15,12 +15,11 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 
 select lives_ok(
   $$insert into public.content_drafts (
-      id, activity_id, title, package, created_by, updated_by
+      activity_id, title, package
     ) values (
-      '60000000-0000-4000-8000-000000000001', 'foundation_ten_rods', '10막대', '{}',
-      '00000000-0000-4000-8000-000000000021', '00000000-0000-4000-8000-000000000021'
+      'foundation_ten_rods', '10막대', '{}'
     )$$,
-  'editor can create a draft'
+  'editor can create a draft without controlling server metadata'
 );
 select throws_like(
   $$insert into public.content_publications (
@@ -29,8 +28,8 @@ select throws_like(
       'foundation_ten_rods', '1.0.0', '70000000-0000-4000-8000-000000000001',
       '00000000-0000-4000-8000-000000000021'
     )$$,
-  '%row-level security%',
-  'editor cannot publish content'
+  '%permission denied%',
+  'editor cannot bypass the server publication workflow'
 );
 
 reset role;
@@ -44,14 +43,15 @@ insert into public.content_versions (
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000022', true);
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000022","app_metadata":{"role":"owner"}}', true);
-select lives_ok(
+select throws_like(
   $$insert into public.content_publications (
       activity_id, content_version, version_id, published_by
     ) values (
       'foundation_ten_rods', '1.0.0', '70000000-0000-4000-8000-000000000001',
       '00000000-0000-4000-8000-000000000022'
     )$$,
-  'owner can publish a validated immutable version'
+  '%permission denied%',
+  'owner must publish through the service-role validation workflow'
 );
 
 select * from finish();
