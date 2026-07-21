@@ -6,6 +6,10 @@
   "scripts": {
     "test:contracts": "npm --workspace @mathland/contracts test --",
     "test:content-tools": "npm --workspace @mathland/contracts test --",
+    "test:web": "npm --workspace web test --",
+    "test:e2e": "npm --workspace web run test:e2e",
+    "typecheck": "npm --workspaces --if-present run typecheck",
+    "build:web": "npm --workspace web run build",
     "validate:content": "tsx tools/content/validate_content.ts --manifest content/active-manifest.json",
     "build:content": "tsx tools/content/build_content.ts",
     "sync:audio-assets": "node tools/assets/sync_audio_asset_manifest.mjs",
