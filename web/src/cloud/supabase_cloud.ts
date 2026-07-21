@@ -317,8 +317,15 @@ export class SupabaseCloud implements CloudPort {
     return this.invoke("save-draft", input, ContentDraftSchema);
   }
 
-  async validateDraft(draftId: string): Promise<ValidationReportWire> {
-    return this.invoke("validate-draft", { draftId }, ValidationReportWireSchema);
+  async validateDraft(
+    draftId: string,
+    packageDraft?: ContentDraft["package"],
+  ): Promise<ValidationReportWire> {
+    return this.invoke(
+      "validate-draft",
+      packageDraft ? { draftId, package: packageDraft } : { draftId },
+      ValidationReportWireSchema,
+    );
   }
 
   async publishDraft(

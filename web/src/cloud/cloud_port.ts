@@ -45,7 +45,7 @@ export interface CloudPort {
   listDrafts(): Promise<ContentDraftSummary[]>;
   loadDraft(draftId: string): Promise<ContentDraft>;
   saveDraft(input: SaveDraftInput): Promise<ContentDraft>;
-  validateDraft(draftId: string): Promise<ValidationReportWire>;
+  validateDraft(draftId: string, packageDraft?: ContentDraft["package"]): Promise<ValidationReportWire>;
   publishDraft(draftId: string, expectedRevision: number): Promise<ContentPublication>;
   rollbackPublication(
     activityId: string,

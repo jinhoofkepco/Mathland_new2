@@ -167,7 +167,7 @@ export class FakeCloud implements CloudPort {
     return clone(next);
   }
 
-  async validateDraft(draftId: string): Promise<ValidationReportWire> {
+  async validateDraft(draftId: string, _packageDraft?: ContentDraft["package"]): Promise<ValidationReportWire> {
     await this.loadDraft(draftId);
     return { valid: true, issues: [], samples: [] };
   }

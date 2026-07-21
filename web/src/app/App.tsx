@@ -8,6 +8,8 @@ import { DashboardPage } from "../dashboard/DashboardPage";
 import { DataControlsPage } from "../data/DataControlsPage";
 import { DevicesPage } from "../devices/DevicesPage";
 import { AppLayout } from "../layout/AppLayout";
+import { DraftEditorPage } from "../studio/DraftEditorPage";
+import { StudioPage } from "../studio/StudioPage";
 
 function WelcomePage() {
   return (
@@ -43,12 +45,12 @@ function WelcomePage() {
   );
 }
 
-function StudioPlaceholder() {
+function HistoryPlaceholder() {
   return (
     <main id="main-content" className="management-page">
-      <p className="eyebrow">현장에서 바로 바꾸는 활동 설정</p>
-      <h1>콘텐츠 스튜디오</h1>
-      <p>검증된 초안만 저장·미리보기·배포할 수 있습니다.</p>
+      <p className="eyebrow">변경 이력을 지우지 않는 안전장치</p>
+      <h1>콘텐츠 배포 이력</h1>
+      <p>검증·배포·롤백 기록은 감사 로그와 함께 표시됩니다.</p>
     </main>
   );
 }
@@ -76,10 +78,26 @@ export function App() {
         <Route path="/devices" element={<ProtectedPage><DevicesPage /></ProtectedPage>} />
         <Route path="/data" element={<ProtectedPage><DataControlsPage /></ProtectedPage>} />
         <Route
-          path="/studio/*"
+          path="/studio"
           element={
             <ProtectedPage>
-              <RequireRole allow={["editor", "owner"]}><StudioPlaceholder /></RequireRole>
+              <RequireRole allow={["editor", "owner"]}><StudioPage /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route
+          path="/studio/drafts/:draftId"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["editor", "owner"]}><DraftEditorPage /></RequireRole>
+            </ProtectedPage>
+          }
+        />
+        <Route
+          path="/studio/history"
+          element={
+            <ProtectedPage>
+              <RequireRole allow={["owner"]}><HistoryPlaceholder /></RequireRole>
             </ProtectedPage>
           }
         />
