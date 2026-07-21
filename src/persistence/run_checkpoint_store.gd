@@ -72,14 +72,14 @@ func load(profile_id: String, expected_content_version: String = "") -> Dictiona
 	if not UuidV4Script.is_valid(profile_id):
 		return {"ok": false, "error": "invalid_profile_id"}
 	var final_path := _file_path(profile_id)
-	if _file_exists(final_path):
-		var file := FileAccess.open(final_path, FileAccess.READ)
-		if file == null:
-			return {"ok": false, "error": "read_failed"}
-		var length := file.get_length()
-		file.close()
-		if length > MAX_FILE_BYTES:
-			return _invalid_checkpoint(profile_id)
+	var backup_path := "%s.bak" % final_path
+	var readable_path := final_path if _file_exists(final_path) else backup_path
+	if _file_exists(readable_path):
+		var size_check := _file_size_is_safe(readable_path)
+		if not size_check.get("ok", false):
+			if size_check.get("error") == "checkpoint_too_large":
+				return _invalid_checkpoint(profile_id, readable_path)
+			return size_check
 	var store := AtomicJsonStoreScript.new(_profile_path(profile_id))
 	var loaded: Dictionary = store.load(FILE_NAME)
 	if not loaded.get("ok", false):
@@ -114,13 +114,40 @@ func delete(profile_id: String) -> Dictionary:
 		return {"ok": false, "error": "checkpoint_delete_failed"}
 	return {"ok": true}
 
-func _invalid_checkpoint(profile_id: String) -> Dictionary:
+func quarantine(profile_id: String) -> Dictionary:
+	if not UuidV4Script.is_valid(profile_id):
+		return {"ok": false, "error": "invalid_profile_id"}
+	var final_path := _file_path(profile_id)
+	var source_path := final_path if _file_exists(final_path) else "%s.bak" % final_path
+	if not _file_exists(source_path):
+		return {"ok": false, "error": "not_found"}
 	var quarantine_path := "%s.corrupt" % _file_path(profile_id)
 	if _file_exists(quarantine_path) and _remove_path(quarantine_path) != OK:
 		return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
-	if not _file_exists(_file_path(profile_id)) or _rename_path(_file_path(profile_id), quarantine_path) != OK:
+	if _rename_path(source_path, quarantine_path) != OK:
 		return {"ok": false, "error": "quarantine_failed", "quarantine_path": quarantine_path}
+	return {"ok": true, "quarantine_path": quarantine_path}
+
+func _invalid_checkpoint(profile_id: String, source_path: String = "") -> Dictionary:
+	var quarantined: Dictionary
+	if source_path.is_empty() or source_path == _file_path(profile_id) or source_path == "%s.bak" % _file_path(profile_id):
+		quarantined = quarantine(profile_id)
+	else:
+		return {"ok": false, "error": "quarantine_failed"}
+	if not quarantined.get("ok", false):
+		return quarantined
+	var quarantine_path: String = quarantined.quarantine_path
 	return {"ok": false, "error": "invalid_checkpoint", "quarantine_path": quarantine_path}
+
+func _file_size_is_safe(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {"ok": false, "error": "read_failed"}
+	var length := file.get_length()
+	file.close()
+	if length > MAX_FILE_BYTES:
+		return {"ok": false, "error": "checkpoint_too_large"}
+	return {"ok": true}
 
 func _is_valid_checkpoint(value: Variant) -> bool:
 	if not value is Dictionary or not _has_exact_keys(value, CHECKPOINT_KEYS):

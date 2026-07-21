@@ -24,6 +24,62 @@ class FlushCountingJournal extends EventJournalScript:
 		flush_calls += 1
 		return OK
 
+class CompletionFailingJournal extends FlushCountingJournal:
+	var fail_completion := false
+
+	func append(payload: Dictionary) -> Dictionary:
+		if fail_completion and payload.get("event_type") == "run_completed":
+			return {"ok": false, "error": "simulated_completion_failure"}
+		return super.append(payload)
+
+class ReplayOverrideJournal extends RefCounted:
+	var events: Array
+
+	func _init(values: Array) -> void:
+		events = values.duplicate(true)
+
+	func replay() -> Dictionary:
+		return {"ok": true, "events": events.duplicate(true), "quarantined_tail": false}
+
+	func flush() -> Error:
+		return OK
+
+	func append(_payload: Dictionary) -> Dictionary:
+		return {"ok": false, "error": "read_only_test_journal"}
+
+class FailOnceCompletionProgress extends RefCounted:
+	var inner: Node
+	var fail_completion := true
+
+	func _init(service: Node) -> void:
+		inner = service
+
+	func snapshot() -> Dictionary:
+		return inner.snapshot()
+
+	func commit(event: Dictionary) -> Error:
+		if fail_completion and event.get("event_type") == "run_completed":
+			fail_completion = false
+			return FAILED
+		return inner.commit(event)
+
+class ActivityBackRouter extends RefCounted:
+	var back_calls := 0
+
+	func current_route() -> StringName:
+		return AppRouteScript.ACTIVITY_RUN
+
+	func back() -> bool:
+		back_calls += 1
+		return true
+
+class CheckpointFailingLifecycle extends RefCounted:
+	var flush_calls := 0
+
+	func flush_and_checkpoint() -> Dictionary:
+		flush_calls += 1
+		return {"ok": false, "error": "simulated_disk_full"}
+
 class TestStoreFactory extends RefCounted:
 	func create_store(profile_id: String) -> Variant:
 		return AtomicJsonStoreScript.new("%s/%s" % [BASE_PATH, profile_id])
@@ -61,6 +117,11 @@ func run(tree: SceneTree) -> void:
 	_cleanup()
 	_test_equal_sequence_tamper_is_replayed()
 	_cleanup()
+	_test_checkpoint_ahead_of_journal_is_quarantined()
+	_cleanup()
+	_test_missing_terminal_completion_is_repaired()
+	_cleanup()
+	_test_failed_hardware_back_is_consumed()
 	_test_completion_deletes_the_checkpoint()
 	_cleanup()
 	await _test_shell_resumes_through_the_pin_gate(tree)
@@ -153,6 +214,85 @@ func _test_completion_deletes_the_checkpoint() -> void:
 	lifecycle.free()
 	fixture.progress.free()
 
+func _test_failed_hardware_back_is_consumed() -> void:
+	var shell: Control = AppShellScene.instantiate()
+	var router := ActivityBackRouter.new()
+	var lifecycle := CheckpointFailingLifecycle.new()
+	shell._router = router
+	shell._app_lifecycle = lifecycle
+	assert_true(shell.handle_back_navigation(), "failed checkpoint must consume hardware back without quitting")
+	assert_eq(lifecycle.flush_calls, 1)
+	assert_eq(router.back_calls, 0, "navigation proceeded without a durable checkpoint")
+	shell.free()
+
+func _test_checkpoint_ahead_of_journal_is_quarantined() -> void:
+	var fixture := _fixture()
+	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	assert_true(fixture.session.submit_answer(fixture.question.correct_answer, 100, 0).ok)
+	var next_question: Dictionary = fixture.engine.generate_question(fixture.activity, &"count_to_10", 43)
+	assert_true(fixture.session.begin_question(next_question).ok)
+	var lifecycle: Node = _new_lifecycle(fixture)
+	assert_true(lifecycle.bind_active_run(fixture.session, fixture.activity).ok)
+	assert_true(lifecycle.flush_and_checkpoint().ok)
+	var durable_events: Array = fixture.journal.replay().events
+	assert_eq(durable_events.size(), 2)
+	lifecycle.free()
+
+	var truncated_fixture := fixture.duplicate(false)
+	truncated_fixture.journal = ReplayOverrideJournal.new([durable_events[0]])
+	var truncated_lifecycle: Node = _new_lifecycle(truncated_fixture)
+	var restored: Dictionary = truncated_lifecycle.restore_if_present()
+	assert_false(restored.ok, "a checkpoint newer than the journal must not roll state backward")
+	assert_eq(restored.get("error", ""), "checkpoint_ahead_of_journal")
+	assert_false(FileAccess.file_exists(_checkpoint_file()))
+	assert_true(FileAccess.file_exists("%s.corrupt" % _checkpoint_file()))
+	truncated_lifecycle.free()
+	fixture.progress.free()
+
+func _test_missing_terminal_completion_is_repaired() -> void:
+	var failing_journal := CompletionFailingJournal.new()
+	var fixture := _fixture(failing_journal)
+	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	var question: Dictionary = fixture.question
+	for seed in [42, 43]:
+		if seed != 42:
+			question = fixture.engine.generate_question(fixture.activity, &"count_to_10", seed)
+			assert_true(fixture.session.begin_question(question).ok)
+		assert_true(fixture.session.submit_answer(99, 100, 0).ok)
+	question = fixture.engine.generate_question(fixture.activity, &"count_to_10", 44)
+	assert_true(fixture.session.begin_question(question).ok)
+	var lifecycle: Node = _new_lifecycle(fixture)
+	assert_true(lifecycle.bind_active_run(fixture.session, fixture.activity).ok)
+	assert_true(lifecycle.flush_and_checkpoint().ok)
+	failing_journal.fail_completion = true
+	var interrupted: Dictionary = fixture.session.submit_answer(99, 100, 0)
+	assert_false(interrupted.ok)
+	assert_eq(fixture.journal.replay().events.map(func(event): return event.event_type), [
+		"run_started", "answer_submitted", "answer_submitted", "answer_submitted"
+	])
+	lifecycle.free()
+	fixture.progress.free()
+
+	var restored_fixture := _reconstructed_fixture()
+	var durable_progress: Node = restored_fixture.progress
+	restored_fixture.progress = FailOnceCompletionProgress.new(durable_progress)
+	var restored_lifecycle: Node = _new_lifecycle(restored_fixture)
+	var first_restore: Dictionary = restored_lifecycle.restore_if_present()
+	assert_false(first_restore.ok, "a failed progress snapshot write must retain the repair checkpoint")
+	assert_eq(first_restore.get("error", ""), "completion_repair_progress_failed")
+	assert_true(FileAccess.file_exists(_checkpoint_file()))
+	var restored: Dictionary = restored_lifecycle.restore_if_present()
+	assert_true(restored.ok, "a durable completion repair must be retryable without duplication")
+	assert_false(restored.get("restored", true))
+	var repaired_events: Array = restored_fixture.journal.replay().events
+	assert_eq(repaired_events.map(func(event): return event.event_type), [
+		"run_started", "answer_submitted", "answer_submitted", "answer_submitted", "run_completed"
+	])
+	assert_eq(durable_progress.snapshot().run_totals.health_depleted, 1)
+	assert_eq(restored_fixture.checkpoint_store.load(PROFILE_ID).error, "not_found")
+	restored_lifecycle.free()
+	durable_progress.free()
+
 func _test_equal_sequence_tamper_is_replayed() -> void:
 	var fixture := _fixture()
 	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
@@ -212,7 +352,12 @@ func _test_shell_resumes_through_the_pin_gate(tree: SceneTree) -> void:
 	var expected_state: Dictionary = activity.current_state()
 	var expected_session_id: String = activity.session_id()
 	assert_eq(activity.current_question().seed, 43)
-	first_lifecycle.notification(MainLoop.NOTIFICATION_APPLICATION_PAUSED)
+	var back_button: Control = activity.find_child("BackButton", true, false)
+	assert_true(back_button != null, "activity back action is missing")
+	back_button.accepted.emit()
+	await tree.process_frame
+	assert_eq(first_shell.current_route(), AppRouteScript.FREE_PLAY)
+	assert_eq(first_lifecycle.flush_and_checkpoint().get("error", ""), "no_active_run")
 	assert_true(FileAccess.file_exists("%s/profiles/%s/run_checkpoint.json" % [SHELL_BASE_PATH, profile_id]))
 	var journal: Variant = activation.journal
 	assert_eq(journal.replay().events.size(), 2)
@@ -270,8 +415,8 @@ func _mount_shell(tree: SceneTree, profile_service: Node, profile_id: String, li
 func _current_screen(shell: Control) -> Control:
 	return shell.route_host.get_child(shell.route_host.get_child_count() - 1) as Control
 
-func _fixture() -> Dictionary:
-	var journal := FlushCountingJournal.new()
+func _fixture(journal_override: Variant = null) -> Dictionary:
+	var journal: Variant = journal_override if journal_override != null else FlushCountingJournal.new()
 	assert_true(journal.configure(PROFILE_ID, DEVICE_ID, _journal_file()).ok)
 	var progress := ProgressServiceScript.new(TestStoreFactory.new())
 	assert_true(progress.load_profile(PROFILE_ID, journal).ok)

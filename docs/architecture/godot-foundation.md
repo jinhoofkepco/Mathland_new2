@@ -26,7 +26,7 @@ An accepted answer follows this order:
 6. `ProgressService.commit` verifies the same event exists in the journal, reduces it, and atomically replaces `snapshot.json`.
 7. Only after those steps do `answer_committed` and `run_completed` update UI, effects, audio, and routing.
 
-An uncertain append or a post-append reducer failure fail-stops the run. A known retry-safe append failure leaves the transition uncommitted and allows a retry.
+An uncertain append or a post-append reducer failure fail-stops the run. A known retry-safe append failure leaves the transition uncommitted and allows a retry. If interruption happens after a terminal `answer_submitted` is durable but before `run_completed`, startup deterministically derives, appends, verifies, and reduces the missing completion before deleting the checkpoint.
 
 ## `LearningEventV1` exact contract
 
@@ -97,11 +97,11 @@ user://content/
  run_state, current_question, last_event_sequence}
 ```
 
-It is written through `AtomicJsonStore` using `.tmp` and `.bak` replacement. Pause and Android back notifications first verify the flushed journal and then save the active checkpoint. Completion renames the checkpoint out of the live path and removes it. On PIN-verified startup, an equal journal sequence adopts the checkpoint without emitting an event. A sequence mismatch replays the immutable journal, regenerates questions, refreshes the checkpoint, and never writes a duplicate `run_started` or answer event.
+It is written through `AtomicJsonStore` using `.tmp` and `.bak` replacement. Pause, Android back, and the visible activity back action first verify the flushed journal and then save the active checkpoint. If back-triggered persistence fails, the back action is consumed and the current screen remains open; it never falls through to app quit. Completion renames the checkpoint out of the live path and removes it. On PIN-verified startup, an equal journal sequence adopts the checkpoint without emitting an event. When the journal is newer, replay regenerates questions and refreshes the checkpoint without duplicating `run_started` or answer events. A checkpoint newer than the journal is quarantined and fails closed; it is never used to roll durable state backward.
 
 ## Quarantine and recovery
 
-- Malformed atomic JSON is renamed to `<name>.corrupt`; a semantic-invalid checkpoint is quarantined the same way.
+- Malformed atomic JSON is renamed to `<name>.corrupt`; a semantic-invalid checkpoint is quarantined the same way. The 1 MiB read cap applies to both the live checkpoint and a recoverable `.bak` before either is parsed.
 - An invalid progress snapshot is moved to `snapshot.json.corrupt`, then rebuilt from the valid journal.
 - Only an incomplete syntactic final JSONL record is moved to `events.jsonl.partial.corrupt`; the earlier valid prefix is retained. A semantic or sequence error fails closed instead of discarding data.
 - Interrupted `.tmp`, `.bak`, recovery, and quarantine rotations are reconciled on the next service configuration. Ambiguous candidates are retained and reported rather than guessed away.

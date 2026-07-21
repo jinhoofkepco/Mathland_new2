@@ -98,6 +98,16 @@ func activate_profile(profile_id: String, pin: String, now_unix: int) -> Diction
 	return result
 
 func handle_back_navigation() -> bool:
+	if current_route() == AppRouteScript.ACTIVITY_RUN and _app_lifecycle != null:
+		if not _app_lifecycle.has_method("flush_and_checkpoint"):
+			return true
+		var checkpointed: Variant = _app_lifecycle.flush_and_checkpoint()
+		if not checkpointed is Dictionary or not checkpointed.get("ok", false):
+			return true
+		if _app_lifecycle.has_method("release_active_run"):
+			var released: Variant = _app_lifecycle.release_active_run()
+			if not released is Dictionary or not released.get("ok", false):
+				return true
 	return _router != null and _router.has_method("back") and _router.back()
 
 func _unhandled_input(event: InputEvent) -> void:

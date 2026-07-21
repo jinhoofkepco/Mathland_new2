@@ -39,6 +39,7 @@ func configure(profile_id: String, journal: Variant, progress: Variant, router: 
 		or journal == null
 		or not journal.has_method("replay")
 		or not journal.has_method("flush")
+		or not journal.has_method("append")
 		or progress == null
 		or not progress.has_method("commit")
 		or not progress.has_method("snapshot")
@@ -46,6 +47,7 @@ func configure(profile_id: String, journal: Variant, progress: Variant, router: 
 		or not _checkpoint_store.has_method("save")
 		or not _checkpoint_store.has_method("load")
 		or not _checkpoint_store.has_method("delete")
+		or not _checkpoint_store.has_method("quarantine")
 	):
 		return {"ok": false, "error": "invalid_lifecycle_dependencies"}
 	_clear_active_run()
@@ -67,6 +69,14 @@ func bind_active_run(run_session: Variant, activity: Dictionary) -> Dictionary:
 	var completion_callable := Callable(self, "_on_run_completed")
 	if not _active_session.run_completed.is_connected(completion_callable):
 		_active_session.run_completed.connect(completion_callable)
+	return {"ok": true}
+
+func release_active_run(run_session: Variant = null) -> Dictionary:
+	if _active_session == null:
+		return {"ok": false, "error": "no_active_run"}
+	if run_session != null and run_session != _active_session:
+		return {"ok": false, "error": "active_run_mismatch"}
+	_clear_active_run()
 	return {"ok": true}
 
 func flush_and_checkpoint() -> Dictionary:
@@ -126,6 +136,16 @@ func restore_if_present() -> Dictionary:
 	var replayed := _validated_replay()
 	if not replayed.get("ok", false):
 		return replayed
+	if int(checkpoint.last_event_sequence) > int(replayed.last_sequence):
+		var quarantined: Dictionary = _checkpoint_store.quarantine(_profile_id)
+		if not quarantined.get("ok", false):
+			return quarantined
+		diagnostic.emit("checkpoint_ahead_of_journal")
+		return {
+			"ok": false,
+			"error": "checkpoint_ahead_of_journal",
+			"quarantine_path": quarantined.get("quarantine_path", ""),
+		}
 	if _session_was_superseded(replayed.events, checkpoint.session_id):
 		var discard: Dictionary = _checkpoint_store.delete(_profile_id)
 		return discard if not discard.get("ok", false) else {"ok": true, "restored": false, "source": "superseded"}
@@ -137,8 +157,31 @@ func restore_if_present() -> Dictionary:
 		diagnostic.emit(String(reconstructed.get("error", "run_replay_failed")))
 		return reconstructed
 	if reconstructed.get("completed", false):
+		var repaired_completion := false
+		if reconstructed.get("completion_missing", false):
+			var repaired := _repair_missing_completion(
+				checkpoint.session_id,
+				reconstructed.state,
+				int(replayed.last_sequence)
+			)
+			if not repaired.get("ok", false):
+				diagnostic.emit(String(repaired.get("error", "completion_repair_failed")))
+				return repaired
+			repaired_completion = true
+		else:
+			var completion_reduced := _ensure_completion_reduced(
+				reconstructed.get("completion_event", {})
+			)
+			if not completion_reduced.get("ok", false):
+				diagnostic.emit(String(completion_reduced.get("error", "completion_repair_progress_failed")))
+				return completion_reduced
 		var removed: Dictionary = _checkpoint_store.delete(_profile_id)
-		return removed if not removed.get("ok", false) else {"ok": true, "restored": false, "source": "journal_replay"}
+		return removed if not removed.get("ok", false) else {
+			"ok": true,
+			"restored": false,
+			"source": "journal_replay",
+			"repaired_completion": repaired_completion,
+		}
 	if (
 		int(checkpoint.last_event_sequence) != int(replayed.last_sequence)
 		or not _values_equal(state, reconstructed.state)
@@ -210,6 +253,7 @@ func _replay_run(activity: Dictionary, checkpoint: Dictionary, events: Array) ->
 		return {"ok": false, "error": "run_replay_failed"}
 	var saw_start := false
 	var saw_completion := false
+	var completion_event: Dictionary = {}
 	var last_answer_seed := -1
 	for event_value in events:
 		if not event_value is Dictionary:
@@ -246,11 +290,18 @@ func _replay_run(activity: Dictionary, checkpoint: Dictionary, events: Array) ->
 				if not saw_start or saw_completion or not _completion_matches_state(event, controller.snapshot()):
 					return {"ok": false, "error": "completion_replay_mismatch"}
 				saw_completion = true
+				completion_event = event.duplicate(true)
 	if not saw_start:
 		return {"ok": false, "error": "run_start_missing"}
 	var state: Dictionary = controller.snapshot()
-	if saw_completion:
-		return {"ok": true, "completed": true, "state": state}
+	if state.get("status") == "completed":
+		return {
+			"ok": true,
+			"completed": true,
+			"completion_missing": not saw_completion,
+			"completion_event": completion_event,
+			"state": state,
+		}
 	var next_question: Dictionary
 	if last_answer_seed >= 0:
 		var generated: Variant = _question_engine.generate_question(activity, StringName(state.stage_id), last_answer_seed + 1)
@@ -270,6 +321,65 @@ func _replay_run(activity: Dictionary, checkpoint: Dictionary, events: Array) ->
 	if not next_begun is Dictionary or not next_begun.get("ok", false):
 		return {"ok": false, "error": "invalid_run_replay"}
 	return {"ok": true, "completed": false, "state": controller.snapshot(), "current_question": next_question.duplicate(true)}
+
+func _repair_missing_completion(session_id: String, state: Dictionary, previous_sequence: int) -> Dictionary:
+	var appended: Variant = _journal.append({
+		"session_id": session_id,
+		"client_timestamp": "%sZ" % Time.get_datetime_string_from_system(true, false),
+		"event_type": "run_completed",
+		"completion_reason": state.get("completion_reason", ""),
+		"final_score": state.get("score", 0),
+		"final_health": state.get("health", 0),
+		"earned_rewards": state.get("earned_rewards", {}).duplicate(true),
+	})
+	if not appended is Dictionary or not appended.get("ok", false):
+		return {"ok": false, "error": "completion_repair_failed"}
+	var flush_error: Variant = _journal.flush()
+	if not flush_error is int or int(flush_error) != OK:
+		return {"ok": false, "error": "completion_repair_flush_failed"}
+	var replayed := _validated_replay()
+	if (
+		not replayed.get("ok", false)
+		or int(replayed.last_sequence) != previous_sequence + 1
+		or replayed.events.is_empty()
+	):
+		return {"ok": false, "error": "completion_repair_verification_failed"}
+	var completion_event: Variant = replayed.events[-1]
+	if (
+		not completion_event is Dictionary
+		or completion_event.get("event_type") != "run_completed"
+		or completion_event.get("session_id") != session_id
+		or not _completion_matches_state(completion_event, state)
+	):
+		return {"ok": false, "error": "completion_repair_verification_failed"}
+	var reduced := _ensure_completion_reduced(completion_event)
+	if not reduced.get("ok", false):
+		return reduced
+	return {"ok": true, "event": completion_event.duplicate(true)}
+
+func _ensure_completion_reduced(completion_event: Variant) -> Dictionary:
+	if not completion_event is Dictionary or completion_event.is_empty():
+		return {"ok": false, "error": "completion_repair_verification_failed"}
+	var snapshot_value: Variant = _progress.snapshot()
+	if not snapshot_value is Dictionary:
+		return {"ok": false, "error": "completion_repair_progress_failed"}
+	var progress_sequence_value: Variant = snapshot_value.get("last_sequence")
+	var event_sequence_value: Variant = completion_event.get("sequence")
+	if not progress_sequence_value is int or not event_sequence_value is int:
+		return {"ok": false, "error": "completion_repair_progress_failed"}
+	var progress_sequence: int = progress_sequence_value
+	var event_sequence: int = event_sequence_value
+	if progress_sequence >= event_sequence:
+		return {"ok": true}
+	if progress_sequence != event_sequence - 1:
+		return {"ok": false, "error": "completion_repair_progress_out_of_sync"}
+	var progress_error: Variant = _progress.commit(completion_event)
+	if not progress_error is int or int(progress_error) != OK:
+		return {"ok": false, "error": "completion_repair_progress_failed"}
+	var refreshed: Variant = _progress.snapshot()
+	if not refreshed is Dictionary or refreshed.get("last_sequence") != event_sequence:
+		return {"ok": false, "error": "completion_repair_progress_failed"}
+	return {"ok": true}
 
 func _validated_replay() -> Dictionary:
 	var replayed: Variant = _journal.replay()

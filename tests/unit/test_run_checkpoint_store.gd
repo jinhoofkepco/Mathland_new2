@@ -16,6 +16,7 @@ func run(_tree: SceneTree) -> void:
 	_test_atomic_round_trip(store)
 	_test_profile_scope_and_schema_validation(store)
 	_test_malformed_and_semantic_values_are_quarantined(store)
+	_test_oversized_backup_is_rejected_before_recovery(store)
 	_test_delete_removes_only_the_requested_profile(store)
 	_cleanup()
 
@@ -74,6 +75,17 @@ func _test_delete_removes_only_the_requested_profile(store: Variant) -> void:
 	assert_eq(store.load(PROFILE_ID, "a-vertical-1").error, "not_found")
 	assert_true(store.load(OTHER_PROFILE_ID, "a-vertical-1").ok)
 	assert_true(store.delete(PROFILE_ID).ok, "checkpoint deletion must be idempotent")
+
+func _test_oversized_backup_is_rejected_before_recovery(store: Variant) -> void:
+	assert_true(store.delete(PROFILE_ID).ok)
+	var backup_path := _path(PROFILE_ID, "run_checkpoint.json.bak")
+	assert_true(_write_text(backup_path, "x".repeat(1_048_577)))
+	var loaded: Dictionary = store.load(PROFILE_ID, "a-vertical-1")
+	assert_false(loaded.ok)
+	assert_eq(loaded.error, "invalid_checkpoint")
+	assert_false(FileAccess.file_exists(backup_path))
+	assert_false(FileAccess.file_exists(_path(PROFILE_ID, "run_checkpoint.json")))
+	assert_true(FileAccess.file_exists(_path(PROFILE_ID, "run_checkpoint.json.corrupt")))
 
 func _checkpoint(profile_id: String, session_id: String = SESSION_ID) -> Dictionary:
 	var question := {

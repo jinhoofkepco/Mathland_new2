@@ -194,6 +194,19 @@ func _bind_lifecycle() -> void:
 		if not bound is Dictionary or not bound.get("ok", false):
 			_show_error("checkpoint_unavailable")
 
+func _on_back_requested() -> void:
+	if _app_lifecycle != null and _app_lifecycle.has_method("flush_and_checkpoint"):
+		var checkpointed: Variant = _app_lifecycle.flush_and_checkpoint()
+		if not checkpointed is Dictionary or not checkpointed.get("ok", false):
+			_show_error("checkpoint_failed")
+			return
+		if _app_lifecycle.has_method("release_active_run"):
+			var released: Variant = _app_lifecycle.release_active_run(_run_session)
+			if not released is Dictionary or not released.get("ok", false):
+				_show_error("checkpoint_failed")
+				return
+	call_deferred("_back")
+
 func _generate_question(seed: int) -> Dictionary:
 	if _question_engine == null or not _question_engine.has_method("generate_question"):
 		return {}
@@ -305,7 +318,7 @@ func _replay_voice() -> void:
 
 func _build_ui() -> void:
 	var ui := MathlandUiScript.scaffold(self, "activity.foundation_ten_rods.title", "", true)
-	_connect_tactile(ui.back_button, _back)
+	_connect_tactile(ui.back_button, _on_back_requested)
 	var body: VBoxContainer = ui.body
 	var status_row := HBoxContainer.new()
 	status_row.name = "RunStatusRow"
