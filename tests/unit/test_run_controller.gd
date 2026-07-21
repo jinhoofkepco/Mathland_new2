@@ -3,6 +3,8 @@ extends "res://tests/support/test_case.gd"
 const FakeClockScript = preload("res://tests/support/fake_clock.gd")
 const RunConfigScript = preload("res://src/game/run_config.gd")
 const RunControllerScript = preload("res://src/game/run_controller.gd")
+const RunTransitionScript = preload("res://src/game/run_transition.gd")
+const LearningEventV1Script = preload("res://src/events/learning_event_v1.gd")
 const VerticalSliceContentRepositoryScript = preload("res://src/content/vertical_slice_content_repository.gd")
 
 func run(_tree: SceneTree) -> void:
@@ -11,6 +13,10 @@ func run(_tree: SceneTree) -> void:
 	_test_stale_transition_and_canonical_answers()
 	_test_disabled_and_paused_timers()
 	_test_question_cannot_be_skipped_or_rewarded_twice()
+	_test_forged_and_mutated_transitions_are_rejected()
+	_test_timeout_transition_can_be_journaled()
+	_test_reward_overflow_is_rejected()
+	_test_event_metadata_validation_matches_journal_contract()
 	_test_config_is_derived_without_mutating_activity()
 	_test_invalid_config_and_question_are_contained()
 
@@ -128,6 +134,9 @@ func _test_config_is_derived_without_mutating_activity() -> void:
 	assert_false(config.timer_allowed)
 	assert_eq(config.reward_per_correct, {"apples": 2})
 	assert_eq(activity, before)
+	var malformed := activity.duplicate(true)
+	malformed.timer = "disabled"
+	assert_false(RunConfigScript.from_activity(malformed).is_valid())
 
 func _test_question_cannot_be_skipped_or_rewarded_twice() -> void:
 	var controller := RunControllerScript.new(FakeClockScript.new())
@@ -141,6 +150,96 @@ func _test_question_cannot_be_skipped_or_rewarded_twice() -> void:
 	assert_eq(controller.snapshot().score, 1, "transition snapshots must be isolated from callers")
 	assert_null(controller.plan_answer(1, 5, 0), "a committed question cannot award twice")
 	assert_true(controller.begin_question(_question(2, 2)).ok)
+
+func _test_forged_and_mutated_transitions_are_rejected() -> void:
+	var controller := RunControllerScript.new(FakeClockScript.new())
+	assert_true(controller.start(_config({"target_score": 10}), "session-provenance").ok)
+	assert_true(controller.begin_question(_question(1, 1)).ok)
+	var genuine = controller.plan_answer(1, 10, 0)
+	var forged_state: Dictionary = genuine.next_state
+	forged_state.score = 999
+	forged_state.earned_rewards = {"apples": 999}
+	var forged := RunTransitionScript.new({
+		"from_revision": controller.snapshot().revision,
+		"kind": "answer",
+		"submitted_answer": 1,
+		"correct_answer": 1,
+		"correctness": true,
+		"response_duration_ms": 10,
+		"hints": 0,
+		"health_delta": 0,
+		"reward_delta": {"apples": 999},
+		"effect_name": "correct",
+		"effect_names": ["correct"],
+		"next_state": forged_state,
+	})
+	var forged_result := controller.commit(forged)
+	assert_false(forged_result.ok)
+	assert_eq(forged_result.get("error", ""), "unplanned_transition")
+	assert_eq(controller.snapshot().score, 0)
+	genuine.correctness = false
+	var mutated_result := controller.commit(genuine)
+	assert_false(mutated_result.ok)
+	assert_eq(mutated_result.get("error", ""), "mutated_transition")
+	assert_eq(controller.snapshot().score, 0)
+
+func _test_timeout_transition_can_be_journaled() -> void:
+	var clock := FakeClockScript.new()
+	var controller := RunControllerScript.new(clock)
+	assert_true(controller.start(_config({"timer_allowed": true, "timer_duration_ms": 1}), "session-timeout-event").ok)
+	var question := _question(8, 7)
+	assert_true(controller.begin_question(question).ok)
+	clock.advance_ms(1)
+	var transition = controller.plan_timeout()
+	assert_not_null(transition)
+	assert_not_null(transition.submitted_answer)
+	var event := LearningEventV1Script.create(
+		{"profile_id": "profile-a", "device_id": "device-a", "sequence": 1},
+		{
+			"session_id": "session-timeout-event",
+			"client_timestamp": "2026-07-21T09:00:00Z",
+			"event_type": "answer_submitted",
+			"activity_id": question.activity_id,
+			"content_version": question.content_version,
+			"question_seed": question.seed,
+			"generator_id": question.generator_id,
+			"band_id": question.band_id,
+			"resolved_parameters": question.resolved_parameters,
+			"submitted_answer": transition.submitted_answer,
+			"correct_answer": transition.correct_answer,
+			"correctness": transition.correctness,
+			"response_duration_ms": transition.response_duration_ms,
+			"hints": transition.hints,
+			"health_delta": transition.health_delta,
+			"combo": transition.next_state.combo,
+			"reward_delta": transition.reward_delta,
+		}
+	)
+	assert_eq(LearningEventV1Script.validate(event), PackedStringArray())
+
+func _test_reward_overflow_is_rejected() -> void:
+	var unsafe := _config({"target_score": 2, "reward_per_correct": {"apples": 9007199254740991}})
+	assert_false(unsafe.is_valid())
+	assert_false(RunControllerScript.new(FakeClockScript.new()).start(unsafe, "session-overflow").ok)
+
+func _test_event_metadata_validation_matches_journal_contract() -> void:
+	for invalid_parameters in [
+		{"": 1},
+		{"nested": {"value": 1}},
+		{"nan": NAN},
+		{"too_large": 9007199254740992.0},
+		{"array": [1, {"nested": true}]},
+	]:
+		var controller := RunControllerScript.new(FakeClockScript.new())
+		assert_true(controller.start(_config(), "session-metadata").ok)
+		var question := _question(1, 1)
+		question.resolved_parameters = invalid_parameters
+		assert_false(controller.begin_question(question).ok)
+	var valid_controller := RunControllerScript.new(FakeClockScript.new())
+	assert_true(valid_controller.start(_config(), "session-metadata-valid").ok)
+	var valid_question := _question(1, 1)
+	valid_question.resolved_parameters = {"flag": true, "label": "", "ratio": 1.5, "values": [1, 2.5]}
+	assert_true(valid_controller.begin_question(valid_question).ok)
 
 func _test_invalid_config_and_question_are_contained() -> void:
 	var controller := RunControllerScript.new(FakeClockScript.new())

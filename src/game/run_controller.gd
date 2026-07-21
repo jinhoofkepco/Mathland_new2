@@ -10,6 +10,7 @@ const MAX_SAFE_INTEGER := 9007199254740991
 var _clock: Variant
 var _config: Variant
 var _state: Dictionary = {}
+var _planned_transitions: Dictionary = {}
 
 func _init(clock: Variant = null) -> void:
 	_clock = clock if clock != null else SystemClockScript.new()
@@ -22,6 +23,7 @@ func start(config: Variant, session_id: String) -> Dictionary:
 		return {"ok": false, "error": "invalid_config"}
 	_config = copied_config
 	_state = RunStateScript.initial(_config.to_dict(), session_id)
+	_planned_transitions.clear()
 	return {"ok": true, "state": snapshot()}
 
 func begin_question(question: Dictionary) -> Dictionary:
@@ -39,6 +41,7 @@ func begin_question(question: Dictionary) -> Dictionary:
 	next.timer_remaining_ms = _config.timer_duration_ms if next.timer_enabled else 0
 	next.revision += 1
 	_state = next
+	_planned_transitions.clear()
 	return {"ok": true, "state": snapshot()}
 
 func plan_answer(answer: Variant, response_ms: int, hints: int = 0) -> Variant:
@@ -62,11 +65,21 @@ func commit(transition: Variant) -> Dictionary:
 		return {"ok": false, "error": "invalid_transition"}
 	if _state.is_empty() or transition.from_revision != _state.revision:
 		return {"ok": false, "error": "stale_transition"}
-	var candidate: Dictionary = transition.next_state.duplicate(true)
+	var transition_id: int = transition.get_instance_id()
+	if not _planned_transitions.has(transition_id):
+		return {"ok": false, "error": "unplanned_transition"}
+	var record: Dictionary = _planned_transitions[transition_id]
+	if record.instance != transition:
+		return {"ok": false, "error": "unplanned_transition"}
+	var planned: Dictionary = record.data
+	if transition.to_dict() != planned:
+		return {"ok": false, "error": "mutated_transition"}
+	var candidate: Dictionary = planned.next_state.duplicate(true)
 	if not _is_valid_transition_state(candidate):
 		return {"ok": false, "error": "invalid_transition"}
 	candidate.revision = _state.revision + 1
 	_state = candidate
+	_planned_transitions.clear()
 	return {"ok": true, "state": snapshot()}
 
 func pause() -> bool:
@@ -78,6 +91,7 @@ func pause() -> bool:
 	next.paused = true
 	next.revision += 1
 	_state = next
+	_planned_transitions.clear()
 	return true
 
 func resume() -> bool:
@@ -89,6 +103,7 @@ func resume() -> bool:
 		next.timer_started_at_ms = _clock.now_ms()
 	next.revision += 1
 	_state = next
+	_planned_transitions.clear()
 	return true
 
 func time_remaining_ms() -> int:
@@ -102,7 +117,7 @@ func time_remaining_ms() -> int:
 func snapshot() -> Dictionary:
 	return _state.duplicate(true)
 
-func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms: int, hints: int) -> RefCounted:
+func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms: int, hints: int) -> Variant:
 	var next := _state.duplicate(true)
 	next.awaiting_answer = false
 	var rewards := {}
@@ -113,7 +128,8 @@ func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms
 		next.score += 1
 		next.combo += 1
 		rewards = _config.reward_per_correct.duplicate(true)
-		_add_rewards(next.earned_rewards, rewards)
+		if not _add_rewards(next.earned_rewards, rewards):
+			return null
 		effects.append("correct")
 		effect_name = _combo_effect(next.combo)
 		if effect_name == "correct":
@@ -142,10 +158,11 @@ func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms
 		if not next.boss_state:
 			effect_name = "target_reached"
 	next.timer_remaining_ms = time_remaining_ms()
-	return RunTransitionScript.new({
+	var event_answer: Variant = _timeout_answer(_state.current_question.correct_answer) if kind == "timeout" else answer
+	var transition := RunTransitionScript.new({
 		"from_revision": _state.revision,
 		"kind": kind,
-		"submitted_answer": answer,
+		"submitted_answer": event_answer,
 		"correct_answer": _state.current_question.correct_answer,
 		"correctness": correctness,
 		"response_duration_ms": response_ms,
@@ -158,6 +175,11 @@ func _plan_outcome(kind: String, answer: Variant, correctness: bool, response_ms
 		"effect_names": effects,
 		"next_state": next,
 	})
+	_planned_transitions[transition.get_instance_id()] = {
+		"instance": transition,
+		"data": transition.to_dict(),
+	}
+	return transition
 
 func _combo_effect(combo: int) -> String:
 	if _config.combo_thresholds.size() >= 2 and combo >= _config.combo_thresholds[1]:
@@ -166,9 +188,15 @@ func _combo_effect(combo: int) -> String:
 		return "combo_1"
 	return "correct"
 
-func _add_rewards(balance: Dictionary, delta: Dictionary) -> void:
+func _add_rewards(balance: Dictionary, delta: Dictionary) -> bool:
 	for key in delta:
-		balance[key] = balance.get(key, 0) + delta[key]
+		var current: Variant = balance.get(key, 0)
+		if not _is_nonnegative_safe_integer(current) or not _is_nonnegative_safe_integer(delta[key]):
+			return false
+		if int(current) > MAX_SAFE_INTEGER - int(delta[key]):
+			return false
+		balance[key] = int(current) + int(delta[key])
+	return true
 
 func _can_interact() -> bool:
 	return not _state.is_empty() and _state.status == "running" and not _state.paused
@@ -193,9 +221,51 @@ func _is_valid_question(question: Dictionary) -> bool:
 		return false
 	if not question.band_id is String or question.band_id.is_empty():
 		return false
-	if not question.resolved_parameters is Dictionary or not question.manipulative is Dictionary:
+	if not question.prompt_key is String or question.prompt_key.is_empty():
+		return false
+	if not question.answer_layout is String or question.answer_layout.is_empty():
+		return false
+	if not _is_resolved_parameters(question.resolved_parameters) or not question.manipulative is Dictionary:
 		return false
 	return _canonical_answer(question.correct_answer) != null
+
+func _is_resolved_parameters(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	for key in value:
+		if not key is String or key.is_empty():
+			return false
+		var item: Variant = value[key]
+		if item is bool or item is String or _is_finite_safe_number(item):
+			continue
+		if not item is Array:
+			return false
+		for number in item:
+			if not _is_finite_safe_number(number):
+				return false
+	return true
+
+func _is_finite_safe_number(value: Variant) -> bool:
+	if value is int:
+		return value >= -MAX_SAFE_INTEGER and value <= MAX_SAFE_INTEGER
+	return value is float and is_finite(value) and value >= -MAX_SAFE_INTEGER and value <= MAX_SAFE_INTEGER
+
+func _timeout_answer(correct_answer: Variant) -> Variant:
+	var canonical: Variant = _canonical_answer(correct_answer)
+	if canonical == null:
+		return null
+	if canonical.kind == "integer":
+		var integer_value: int = canonical.value
+		return {
+			"kind": "integer",
+			"value": integer_value - 1 if integer_value == MAX_SAFE_INTEGER else integer_value + 1,
+		}
+	var values: Array = canonical.values.duplicate()
+	if values.is_empty():
+		values.append(0)
+	else:
+		values[0] = values[0] - 1 if values[0] == MAX_SAFE_INTEGER else values[0] + 1
+	return {"kind": "integer_list", "values": values, "order_matters": canonical.order_matters}
 
 func _is_valid_transition_state(candidate: Dictionary) -> bool:
 	if candidate.get("revision") != _state.revision:

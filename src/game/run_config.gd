@@ -96,6 +96,8 @@ func is_valid() -> bool:
 	for key in reward_per_correct:
 		if not key is String or key.is_empty() or not _is_nonnegative_safe_integer(reward_per_correct[key]):
 			return false
+		if float(reward_per_correct[key]) * float(target_score) > float(MAX_SAFE_INTEGER):
+			return false
 	return true
 
 func to_dict() -> Dictionary:
@@ -126,8 +128,8 @@ static func from_activity(activity: Dictionary) -> RefCounted:
 		"boss_question_indices": activity.get("boss_question_indices", []),
 		"initial_health": activity.get("initial_health", 0),
 		"target_score": activity.get("target_score", 0),
-		"timer_allowed": timer.get("enabled", false) if timer is Dictionary else false,
-		"timer_duration_ms": timer.get("duration_ms", 0) if timer is Dictionary else 0,
+		"timer_allowed": timer.get("enabled", null) if timer is Dictionary else null,
+		"timer_duration_ms": timer.get("duration_ms", null) if timer is Dictionary else null,
 		"reward_per_correct": activity.get("reward_per_correct", {}),
 		"combo_thresholds": activity.get("combo_thresholds", [2, 4]),
 		"effect_intensity": activity.get("effect_intensity", 1.0),
