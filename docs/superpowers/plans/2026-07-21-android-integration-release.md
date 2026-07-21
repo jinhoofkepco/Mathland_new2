@@ -6,7 +6,7 @@
 
 **Architecture:** Subproject D adds a narrow Android Keystore bridge, deterministic cross-system harnesses, Android export and emulator gates, artifact/privacy audits, and a two-stage draft-then-publish release workflow. It consumes Subprojects A–C through their public contracts; it does not duplicate game, content, or cloud logic. Offline/local gates run without production credentials, while a separately authorized live gate is required before the GitHub Release can become public.
 
-**Tech Stack:** Godot 4.7.1/GDScript, Godot Android plugin v2, Kotlin 2.1.21, Android Gradle Plugin 8.6.1, Gradle 8.11.1, OpenJDK 17, Android SDK 35/build-tools 35.0.1, TypeScript/Node.js, Vitest, Playwright, Supabase CLI/PostgreSQL, Bash, ADB, `apkanalyzer`, `apksigner`, GitHub Actions, GitHub CLI.
+**Tech Stack:** Godot 4.7.1/GDScript, Godot Android plugin v2, Kotlin 2.1.21, Android Gradle Plugin 8.6.1, Gradle 8.11.1, OpenJDK 17, Android SDK 35/build-tools 35.0.1 plus the official Godot template's 36.1.0, TypeScript/Node.js, Vitest, Playwright, Supabase CLI/PostgreSQL, Bash, ADB, `apkanalyzer`, `apksigner`, GitHub Actions, GitHub CLI.
 
 ## Global Constraints
 
@@ -18,7 +18,7 @@
 - Connectivity: Offline-first; cloud availability never blocks play.
 - Assets: New cohesive assets; no legacy raster assets are required in the release.
 - Release: Source, documentation, signed APK, checksum, screenshots, and release notes on GitHub.
-- Godot 4.7.1, OpenJDK 17, Android platform 35, and build-tools 35.0.1 are the initial Android toolchain.
+- Godot 4.7.1, OpenJDK 17, Android platform 35, build-tools 35.0.1, and the official template's build-tools 36.1.0 are the pinned Android toolchain.
 - Android minimum SDK is 24 and target SDK is 35.
 - The `v1.0.0` release APK uses the Compatibility renderer and ARM64. Other ABIs are outside the first release.
 - Input feedback begins within 100 milliseconds of accepted input.
@@ -96,7 +96,7 @@
 
 **Interfaces:**
 - Consumes: executables selected by `GODOT_BIN`, `JAVA_HOME`, and `ANDROID_HOME`/`ANDROID_SDK_ROOT`.
-- Produces: `validateProbe(probe: ToolchainProbe) -> string[]`; CLI exits `0` only for Godot 4.7.1, JDK 17, platform 35, build-tools 35.0.1, and required Android executables.
+- Produces: `validateProbe(probe: ToolchainProbe) -> string[]`; CLI exits `0` only for Godot 4.7.1, JDK 17, platform 35, build-tools 35.0.1 and 36.1.0, and required Android executables.
 
 - [ ] **Step 1: Write the failing validator tests**
 

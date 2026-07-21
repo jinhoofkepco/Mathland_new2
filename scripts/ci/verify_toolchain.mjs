@@ -7,6 +7,7 @@ const REQUIRED_GODOT_VERSION = "4.7.1.stable.official.a13da4feb";
 const REQUIRED_JAVA_MAJOR = "17";
 const REQUIRED_PLATFORM = "android-35";
 const REQUIRED_BUILD_TOOLS = "35.0.1";
+const REQUIRED_GODOT_BUILD_TOOLS = "36.1.0";
 const REQUIRED_EXECUTABLES = ["adb", "apksigner", "zipalign", "aapt2"];
 const ANDROID_JAR_SENTINEL = "android/app/Activity.class";
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
@@ -38,6 +39,9 @@ export function validateProbe(probe) {
   }
   if (!buildTools.includes(REQUIRED_BUILD_TOOLS)) {
     findings.push(`Android build-tools ${REQUIRED_BUILD_TOOLS} is missing`);
+  }
+  if (!buildTools.includes(REQUIRED_GODOT_BUILD_TOOLS)) {
+    findings.push(`Godot Android build-tools ${REQUIRED_GODOT_BUILD_TOOLS} is missing`);
   }
   for (const name of REQUIRED_EXECUTABLES) {
     if (executables[name] !== true) {
@@ -179,7 +183,9 @@ async function main() {
       process.exitCode = 1;
       return;
     }
-    console.log(`PASS: Godot ${REQUIRED_GODOT_VERSION} / JDK 17 / Android 35 / build-tools 35.0.1`);
+    console.log(
+      `PASS: Godot ${REQUIRED_GODOT_VERSION} / JDK 17 / Android 35 / build-tools 35.0.1 + 36.1.0`,
+    );
   } catch (error) {
     console.error(`BLOCKED: ${error instanceof Error ? error.message : "toolchain probe failed"}`);
     process.exitCode = 1;

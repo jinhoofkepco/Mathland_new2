@@ -19,7 +19,7 @@ const valid = {
   javacVersion: "17.0.19",
   platforms: ["android-35"],
   androidPlatformJarValid: true,
-  buildTools: ["35.0.1"],
+  buildTools: ["35.0.1", "36.1.0"],
   executables: { adb: true, apksigner: true, zipalign: true, aapt2: true },
 };
 
@@ -64,6 +64,7 @@ async function createToolchainFixture(t) {
   const godot = path.join(root, "godot");
   const platformJar = path.join(sdk, "platforms", "android-35", "android.jar");
   const buildTools = path.join(sdk, "build-tools", "35.0.1");
+  await mkdir(path.join(sdk, "build-tools", "36.1.0"), { recursive: true });
   const tools = {
     adb: path.join(sdk, "platform-tools", "adb"),
     apksigner: path.join(buildTools, "apksigner"),
@@ -143,6 +144,7 @@ test("reports every release-blocking mismatch in stable order", () => {
     "Android platform android-35 is missing",
     "Android platform android-35/android.jar is missing or invalid",
     "Android build-tools 35.0.1 is missing",
+    "Godot Android build-tools 36.1.0 is missing",
     "Android executable apksigner is missing or unusable",
     "Android executable zipalign is missing or unusable",
   ]);
@@ -164,6 +166,7 @@ test("malformed probe data is reported instead of throwing", () => {
     "Android platform android-35 is missing",
     "Android platform android-35/android.jar is missing or invalid",
     "Android build-tools 35.0.1 is missing",
+    "Godot Android build-tools 36.1.0 is missing",
     "Android executable adb is missing or unusable",
     "Android executable apksigner is missing or unusable",
     "Android executable zipalign is missing or unusable",
@@ -180,6 +183,12 @@ test("probes a complete fixture by executing every pinned tool", async (t) => {
   assert.equal(probe.javacVersion, "17.0.19");
   assert.equal(probe.androidPlatformJarValid, true);
   assert.deepEqual(probe.executables, { adb: true, apksigner: true, zipalign: true, aapt2: true });
+});
+
+test("rejects a toolchain missing the Godot 4.7.1 template build-tools", () => {
+  assert.deepEqual(validateProbe({ ...valid, buildTools: ["35.0.1"] }), [
+    "Godot Android build-tools 36.1.0 is missing",
+  ]);
 });
 
 test("fails closed when JAVA_HOME has a runtime but no javac", async (t) => {
