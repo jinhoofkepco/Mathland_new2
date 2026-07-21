@@ -5,3 +5,6 @@ export * from "./checksum.js";
 export * from "./json_schema.js";
 export * from "./schema.js";
 export * from "./validate.js";
+export * from "./expression/tokens.js";
+export * from "./expression/parser.js";
+export * from "./expression/evaluate.js";
