@@ -8,6 +8,7 @@ import { ActivityForm } from "./ActivityForm";
 import { AiDraftPanel } from "./AiDraftPanel";
 import { diffDraft, type DraftChange } from "./draft_diff";
 import { JsonEditor } from "./JsonEditor";
+import { PublishDialog } from "./PublishDialog";
 import { SamplePreview } from "./SamplePreview";
 import { ValidationPanel } from "./ValidationPanel";
 
@@ -62,6 +63,8 @@ export function DraftEditorPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState<DraftConflict | null>(null);
+  const [canPublish, setCanPublish] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
 
   useEffect(() => {
     let current = true;
@@ -80,6 +83,14 @@ export function DraftEditorPage() {
       current = false;
     };
   }, [cloud, draftId]);
+
+  useEffect(() => {
+    let current = true;
+    void cloud.session().then((session) => {
+      if (current) setCanPublish(session.status === "authenticated" && session.role === "owner");
+    }, () => undefined);
+    return () => { current = false; };
+  }, [cloud]);
 
   const changes = useMemo(() => (base && draft ? diffDraft(base, draft) : []), [base, draft]);
   const dirty = changes.length > 0;
@@ -207,6 +218,7 @@ export function DraftEditorPage() {
         <div className="editor-actions">
           <button type="button" disabled={pending || Boolean(jsonError)} onClick={() => void validate()}>초안 검증</button>
           <button className="primary-action button-reset" type="button" disabled={pending || Boolean(jsonError) || !dirty || Boolean(conflict)} onClick={() => void save()}>초안 저장</button>
+          {canPublish ? <button type="button" disabled={pending || dirty || report?.valid !== true || Boolean(conflict)} onClick={() => setShowPublish(true)}>배포 준비</button> : null}
         </div>
       </header>
       {message ? <p role="status">{message}</p> : null}
@@ -225,6 +237,15 @@ export function DraftEditorPage() {
         request={(instruction) => cloud.requestAiPatch(record.id, instruction)}
         onApply={updateDraft}
       />
+      {showPublish ? <PublishDialog
+        draft={record}
+        report={report}
+        onClose={() => setShowPublish(false)}
+        onPublished={(publication) => {
+          setShowPublish(false);
+          setMessage(`${publication.contentVersion} 버전을 배포했습니다.`);
+        }}
+      /> : null}
     </main>
   );
 }

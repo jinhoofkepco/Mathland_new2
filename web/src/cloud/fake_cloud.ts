@@ -5,6 +5,7 @@ import type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -20,6 +21,7 @@ export interface FakeCloudDataset {
   children: ChildSummary[];
   dashboards: Record<string, DashboardSnapshot>;
   drafts?: ContentDraft[];
+  publications?: ContentPublicationHistoryItem[];
 }
 
 const DEFAULT_DATASET: FakeCloudDataset = {
@@ -48,6 +50,7 @@ export class FakeCloud implements CloudPort {
   #children: ChildSummary[];
   readonly #dashboards: Record<string, DashboardSnapshot>;
   #drafts: ContentDraft[];
+  #publications: ContentPublicationHistoryItem[];
 
   constructor(dataset: FakeCloudDataset = DEFAULT_DATASET) {
     const isolated = clone(dataset);
@@ -56,6 +59,7 @@ export class FakeCloud implements CloudPort {
     this.#children = isolated.children;
     this.#dashboards = isolated.dashboards;
     this.#drafts = isolated.drafts ?? [];
+    this.#publications = isolated.publications ?? [];
   }
 
   async session(): Promise<SessionState> {
@@ -173,17 +177,63 @@ export class FakeCloud implements CloudPort {
   }
 
   async publishDraft(
-    _draftId: string,
-    _expectedRevision: number,
+    draftId: string,
+    expectedRevision: number,
+    options: { effectiveAt?: string; reason?: string } = {},
   ): Promise<ContentPublication> {
-    throw new Error("Fake publication fixture is not configured");
+    if (this.#session.status !== "authenticated" || this.#session.role !== "owner") throw new Error("Owner role is required");
+    const draft = await this.loadDraft(draftId);
+    if (draft.revision !== expectedRevision) throw new Error("Draft revision conflict");
+    const checksum = `sha256:${"0".repeat(64)}` as const;
+    const now = "2030-01-01T00:00:00.000Z";
+    const effectiveAt = options.effectiveAt ?? now;
+    const id = `40000000-0000-4000-8000-${String(this.#publications.length + 1).padStart(12, "0")}`;
+    this.#publications = this.#publications.map((item) =>
+      item.activityId === draft.activityId && item.status === "active"
+        ? { ...item, status: "retired" }
+        : item,
+    );
+    this.#publications.push({
+      id,
+      activityId: draft.activityId,
+      contentVersion: draft.package.content_version,
+      checksum,
+      status: effectiveAt > now ? "pending" : "active",
+      publishedAt: now,
+      effectiveAt,
+      publishedBy: this.#session.status === "authenticated" ? this.#session.userId : null,
+      sourceRevision: draft.revision,
+      rollbackOfId: null,
+      reason: options.reason?.trim() || null,
+      validationValid: true,
+    });
+    return {
+      activityId: draft.activityId,
+      contentVersion: draft.package.content_version,
+      publishedAt: now,
+      package: { ...clone(draft.package), checksum },
+    };
   }
 
-  async rollbackPublication(
-    _activityId: string,
-    _contentVersion: string,
-  ): Promise<ContentPublication> {
-    throw new Error("Fake rollback fixture is not configured");
+  async listPublicationHistory(activityId?: string): Promise<ContentPublicationHistoryItem[]> {
+    return clone(this.#publications.filter((item) => !activityId || item.activityId === activityId));
+  }
+
+  async rollbackPublication(publicationId: string, reason: string): Promise<ContentPublication> {
+    if (this.#session.status !== "authenticated" || this.#session.role !== "owner") throw new Error("Owner role is required");
+    const historical = this.#publications.find((item) => item.id === publicationId && item.status === "retired");
+    if (!historical) throw new Error("Historical publication is not available");
+    const draft = this.#drafts.find((item) => item.activityId === historical.activityId);
+    if (!draft) throw new Error("Draft is not available");
+    const now = "2030-01-01T00:00:00.000Z";
+    this.#publications = this.#publications.map((item) => item.activityId === historical.activityId && item.status === "active" ? { ...item, status: "retired" } : item);
+    this.#publications.push({ ...historical, id: `40000000-0000-4000-8000-${String(this.#publications.length + 1).padStart(12, "0")}`, status: "active", publishedAt: now, effectiveAt: now, rollbackOfId: historical.id, reason: requireNonBlank(reason, "reason") });
+    return {
+      activityId: historical.activityId,
+      contentVersion: historical.contentVersion,
+      publishedAt: now,
+      package: { ...clone(draft.package), content_version: historical.contentVersion, checksum: historical.checksum },
+    };
   }
 
   async requestAiPatch(draftId: string, instruction: string): Promise<AiPatchResult> {

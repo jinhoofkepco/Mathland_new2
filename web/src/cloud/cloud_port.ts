@@ -4,6 +4,7 @@ import type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
   DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
@@ -20,6 +21,7 @@ export type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
   DashboardRange,
   DashboardQuery,
   DashboardSnapshot,
@@ -46,10 +48,12 @@ export interface CloudPort {
   loadDraft(draftId: string): Promise<ContentDraft>;
   saveDraft(input: SaveDraftInput): Promise<ContentDraft>;
   validateDraft(draftId: string, packageDraft?: ContentDraft["package"]): Promise<ValidationReportWire>;
-  publishDraft(draftId: string, expectedRevision: number): Promise<ContentPublication>;
-  rollbackPublication(
-    activityId: string,
-    contentVersion: string,
+  publishDraft(
+    draftId: string,
+    expectedRevision: number,
+    options?: { effectiveAt?: string; reason?: string },
   ): Promise<ContentPublication>;
+  listPublicationHistory(activityId?: string): Promise<ContentPublicationHistoryItem[]>;
+  rollbackPublication(publicationId: string, reason: string): Promise<ContentPublication>;
   requestAiPatch(draftId: string, instruction: string): Promise<AiPatchResult>;
 }

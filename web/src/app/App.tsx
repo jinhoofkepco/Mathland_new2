@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 
 import { AuthCallbackPage } from "../auth/AuthCallbackPage";
@@ -8,8 +9,10 @@ import { DashboardPage } from "../dashboard/DashboardPage";
 import { DataControlsPage } from "../data/DataControlsPage";
 import { DevicesPage } from "../devices/DevicesPage";
 import { AppLayout } from "../layout/AppLayout";
-import { DraftEditorPage } from "../studio/DraftEditorPage";
-import { StudioPage } from "../studio/StudioPage";
+
+const DraftEditorPage = lazy(() => import("../studio/DraftEditorPage").then((module) => ({ default: module.DraftEditorPage })));
+const HistoryPage = lazy(() => import("../studio/HistoryPage").then((module) => ({ default: module.HistoryPage })));
+const StudioPage = lazy(() => import("../studio/StudioPage").then((module) => ({ default: module.StudioPage })));
 
 function WelcomePage() {
   return (
@@ -45,17 +48,7 @@ function WelcomePage() {
   );
 }
 
-function HistoryPlaceholder() {
-  return (
-    <main id="main-content" className="management-page">
-      <p className="eyebrow">변경 이력을 지우지 않는 안전장치</p>
-      <h1>콘텐츠 배포 이력</h1>
-      <p>검증·배포·롤백 기록은 감사 로그와 함께 표시됩니다.</p>
-    </main>
-  );
-}
-
-function ProtectedPage({ children }: { children: React.ReactNode }) {
+function ProtectedPage({ children }: { children: ReactNode }) {
   return (
     <RequireSession>
       <AppLayout>{children}</AppLayout>
@@ -69,6 +62,7 @@ export function App() {
       <a className="skip-link" href="#main-content">
         본문으로 바로가기
       </a>
+      <Suspense fallback={<main className="state-page" aria-busy="true">화면을 준비하는 중…</main>}>
       <Routes>
         <Route path="/" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -97,12 +91,13 @@ export function App() {
           path="/studio/history"
           element={
             <ProtectedPage>
-              <RequireRole allow={["owner"]}><HistoryPlaceholder /></RequireRole>
+              <RequireRole allow={["owner"]}><HistoryPage /></RequireRole>
             </ProtectedPage>
           }
         />
         <Route path="*" element={<main className="state-page"><h1>화면을 찾을 수 없습니다</h1><Link to="/">처음으로</Link></main>} />
       </Routes>
+      </Suspense>
     </>
   );
 }

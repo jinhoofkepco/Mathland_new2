@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ChildProfileRowSchema,
+  ContentPublicationHistoryItemSchema,
   FamilyMembershipRowSchema,
   SessionStateSchema,
 } from "../../src/cloud/wire.js";
@@ -38,5 +39,25 @@ describe("cloud wire contracts", () => {
         role: "admin",
       }),
     ).toThrow();
+  });
+
+  it("accepts only a complete immutable publication-history projection", () => {
+    const row = {
+      id: "40000000-0000-4000-8000-000000000001",
+      activityId: "addition_ones",
+      contentVersion: "1.2.3",
+      checksum: `sha256:${"a".repeat(64)}`,
+      status: "active",
+      publishedAt: "2030-01-01T00:00:00.000Z",
+      effectiveAt: "2030-01-01T00:00:00.000Z",
+      publishedBy: "00000000-0000-4000-8000-000000000001",
+      sourceRevision: 4,
+      rollbackOfId: null,
+      reason: "검증된 난이도 조정",
+      validationValid: true,
+    };
+    expect(ContentPublicationHistoryItemSchema.parse(row)).toEqual(row);
+    expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, package: {} })).toThrow();
+    expect(() => ContentPublicationHistoryItemSchema.parse({ ...row, checksum: "sha256:bad" })).toThrow();
   });
 });

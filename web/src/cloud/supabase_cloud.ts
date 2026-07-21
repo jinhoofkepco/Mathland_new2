@@ -8,6 +8,7 @@ import {
   ContentDraftSchema,
   ContentDraftSummarySchema,
   ContentPublicationSchema,
+  ContentPublicationHistoryItemSchema,
   DashboardQuerySchema,
   DashboardSnapshotSchema,
   FamilyExportSchema,
@@ -31,6 +32,7 @@ import type {
   ContentDraft,
   ContentDraftSummary,
   ContentPublication,
+  ContentPublicationHistoryItem,
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
@@ -331,21 +333,27 @@ export class SupabaseCloud implements CloudPort {
   async publishDraft(
     draftId: string,
     expectedRevision: number,
+    options: { effectiveAt?: string; reason?: string } = {},
   ): Promise<ContentPublication> {
     return this.invoke(
       "publish-draft",
-      { draftId, expectedRevision },
+      { draftId, expectedRevision, ...options },
       ContentPublicationSchema,
     );
   }
 
-  async rollbackPublication(
-    activityId: string,
-    contentVersion: string,
-  ): Promise<ContentPublication> {
+  async listPublicationHistory(activityId?: string): Promise<ContentPublicationHistoryItem[]> {
+    return this.invoke(
+      "content-history",
+      activityId ? { activityId } : {},
+      z.array(ContentPublicationHistoryItemSchema),
+    );
+  }
+
+  async rollbackPublication(publicationId: string, reason: string): Promise<ContentPublication> {
     return this.invoke(
       "rollback-publication",
-      { activityId, contentVersion },
+      { publicationId, reason },
       ContentPublicationSchema,
     );
   }

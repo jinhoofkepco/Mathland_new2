@@ -274,13 +274,19 @@ button:disabled {
 
 .auth-card input,
 .dialog-card input,
-.page-heading select {
+.page-heading select,
+.dialog-card textarea {
   width: 100%;
   min-height: 3.5rem;
   padding: 0.75rem 0.9rem;
   border: 3px solid var(--color-ink);
   border-radius: var(--radius-control);
   background: white;
+}
+
+.dialog-card textarea {
+  min-height: 6rem;
+  resize: vertical;
 }
 
 .auth-card input:focus-visible,
@@ -523,6 +529,12 @@ button:focus-visible,
   gap: 0.75rem;
 }
 
+.dialog-card > label {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: end;
@@ -744,6 +756,95 @@ button:focus-visible,
   font-weight: 850;
 }
 
+.publication-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.publication-summary div {
+  min-width: 0;
+  padding: 0.65rem;
+  border-radius: 0.7rem;
+  background: var(--color-sky);
+}
+
+.publication-summary dt {
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.publication-summary dd {
+  margin: 0.2rem 0 0;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.validation-summary {
+  padding: 0.7rem;
+  border-radius: 0.7rem;
+  background: #effcf4;
+  color: #236b43;
+  font-weight: 850;
+}
+
+.history-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.history-list article {
+  padding: clamp(1rem, 4vw, 1.5rem);
+  border: 2px solid rgb(24 48 74 / 10%);
+  border-radius: 1.35rem;
+  background: white;
+  box-shadow: 0 0.6rem 1.8rem rgb(35 82 96 / 8%);
+}
+
+.history-list article > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.history-list h2 {
+  margin: 0.35rem 0 0;
+  font-size: 1.15rem;
+}
+
+.history-list button {
+  flex: 0 0 auto;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.8rem;
+  background: white;
+  font-weight: 850;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--color-sand);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.status-badge.is-active { background: var(--color-mint); color: #236b43; }
+.status-badge.is-pending { background: var(--color-gold); }
+.status-badge.is-retired { background: #edf0f3; color: var(--color-ink-soft); }
+
+.checksum {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
 .validation-panel code {
   font-weight: 800;
 }
@@ -947,6 +1048,19 @@ button:focus-visible,
   .editor-actions .primary-action,
   .studio-link {
     width: 100%;
+  }
+
+  .history-list article > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-list article > header button {
+    width: 100%;
+  }
+
+  .publication-summary {
+    grid-template-columns: 1fr;
   }
 }
 

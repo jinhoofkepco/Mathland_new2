@@ -198,6 +198,22 @@ export const ContentPublicationSchema = z.strictObject({
 });
 export type ContentPublication = z.infer<typeof ContentPublicationSchema>;
 
+export const ContentPublicationHistoryItemSchema = z.strictObject({
+  id: CloudUuidSchema,
+  activityId: z.string().min(1).max(128),
+  contentVersion: z.string().regex(/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/),
+  checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  status: z.enum(["pending", "active", "retired"]),
+  publishedAt: CloudTimestampSchema,
+  effectiveAt: CloudTimestampSchema,
+  publishedBy: CloudUuidSchema.nullable(),
+  sourceRevision: z.number().int().positive(),
+  rollbackOfId: CloudUuidSchema.nullable(),
+  reason: z.string().trim().min(1).max(500).nullable(),
+  validationValid: z.boolean(),
+});
+export type ContentPublicationHistoryItem = z.infer<typeof ContentPublicationHistoryItemSchema>;
+
 export const AiPatchResultSchema = z.strictObject({
   draftId: CloudUuidSchema,
   baseRevision: z.number().int().positive(),

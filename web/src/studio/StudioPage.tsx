@@ -28,6 +28,7 @@ export function StudioPage() {
       <p className="eyebrow">배포 전 검증되는 현장 조절 도구</p>
       <h1>콘텐츠 스튜디오</h1>
       <p>게임 코드를 다시 빌드하지 않고 난이도·보상·시간·문구를 초안으로 조정합니다.</p>
+      <p><Link className="studio-link" to="/studio/history">배포 이력과 롤백 보기</Link></p>
       {loading ? <p aria-busy="true">초안을 불러오는 중…</p> : null}
       {error ? <p role="alert">{error}</p> : null}
       <section className="management-list" aria-label="콘텐츠 초안">
