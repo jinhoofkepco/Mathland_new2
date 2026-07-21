@@ -113,6 +113,8 @@ func _apply_live_services(changed_key: String) -> void:
 	if changed_key in ["effect_quality", "reduced_motion"]:
 		if _effects_service != null and _effects_service.has_method("set_policy"):
 			_effects_service.set_policy(StringName(_settings.effect_quality), bool(_settings.reduced_motion))
+	if changed_key == "reduced_motion" and _ui_policy != null and _ui_policy.has_method("set_reduced_motion"):
+		_ui_policy.set_reduced_motion(bool(_settings.reduced_motion))
 
 func _refresh_controls() -> void:
 	_updating_controls = true

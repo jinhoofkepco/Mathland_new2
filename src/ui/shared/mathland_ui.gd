@@ -74,11 +74,20 @@ static func scaffold(root: Control, title_key: String, subtitle_key: String = ""
 		subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		title_column.add_child(subtitle)
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "BodyScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	column.add_child(scroll)
+
 	var body := VBoxContainer.new()
 	body.name = "Body"
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 8)
-	column.add_child(body)
+	scroll.add_child(body)
 	return {
 		"background": background,
 		"safe": safe,
@@ -86,6 +95,7 @@ static func scaffold(root: Control, title_key: String, subtitle_key: String = ""
 		"header": header,
 		"title": title,
 		"subtitle": subtitle,
+		"scroll": scroll,
 		"body": body,
 		"back_button": back_button,
 	}
@@ -98,6 +108,9 @@ static func tactile_button(node_name: String, label_key: String, icon_name := ""
 	button.icon_name = icon_name
 	var text_label: Label = button.get_node("Visual/Content/TextLabel")
 	text_label.add_theme_font_size_override("font_size", font_size)
+	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_label.clip_text = true
+	text_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var icon_label: Label = button.get_node("Visual/Content/IconLabel")
 	icon_label.add_theme_font_size_override("font_size", font_size + 4)
 	return button

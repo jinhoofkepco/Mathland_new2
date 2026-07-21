@@ -10,6 +10,8 @@ var _progress_service: Variant
 var _content_repository: Variant
 var _audio_service: Variant
 var _effects_service: Variant
+var _ui_policy: Variant
+var _profile_activator: Variant
 var _profile_id := ""
 
 func configure(params: Dictionary) -> void:
@@ -21,6 +23,9 @@ func configure(params: Dictionary) -> void:
 	_content_repository = params.get("content_repository")
 	_audio_service = params.get("audio_service")
 	_effects_service = params.get("effects_service")
+	_ui_policy = params.get("ui_policy")
+	var activator_value: Variant = params.get("profile_activator")
+	_profile_activator = activator_value.get_ref() if activator_value is WeakRef else activator_value
 	_profile_id = String(params.get("profile_id", ""))
 
 func _route(route: StringName, extras: Dictionary = {}) -> Dictionary:
@@ -33,6 +38,14 @@ func _route(route: StringName, extras: Dictionary = {}) -> Dictionary:
 
 func _back() -> bool:
 	return _router != null and _router.has_method("back") and _router.back()
+
+func _reset_route(route: StringName, extras: Dictionary = {}) -> Dictionary:
+	if _router == null or not _router.has_method("reset"):
+		return {"ok": false, "error": "router_unavailable"}
+	var next_params := _params.duplicate(false)
+	for key in extras:
+		next_params[key] = extras[key]
+	return _router.reset(route, next_params)
 
 func _snapshot() -> Dictionary:
 	if _progress_service != null and _progress_service.has_method("snapshot"):
@@ -53,6 +66,8 @@ func _today() -> String:
 	return injected if not injected.is_empty() else Time.get_date_string_from_system()
 
 func _connect_tactile(button: Control, callback: Callable) -> void:
+	if _ui_policy != null and _ui_policy.has_method("register_tactile"):
+		_ui_policy.register_tactile(button)
 	MathlandUiScript.connect_tactile(button, callback, _audio_service)
 
 func _play_effect(effect_name: StringName, at: Vector2 = Vector2.ZERO) -> void:

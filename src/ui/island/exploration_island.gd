@@ -48,6 +48,7 @@ func _ready() -> void:
 	_add_route_button(grid, "InventoryButton", "island.inventory", func(): _route(AppRouteScript.INVENTORY))
 	_add_route_button(grid, "CollectionButton", "island.collection", func(): _route(AppRouteScript.COLLECTION))
 	_add_route_button(grid, "SettingsButton", "island.settings", func(): _route(AppRouteScript.SETTINGS))
+	_add_route_button(grid, "SwitchProfileButton", "island.switch_profile", switch_profile)
 
 func objective_keys() -> Array[String]:
 	var keys: Array[String] = []
@@ -66,6 +67,16 @@ func sync_state() -> Dictionary:
 
 func open_daily_path() -> void:
 	_route(AppRouteScript.DAILY_PATH)
+
+func switch_profile() -> void:
+	_reset_route(AppRouteScript.PROFILE_SELECT, {"profile_id": ""})
+
+func sync_status_text() -> String:
+	if _online:
+		return TranslationServer.translate("sync.online")
+	if _queued <= 0:
+		return TranslationServer.translate("sync.offline")
+	return TranslationServer.translate("sync.offline_queued") % _queued
 
 func continue_activity() -> void:
 	var objective: Dictionary = _objectives[0] if not _objectives.is_empty() else {"activity_id": "foundation_ten_rods", "objective_id": "continue"}
@@ -93,7 +104,7 @@ func _add_status_row(body: VBoxContainer) -> void:
 	var sync := MathlandUiScript.card("SyncState", MathlandUiScript.MINT, 14)
 	sync.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sync.custom_minimum_size = Vector2(0, 46)
-	var sync_text: String = TranslationServer.translate("sync.online") if _online else TranslationServer.translate("sync.queued") % _queued
+	var sync_text := sync_status_text()
 	var sync_label := MathlandUiScript.literal_label(sync_text, 13, MathlandUiScript.DEEP_TEAL)
 	sync_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sync.add_child(sync_label)

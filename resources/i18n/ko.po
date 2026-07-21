@@ -105,6 +105,9 @@ msgstr "오프라인 · 기기에 안전하게 저장 중"
 msgid "sync.queued"
 msgstr "보낼 기록 %d개"
 
+msgid "sync.offline_queued"
+msgstr "오프라인 · 보낼 기록 %d개"
+
 msgid "island.today_objectives"
 msgstr "오늘의 탐험 3개"
 
@@ -125,6 +128,12 @@ msgstr "도감"
 
 msgid "island.settings"
 msgstr "설정"
+
+msgid "island.switch_profile"
+msgstr "탐험가 바꾸기"
+
+msgid "profile.error.activation_failed"
+msgstr "탐험가를 열지 못했어요. 다시 시도해 주세요"
 
 msgid "objective.complete_three"
 msgstr "문제 3개 풀기"

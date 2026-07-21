@@ -10,10 +10,39 @@ class ConfigurableScreen extends Control:
 	func configure(params: Dictionary) -> void:
 		configured_params = params.duplicate(true)
 
+class PersistedProfileService extends RefCounted:
+	const PROFILE := {
+		"profile_id": "persisted-profile",
+		"nickname": "모아",
+		"avatar_id": "moa_mint",
+		"settings": {
+			"adaptive_difficulty": false,
+			"timing_aids": true,
+			"timers_enabled": true,
+			"reduced_motion": false,
+			"effect_quality": "high",
+			"master_db": 0.0,
+			"music_db": -6.0,
+			"sfx_db": 0.0,
+			"voice_db": 0.0,
+			"voice_enabled": true,
+		},
+	}
+
+	func selected_profile() -> Dictionary:
+		return PROFILE.duplicate(true)
+
+	func list_profiles() -> Array[Dictionary]:
+		return [PROFILE.duplicate(true)]
+
+	func get_profile(profile_id: Variant) -> Dictionary:
+		return PROFILE.duplicate(true) if profile_id == PROFILE.profile_id else {}
+
 func run(tree: SceneTree) -> void:
 	_test_push_replace_back_and_unknown_are_contained()
 	_test_only_owned_route_node_is_replaced()
 	await _test_shell_handles_cancel_without_duplicating_root(tree)
+	await _test_cold_start_always_requires_profile_selection(tree)
 	assert_false(ProjectSettings.get_setting("application/config/quit_on_go_back", true))
 
 func _test_push_replace_back_and_unknown_are_contained() -> void:
@@ -69,6 +98,14 @@ func _test_push_replace_back_and_unknown_are_contained() -> void:
 		AppRouteScript.RESULT,
 		AppRouteScript.PROFILE_SELECT,
 	])
+	assert_true(router.has_method("reset"), "router reset boundary is missing")
+	if router.has_method("reset"):
+		assert_true(router.navigate(AppRouteScript.ISLAND, {"profile": "old"}).ok)
+		assert_eq(router.depth(), 2)
+		assert_true(router.reset(AppRouteScript.PROFILE_SELECT, {"profile": "new"}).ok)
+		assert_eq(router.depth(), 1)
+		assert_eq(router.current_route(), AppRouteScript.PROFILE_SELECT)
+		assert_eq(router.current_params(), {"profile": "new"})
 	host.free()
 
 func _test_only_owned_route_node_is_replaced() -> void:
@@ -105,6 +142,26 @@ func _test_shell_handles_cancel_without_duplicating_root(tree: SceneTree) -> voi
 	shell._unhandled_input(cancel)
 	assert_eq(router.current_route(), AppRouteScript.PROFILE_SELECT)
 	assert_eq(router.depth(), 1)
+	shell.queue_free()
+	await tree.process_frame
+
+func _test_cold_start_always_requires_profile_selection(tree: SceneTree) -> void:
+	var shell: Control = AppShellScene.instantiate()
+	assert_true(shell.has_method("configure_dependencies"), "AppShell dependency boundary is missing")
+	assert_true(shell.has_method("current_route"), "AppShell current route inspection is missing")
+	if not shell.has_method("configure_dependencies") or not shell.has_method("current_route"):
+		shell.free()
+		return
+	shell.configure_dependencies({
+		"profile_service": PersistedProfileService.new(),
+		"device_id": "17f0c6b8-4f8d-4d59-9c1a-8af4310d835f",
+	})
+	tree.root.add_child(shell)
+	await tree.process_frame
+	await tree.process_frame
+	assert_eq(shell.current_route(), AppRouteScript.PROFILE_SELECT, "persisted selection must not bypass PIN")
+	assert_eq(shell.route_host.get_child_count(), 1)
+	assert_eq(shell.route_host.get_child(0).name, "ProfileSelect")
 	shell.queue_free()
 	await tree.process_frame
 

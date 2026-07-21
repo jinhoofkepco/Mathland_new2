@@ -11,9 +11,11 @@ var _nickname: LineEdit
 var _avatar: OptionButton
 var _pin: LineEdit
 var _error_label: Label
+var _ui_policy: Variant
 
 func configure(params: Dictionary) -> void:
 	_profile_service = params.get("profile_service")
+	_ui_policy = params.get("ui_policy")
 
 func _ready() -> void:
 	_build_ui()
@@ -92,6 +94,9 @@ func _build_ui() -> void:
 	actions.add_child(save_button)
 	MathlandUiScript.connect_tactile(close_button, _dismiss)
 	MathlandUiScript.connect_tactile(save_button, _submit_form)
+	if _ui_policy != null and _ui_policy.has_method("register_tactile"):
+		_ui_policy.register_tactile(close_button)
+		_ui_policy.register_tactile(save_button)
 
 func _submit_form() -> void:
 	var avatar_id: Variant = _avatar.get_item_metadata(_avatar.selected)

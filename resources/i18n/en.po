@@ -105,6 +105,9 @@ msgstr "Offline · safely saved on this device"
 msgid "sync.queued"
 msgstr "%d records waiting"
 
+msgid "sync.offline_queued"
+msgstr "Offline · %d records waiting"
+
 msgid "island.today_objectives"
 msgstr "Today's three quests"
 
@@ -125,6 +128,12 @@ msgstr "Collection"
 
 msgid "island.settings"
 msgstr "Settings"
+
+msgid "island.switch_profile"
+msgstr "Switch explorer"
+
+msgid "profile.error.activation_failed"
+msgstr "Could not open this explorer. Please try again"
 
 msgid "objective.complete_three"
 msgstr "Solve 3 questions"

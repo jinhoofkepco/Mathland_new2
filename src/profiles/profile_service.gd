@@ -95,6 +95,20 @@ func selected_profile() -> Dictionary:
 	var index := _profile_index(_selected_profile_id)
 	return _public_profile(_profiles[index]) if index >= 0 else {}
 
+func restore_selection_after_failed_activation(failed_profile_id: Variant, previous_profile_id: Variant) -> Error:
+	if not failed_profile_id is String or not previous_profile_id is String:
+		return ERR_INVALID_PARAMETER
+	if _selected_profile_id != failed_profile_id:
+		return ERR_INVALID_DATA
+	if not previous_profile_id.is_empty() and _profile_index(previous_profile_id) < 0:
+		return ERR_DOES_NOT_EXIST
+	var save_error := _save_index(_profiles, previous_profile_id)
+	if save_error != OK:
+		return save_error
+	_selected_profile_id = previous_profile_id
+	selection_changed.emit()
+	return OK
+
 func list_profiles() -> Array[Dictionary]:
 	var public_profiles: Array[Dictionary] = []
 	for profile in _profiles:

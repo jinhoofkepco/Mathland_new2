@@ -33,6 +33,16 @@ func navigate(route: StringName, params: Dictionary = {}) -> Dictionary:
 func replace(route: StringName, params: Dictionary = {}) -> Dictionary:
 	return _transition(route, params, &"replace")
 
+func reset(route: StringName, params: Dictionary = {}) -> Dictionary:
+	var created := _create_route(route, params)
+	if not created.get("ok", false):
+		return created
+	var record := {"route": route, "params": params.duplicate(true)}
+	_swap_current(created.node)
+	_stack = [record]
+	route_changed.emit(route, params.duplicate(true))
+	return {"ok": true, "route": route, "params": params.duplicate(true)}
+
 func back() -> bool:
 	if _stack.size() <= 1:
 		return false

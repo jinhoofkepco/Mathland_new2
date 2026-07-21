@@ -29,6 +29,7 @@ var _restore_tween: Tween
 var _normal_shadow_position := Vector2.ZERO
 var _normal_shadow_modulate := Color.WHITE
 var _haptic_driver: Callable
+var _display_text_override := ""
 
 func _ready() -> void:
 	custom_minimum_size = custom_minimum_size.max(Vector2(48, 48))
@@ -45,6 +46,11 @@ func _ready() -> void:
 func configure_accessibility(new_label_key: String, new_icon_name: String) -> void:
 	label_key = new_label_key if not new_label_key.strip_edges().is_empty() else "button.continue"
 	icon_name = new_icon_name
+	if is_node_ready():
+		_apply_accessibility()
+
+func configure_display_text(display_text: String) -> void:
+	_display_text_override = display_text.strip_edges()
 	if is_node_ready():
 		_apply_accessibility()
 
@@ -176,7 +182,7 @@ func _update_pivot() -> void:
 		_visual.pivot_offset = size * 0.5
 
 func _apply_accessibility() -> void:
-	var visible_label := tr(label_key)
+	var visible_label := _display_text_override if not _display_text_override.is_empty() else tr(label_key)
 	if visible_label.is_empty():
 		visible_label = label_key
 	_text_label.text = visible_label

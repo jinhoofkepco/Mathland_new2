@@ -26,6 +26,8 @@ func _ready() -> void:
 	hero_row.add_child(moa_badge)
 	var app_name := MathlandUiScript.label("app.title", 22, MathlandUiScript.INK)
 	app_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	app_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	app_name.clip_text = true
 	hero_row.add_child(app_name)
 	_profile_buttons = VBoxContainer.new()
 	_profile_buttons.name = "ProfileList"
@@ -52,7 +54,7 @@ func _ready() -> void:
 	_connect_tactile(create_button, show_create_dialog)
 	_dialog = ProfileCreateDialogScene.instantiate()
 	_dialog.name = "CreateProfileDialog"
-	_dialog.configure({"profile_service": _profile_service})
+	_dialog.configure({"profile_service": _profile_service, "ui_policy": _ui_policy})
 	_dialog.profile_created.connect(_on_profile_created)
 	_dialog.dismissed.connect(func(): _dialog.visible = false)
 	_dialog.visible = false
@@ -60,14 +62,20 @@ func _ready() -> void:
 	_refresh_profiles()
 
 func attempt_unlock(profile_id: String, pin: String, now_unix: int) -> Dictionary:
-	if _profile_service == null or not _profile_service.has_method("verify_and_select"):
-		return _show_unlock_error({"ok": false, "error": "save_failed"})
-	var result: Dictionary = _profile_service.verify_and_select(profile_id, pin, now_unix)
+	if _profile_activator == null or not _profile_activator.has_method("activate_profile"):
+		return _show_unlock_error({"ok": false, "error": "activation_unavailable"})
+	var activation: Variant = _profile_activator.activate_profile(profile_id, pin, now_unix)
+	var result: Dictionary = activation if activation is Dictionary else {"ok": false, "error": "invalid_activation_result"}
 	if not result.get("ok", false):
 		return _show_unlock_error(result)
 	_profile_id = result.profile.profile_id
 	_error_label.text = ""
-	_route(AppRouteScript.ISLAND, {"profile_id": _profile_id})
+	_pin_input.clear()
+	var route_params: Dictionary = result.get("route_params", {}).duplicate(false)
+	route_params["profile_id"] = _profile_id
+	var routed := _route(AppRouteScript.ISLAND, route_params)
+	if not routed.get("ok", false):
+		return _show_unlock_error({"ok": false, "error": "route_failed"})
 	return result.duplicate(true)
 
 func show_create_dialog() -> void:
@@ -97,7 +105,7 @@ func _refresh_profiles() -> void:
 			Vector2(0, 54),
 			18
 		)
-		button.get_node("Visual/Content/TextLabel").text = "%s · %s" % [profile.nickname, TranslationServer.translate("avatar.%s" % profile.avatar_id)]
+		button.configure_display_text("%s · %s" % [profile.nickname, TranslationServer.translate("avatar.%s" % profile.avatar_id)])
 		_profile_buttons.add_child(button)
 		_connect_tactile(button, _select_profile.bind(String(profile.profile_id)))
 	if _selected_id.is_empty():
@@ -117,6 +125,8 @@ func _show_unlock_error(result: Dictionary) -> Dictionary:
 	var error := String(result.get("error", "save_failed"))
 	if error == "invalid_pin":
 		error = "invalid_pin_attempt"
+	if error not in ["invalid_pin_attempt", "pin_locked", "save_failed"]:
+		error = "activation_failed"
 	_error_label.text = TranslationServer.translate("profile.error.%s" % error)
 	return result.duplicate(true)
 

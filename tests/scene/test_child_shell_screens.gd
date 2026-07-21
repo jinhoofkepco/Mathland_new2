@@ -15,6 +15,7 @@ const SCREEN_CASES := {
 		"InventoryButton",
 		"CollectionButton",
 		"SettingsButton",
+		"SwitchProfileButton",
 	],
 	"res://scenes/island/daily_path.tscn": ["StartFirstObjectiveButton", "BackButton"],
 	"res://scenes/island/free_play.tscn": ["ActivityButton_0", "BackButton"],
@@ -33,8 +34,20 @@ class FakeRouter extends RefCounted:
 		return {"ok": true}
 
 	func back() -> bool:
-		calls.append({"route": &"back", "params": {}})
+		calls.append({"route": &"back", "params": {}, "mode": "back"})
 		return true
+
+	func reset(route: StringName, params: Dictionary = {}) -> Dictionary:
+		calls.append({"route": route, "params": params.duplicate(true), "mode": "reset"})
+		return {"ok": true}
+
+class FakeActivator extends RefCounted:
+	var calls: Array[Dictionary] = []
+	var result: Dictionary = {"ok": false, "error": "activation_failed"}
+
+	func activate_profile(profile_id: String, pin: String, now_unix: int) -> Dictionary:
+		calls.append({"profile_id": profile_id, "pin": pin, "now_unix": now_unix})
+		return result.duplicate(true)
 
 class FakeProgressService extends RefCounted:
 	func snapshot() -> Dictionary:
@@ -85,10 +98,18 @@ func run(tree: SceneTree) -> void:
 		"online": false,
 		"sync_queue_count": 3,
 	}
+	var ui_policy_path := "res://src/ui/shared/ui_policy.gd"
+	assert_true(ResourceLoader.exists(ui_policy_path), "UI policy service is missing")
+	if ResourceLoader.exists(ui_policy_path):
+		var UiPolicyScript: Variant = load(ui_policy_path)
+		services["ui_policy"] = UiPolicyScript.new()
 	await _test_all_screens_at_supported_viewports(tree, services)
 	await _test_profile_creation_rules(tree, profile_service)
+	await _test_profile_activation_gates_route(tree, profile_service, services)
 	await _test_island_data_and_routes(tree, services)
+	await _test_offline_copy_is_explicit(tree, services)
 	await _test_settings_are_profile_scoped_and_live(tree, services)
+	await _test_reduced_motion_reaches_current_and_new_buttons(tree, services)
 	_test_daily_objectives_are_stable_and_distinct()
 	(services.router as FakeRouter).calls.clear()
 	services.clear()
@@ -117,11 +138,16 @@ func _test_all_screens_at_supported_viewports(tree: SceneTree, services: Diction
 			await tree.process_frame
 			await tree.process_frame
 			assert_eq(screen.size, Vector2(viewport_size), "%s did not fill %s" % [scene_path, viewport_size])
+			var scroll: ScrollContainer = screen.find_child("BodyScroll", true, false)
 			for action_name in SCREEN_CASES[scene_path]:
 				var action: Control = screen.find_child(action_name, true, false)
 				assert_not_null(action, "%s is missing %s" % [scene_path, action_name])
 				if action == null:
 					continue
+				if scroll != null and scroll.is_ancestor_of(action):
+					scroll.ensure_control_visible(action)
+					await tree.process_frame
+					await tree.process_frame
 				assert_true(action.is_visible_in_tree(), "%s is hidden" % action_name)
 				assert_true(action.size.x >= 48.0 and action.size.y >= 48.0, "%s has a small target" % action_name)
 				assert_true(_rect_inside(action.get_global_rect(), Rect2(Vector2.ZERO, Vector2(viewport_size))), "%s clips at %s" % [action_name, viewport_size])
@@ -148,6 +174,38 @@ func _test_profile_creation_rules(tree: SceneTree, profile_service: Node) -> voi
 	viewport.queue_free()
 	await tree.process_frame
 
+func _test_profile_activation_gates_route(tree: SceneTree, profile_service: Node, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/profile/profile_select.tscn")
+	var screen: Control = scene.instantiate()
+	var router := FakeRouter.new()
+	var activator := FakeActivator.new()
+	var params := services.duplicate(false)
+	params.router = router
+	params.profile_activator = activator
+	screen.configure(params)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var profile_id: String = profile_service.list_profiles()[0].profile_id
+	var failed: Dictionary = screen.attempt_unlock(profile_id, "1234", 1000)
+	assert_false(failed.ok)
+	assert_eq(router.calls, [], "failed activation must not route")
+	activator.result = {
+		"ok": true,
+		"profile": profile_service.get_profile(profile_id),
+		"route_params": {"profile_id": profile_id, "progress_service": services.progress_service},
+	}
+	var activated: Dictionary = screen.attempt_unlock(profile_id, "1234", 1001)
+	assert_true(activated.ok)
+	assert_eq(activator.calls.size(), 2)
+	assert_eq(router.calls.back().route, &"island")
+	viewport.queue_free()
+	await tree.process_frame
+	router.calls.clear()
+	activator.calls.clear()
+
 func _test_island_data_and_routes(tree: SceneTree, services: Dictionary) -> void:
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(360, 800)
@@ -168,6 +226,35 @@ func _test_island_data_and_routes(tree: SceneTree, services: Dictionary) -> void
 	assert_eq(screen.sync_state(), {"online": false, "queued": 3})
 	screen.open_daily_path()
 	assert_eq((services.router as FakeRouter).calls.back().route, &"daily_path")
+	screen.switch_profile()
+	assert_eq((services.router as FakeRouter).calls.back().route, &"profile_select")
+	assert_eq((services.router as FakeRouter).calls.back().mode, "reset")
+	viewport.queue_free()
+	await tree.process_frame
+
+func _test_offline_copy_is_explicit(tree: SceneTree, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/island/exploration_island.tscn")
+	var zero_params := services.duplicate(false)
+	zero_params.online = false
+	zero_params.sync_queue_count = 0
+	var zero_screen: Control = scene.instantiate()
+	zero_screen.configure(zero_params)
+	viewport.add_child(zero_screen)
+	await tree.process_frame
+	assert_eq(zero_screen.sync_status_text(), TranslationServer.translate("sync.offline"))
+	zero_screen.queue_free()
+	await tree.process_frame
+	var queued_params := services.duplicate(false)
+	queued_params.online = false
+	queued_params.sync_queue_count = 3
+	var queued_screen: Control = scene.instantiate()
+	queued_screen.configure(queued_params)
+	viewport.add_child(queued_screen)
+	await tree.process_frame
+	assert_eq(queued_screen.sync_status_text(), TranslationServer.translate("sync.offline_queued") % 3)
 	viewport.queue_free()
 	await tree.process_frame
 
@@ -194,6 +281,26 @@ func _test_settings_are_profile_scoped_and_live(tree: SceneTree, services: Dicti
 	assert_eq(stored.music_db, -18.0)
 	assert_true((services.audio_service as FakeAudioService).applied.size() >= 2)
 	assert_eq((services.effects_service as FakeEffectsService).policies.back(), {"quality": &"low", "reduced_motion": true})
+	if services.has("ui_policy"):
+		assert_true(services.ui_policy.reduced_motion_enabled())
+		var back_button: Control = screen.find_child("BackButton", true, false)
+		assert_true(back_button.reduced_motion, "current tactile button must update immediately")
+	viewport.queue_free()
+	await tree.process_frame
+
+func _test_reduced_motion_reaches_current_and_new_buttons(tree: SceneTree, services: Dictionary) -> void:
+	if not services.has("ui_policy"):
+		return
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/island/exploration_island.tscn")
+	var screen: Control = scene.instantiate()
+	screen.configure(services)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var continue_button: Control = screen.find_child("ContinueButton", true, false)
+	assert_true(continue_button.reduced_motion, "new tactile controls must inherit profile policy")
 	viewport.queue_free()
 	await tree.process_frame
 
