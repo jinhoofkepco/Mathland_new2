@@ -76,6 +76,40 @@ function manifest(assets: readonly unknown[]): Record<string, unknown> {
   };
 }
 
+function audioRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "audio.test.release",
+    path: "assets/audio/test.ogg",
+    kind: "audio",
+    release: true,
+    audio_format: {
+      container: "Ogg",
+      codec: "Vorbis",
+      sample_rate_hz: 48_000,
+      channels: 1,
+    },
+    origin: "original",
+    creator: "MathLand project",
+    tool: "MathLand deterministic procedural audio generator",
+    source_path: "tools/assets/generate_original_audio.mjs",
+    sha256: "a".repeat(64),
+    license: "MathLand-Original-Audio-1.0",
+    modifications: "Original deterministic synthesis encoded as release Ogg.",
+    redistribution: "confirmed",
+    reviewer: "Codex audio policy and technical review",
+    review_date: "2026-07-21",
+    review: {
+      technical_checked: true,
+      content_checked: true,
+      child_appropriate: true,
+      rights_checked: true,
+      clipping_absent: true,
+      release_playback_checked: true,
+    },
+    ...overrides,
+  };
+}
+
 function issueCodes(report: { issues: readonly { code: string }[] }): string[] {
   return report.issues.map((issue) => issue.code);
 }
@@ -130,6 +164,36 @@ describe("asset provenance schema", () => {
       ]),
     );
     expect(issueCodes(report)).toContain("ASSET_SCHEMA_INVALID");
+  });
+
+  it("rejects image-only review flags on audio records", () => {
+    const report = validateAssetManifest(manifest([audioRecord({ review: svgRecord().review })]));
+    expect(issueCodes(report)).toContain("ASSET_SCHEMA_INVALID");
+  });
+
+  it("requires complete pinned provenance for synthetic-derived voice", () => {
+    const report = validateAssetManifest(manifest([audioRecord({
+      origin: "synthetic-derived",
+      creator: "MathLand synthetic guide voice",
+      source_path: "assets/source/audio/dialogue-ko-KR.csv",
+    })]));
+    expect(issueCodes(report)).toContain("ASSET_SCHEMA_INVALID");
+  });
+
+  it("accepts kind-specific synthetic voice provenance", () => {
+    const report = validateAssetManifest(manifest([audioRecord({
+      origin: "synthetic-derived",
+      creator: "MathLand synthetic guide voice",
+      source_path: "assets/source/audio/dialogue-ko-KR.csv",
+      generation_script: "tools/assets/generate_ppaso_voice.py",
+      input_path: "assets/source/audio/dialogue-ko-KR.csv",
+      external_model: {
+        url: "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        revision: "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        license: "Apache-2.0",
+      },
+    })]));
+    expect(report.issues).toEqual([]);
   });
 });
 

@@ -14,8 +14,32 @@ func _test_release_audio_manifest_is_loaded(tree: SceneTree) -> void:
 	tree.root.add_child(service)
 	await tree.process_frame
 	assert_eq(service.audio_asset_counts(), {"music": 3, "sfx": 12, "voice": 9})
-	assert_true(service.question_voice_requires_speaker())
+	assert_true(service.has_method("instruction_voice_requires_speaker"), "instruction policy API is missing")
+	if service.has_method("instruction_voice_requires_speaker"):
+		assert_true(service.instruction_voice_requires_speaker())
 	assert_false(service.voice_blocks_input())
+	assert_eq(service.dialogue_for_activity({"activity_id": "foundation_ten_rods"}), &"moa_tutorial_base_ten")
+	var expected_activity_dialogues := {
+		"foundations_counting": &"moa_tutorial_counting",
+		"foundations_number_bonds": &"moa_tutorial_number_bonds",
+		"foundations_ten_frame": &"moa_tutorial_ten_frame",
+		"foundations_base_ten": &"moa_tutorial_base_ten",
+		"foundations_number_line": &"moa_tutorial_number_line",
+		"foundations_basic_operations": &"moa_tutorial_basic_operations",
+	}
+	for activity_id in expected_activity_dialogues:
+		assert_eq(service.dialogue_for_activity({"activity_id": activity_id}), expected_activity_dialogues[activity_id])
+	assert_eq(service.dialogue_for_policy(&"first_home"), &"moa_home_welcome")
+	assert_eq(service.dialogue_for_policy(&"reward_event"), &"moa_reward")
+	assert_eq(service.dialogue_for_policy(&"level_up_event"), &"moa_level_up")
+	assert_eq(service.dialogue_for_policy(&"first_activity_entry", {"activity_id": "foundations_counting"}), &"moa_tutorial_counting")
+	assert_eq(service.dialogue_for_policy(&"unknown"), &"")
+	assert_false(service.play_policy_voice(&"first_home", {}, false), "policy voice autoplay was forced without authorization")
+	assert_eq(service.current_voice_id(), &"")
+	assert_true(service.play_policy_voice(&"first_home", {}, true))
+	assert_eq(service.current_voice_id(), &"moa_home_welcome")
+	service.stop_voice()
+	assert_false(service.play_policy_voice(&"first_home", {}, true), "first-home policy replayed automatically more than once")
 	assert_true(service.play_music(&"exploration_loop"))
 	assert_eq(service.current_music_id(), &"exploration_loop")
 	var music_player: AudioStreamPlayer = service.get_node("MusicPlayer")

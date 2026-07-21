@@ -49,9 +49,12 @@ var _tone_factory := ToneFactoryScript.new()
 var _music_registry: Dictionary = {}
 var _sfx_registry: Dictionary = {}
 var _voice_registry: Dictionary = {}
+var _activity_dialogue_map: Dictionary = {}
+var _policy_dialogue_map: Dictionary = {}
+var _consumed_automatic_voice: Dictionary = {}
 var _voice_enabled := true
 var _manifest_loaded := false
-var _question_voice_requires_speaker := true
+var _instruction_voice_requires_speaker := true
 var _voice_blocks_input := false
 var _current_music_id: StringName = &""
 var _current_voice_id: StringName = &""
@@ -73,6 +76,9 @@ func _exit_tree() -> void:
 	_music_registry.clear()
 	_sfx_registry.clear()
 	_voice_registry.clear()
+	_activity_dialogue_map.clear()
+	_policy_dialogue_map.clear()
+	_consumed_automatic_voice.clear()
 	_manifest_loaded = false
 
 func apply_settings(settings: Dictionary) -> bool:
@@ -164,6 +170,40 @@ func stop_voice() -> void:
 func current_voice_id() -> StringName:
 	return _current_voice_id
 
+func dialogue_for_activity(activity: Dictionary) -> StringName:
+	_load_manifest()
+	var raw_activity_id: Variant = activity.get("activity_id")
+	if not raw_activity_id is String or raw_activity_id.is_empty():
+		return &""
+	var dialogue_id: Variant = _activity_dialogue_map.get(raw_activity_id)
+	if not dialogue_id is StringName or dialogue_id not in VOICE_IDS:
+		return &""
+	return dialogue_id
+
+func dialogue_for_policy(policy: StringName, context: Dictionary = {}) -> StringName:
+	_load_manifest()
+	if policy == &"first_activity_entry":
+		return dialogue_for_activity(context)
+	var dialogue_id: Variant = _policy_dialogue_map.get(policy)
+	return dialogue_id if dialogue_id is StringName and dialogue_id in VOICE_IDS else &""
+
+func play_policy_voice(policy: StringName, context: Dictionary = {}, autoplay_authorized := false) -> bool:
+	if not autoplay_authorized:
+		return false
+	var dialogue_id := dialogue_for_policy(policy, context)
+	if dialogue_id.is_empty():
+		return false
+	var consumption_key := String(policy)
+	if policy == &"first_activity_entry":
+		consumption_key = "%s:%s" % [policy, String(context.get("activity_id", ""))]
+	if policy in [&"first_home", &"first_activity_entry"] and _consumed_automatic_voice.has(consumption_key):
+		return false
+	if not play_voice(dialogue_id):
+		return false
+	if policy in [&"first_home", &"first_activity_entry"]:
+		_consumed_automatic_voice[consumption_key] = true
+	return true
+
 func audio_asset_counts() -> Dictionary:
 	_load_manifest()
 	return {
@@ -172,9 +212,9 @@ func audio_asset_counts() -> Dictionary:
 		"voice": _voice_registry.size(),
 	}
 
-func question_voice_requires_speaker() -> bool:
+func instruction_voice_requires_speaker() -> bool:
 	_load_manifest()
-	return _question_voice_requires_speaker
+	return _instruction_voice_requires_speaker
 
 func voice_blocks_input() -> bool:
 	_load_manifest()
@@ -189,19 +229,45 @@ func _load_manifest() -> void:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH))
 	if not parsed is Dictionary:
 		return
-	var policy: Variant = parsed.get("questionNarration")
+	var policy: Variant = parsed.get("instructionVoice")
 	if (
 		not policy is Dictionary
-		or policy.get("autoplay") != false
 		or policy.get("trigger") != "speaker_control_only"
+		or policy.get("contentScope") != "activity_tutorial"
 		or policy.get("blocksInput") != false
+		or not policy.get("activityDialogueMap") is Dictionary
 	):
 		return
-	_question_voice_requires_speaker = true
+	_instruction_voice_requires_speaker = true
 	_voice_blocks_input = false
+	for activity_id in policy.activityDialogueMap:
+		var raw_dialogue_id: Variant = policy.activityDialogueMap[activity_id]
+		if not activity_id is String or activity_id.is_empty() or not raw_dialogue_id is String:
+			continue
+		var dialogue_id := StringName(raw_dialogue_id)
+		if dialogue_id in VOICE_IDS:
+			_activity_dialogue_map[activity_id] = dialogue_id
 	_register_manifest_entries(parsed.get("music"), &"music", MUSIC_IDS, _music_registry)
 	_register_manifest_entries(parsed.get("sfx"), &"sfx", SFX_IDS, _sfx_registry)
 	_register_manifest_entries(parsed.get("voice"), &"voice", VOICE_IDS, _voice_registry)
+	_register_voice_policies(parsed.get("voice"))
+
+func _register_voice_policies(raw_entries: Variant) -> void:
+	if not raw_entries is Array:
+		return
+	for raw_entry in raw_entries:
+		if not raw_entry is Dictionary:
+			continue
+		var raw_id: Variant = raw_entry.get("id")
+		var raw_policy: Variant = raw_entry.get("autoplay")
+		if not raw_id is String or not raw_policy is String:
+			continue
+		var dialogue_id := StringName(raw_id)
+		var policy_id := StringName(raw_policy)
+		if dialogue_id not in VOICE_IDS or policy_id not in [&"first_home", &"first_activity_entry", &"reward_event", &"level_up_event"]:
+			continue
+		if policy_id != &"first_activity_entry" and not _policy_dialogue_map.has(policy_id):
+			_policy_dialogue_map[policy_id] = dialogue_id
 
 func _register_manifest_entries(
 	raw_entries: Variant,

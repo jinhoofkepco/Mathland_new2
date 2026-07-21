@@ -82,7 +82,7 @@ export function validateAssetManifest(value: unknown): AssetReport {
       });
     }
     if (assetPath !== undefined) paths.add(assetPath);
-    for (const field of ["path", "source_path", "master_path", "prompt_path"] as const) {
+    for (const field of ["path", "source_path", "master_path", "prompt_path", "generation_script", "input_path"] as const) {
       const candidatePath = candidate[field];
       if (typeof candidatePath === "string" && !isSafeRepositoryPath(candidatePath)) {
         pushUnique(issues, {
@@ -502,6 +502,8 @@ function linkedPaths(asset: AssetRecord): Array<[string, string]> {
   const output: Array<[string, string]> = [["source_path", asset.source_path]];
   if (asset.master_path) output.push(["master_path", asset.master_path]);
   if (asset.prompt_path) output.push(["prompt_path", asset.prompt_path]);
+  if (asset.generation_script) output.push(["generation_script", asset.generation_script]);
+  if (asset.input_path && asset.input_path !== asset.source_path) output.push(["input_path", asset.input_path]);
   return output;
 }
 

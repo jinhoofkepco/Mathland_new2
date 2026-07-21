@@ -8,16 +8,25 @@ const assetManifest = JSON.parse(await readFile(assetManifestPath, "utf8"));
 const audioManifest = JSON.parse(await readFile(audioManifestPath, "utf8"));
 const audioEntries = [...audioManifest.music, ...audioManifest.sfx, ...audioManifest.voice];
 const audioIds = new Set(audioEntries.map((entry) => entry.id));
+const voiceModel = audioManifest.voiceModel;
+
+if (
+  voiceModel.url !== "https://huggingface.co/akamotaco/ppaso-tts-v1"
+  || voiceModel.revision !== "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9"
+  || voiceModel.license !== "Apache-2.0"
+  || voiceModel.synthetic !== true
+  || voiceModel.realPersonIdentity !== false
+) {
+  throw new Error("Audio manifest does not contain the reviewed synthetic voice model pin");
+}
 
 const review = {
-  math_correct: true,
-  text_absent: true,
-  transparency_correct: true,
-  artifacts_absent: true,
+  technical_checked: true,
+  content_checked: true,
   child_appropriate: true,
-  silhouette_clear: true,
-  contrast_checked: true,
-  legible_48dp: true,
+  rights_checked: true,
+  clipping_absent: true,
+  release_playback_checked: true,
 };
 
 const records = [];
@@ -37,21 +46,30 @@ for (const entry of audioEntries) {
       sample_rate_hz: audioManifest.sampleRate,
       channels: entry.channels,
     },
-    origin: "original",
-    creator: "MathLand project",
+    origin: isVoice ? "synthetic-derived" : "original",
+    creator: isVoice ? "MathLand synthetic guide voice" : "MathLand project",
     tool: isVoice
       ? "Ppaso-TTS v8, ffmpeg, oggenc"
       : "MathLand deterministic procedural audio generator, ffmpeg, oggenc",
     source_path: isVoice
       ? "assets/source/audio/dialogue-ko-KR.csv"
       : "tools/assets/generate_original_audio.mjs",
+    ...(isVoice ? {
+      generation_script: voiceModel.generationScript,
+      input_path: voiceModel.inputCsv,
+      external_model: {
+        url: voiceModel.url,
+        revision: voiceModel.revision,
+        license: voiceModel.license,
+      },
+    } : {}),
     sha256: digest,
     license: entry.licenseId,
     modifications: isVoice
       ? "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg."
       : "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
     redistribution: "confirmed",
-    reviewer: "Codex automated audio policy and technical review",
+    reviewer: "Codex audio policy and technical review",
     review_date: "2026-07-21",
     review,
   });

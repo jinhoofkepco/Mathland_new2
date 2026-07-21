@@ -21,8 +21,12 @@ func _test_state_visuals_submission_and_interaction_lock(tree: SceneTree) -> voi
 	await tree.process_frame
 	var changes: Array[Dictionary] = []
 	var submitted: Array[Variant] = []
+	var sfx: Array[StringName] = []
 	board.state_changed.connect(func(state: Dictionary): changes.append(state.duplicate(true)))
 	board.answer_submitted.connect(func(answer: Variant): submitted.append(answer))
+	assert_true(board.has_signal("sfx_requested"), "manipulative audio boundary is missing")
+	if board.has_signal("sfx_requested"):
+		board.sfx_requested.connect(func(id: StringName): sfx.append(id))
 	assert_true(board.add_ten())
 	assert_true(board.add_unit())
 	assert_true(board.add_unit())
@@ -31,6 +35,7 @@ func _test_state_visuals_submission_and_interaction_lock(tree: SceneTree) -> voi
 	assert_eq(board.visual_shape_counts(), {"tens": 1, "units": 3})
 	assert_eq(board.visual_count_texts(), {"tens": "10막대 × 1", "units": "낱개 × 3"})
 	assert_eq(changes.back(), {"tens": 1, "units": 3, "value": 13})
+	assert_eq(sfx, [&"manipulative_place", &"manipulative_place", &"manipulative_place", &"manipulative_place"])
 	board.reset_state()
 	assert_eq(board.get_answer_state(), {"tens": 0, "units": 0, "value": 0})
 	board.apply_answer_state({"tens": 0, "units": 7, "value": 7})

@@ -34,6 +34,9 @@ class RecordingRouter extends RefCounted:
 
 class TestAudioService extends Node:
 	var played_sfx: Array[StringName] = []
+	var played_voice: Array[StringName] = []
+	var music_requests: Array[StringName] = []
+	var policy_requests: Array[Dictionary] = []
 
 	func apply_settings(_settings: Dictionary) -> bool:
 		return true
@@ -42,8 +45,20 @@ class TestAudioService extends Node:
 		played_sfx.append(sfx_id)
 		return true
 
-	func play_voice(_dialogue_id: StringName) -> bool:
-		return false
+	func play_voice(dialogue_id: StringName) -> bool:
+		played_voice.append(dialogue_id)
+		return true
+
+	func dialogue_for_activity(activity: Dictionary) -> StringName:
+		return &"moa_tutorial_base_ten" if activity.get("activity_id") == "foundation_ten_rods" else &""
+
+	func play_policy_voice(policy: StringName, context: Dictionary = {}, authorized := false) -> bool:
+		policy_requests.append({"policy": policy, "context": context.duplicate(true), "authorized": authorized})
+		return authorized
+
+	func play_music(music_id: StringName) -> bool:
+		music_requests.append(music_id)
+		return true
 
 	func stop_voice() -> void:
 		pass
@@ -90,6 +105,26 @@ func run(tree: SceneTree) -> void:
 	var speaker: Control = activity.find_child("SpeakerButton", true, false)
 	assert_not_null(speaker)
 	assert_true(speaker.is_visible_in_tree())
+	speaker.accepted.emit()
+	var test_audio: TestAudioService = shell.get_node("AudioService") as TestAudioService
+	assert_eq(test_audio.played_voice, [&"moa_tutorial_base_ten"], "speaker did not route the activity instruction dialogue")
+	var audio_board: Control = activity.find_child("TenRodBoard", true, false)
+	assert_true(audio_board.add_unit())
+	assert_eq(test_audio.played_sfx.back(), &"manipulative_place", "manipulative placement did not reach production audio")
+	audio_board.reset_state()
+	assert_true(test_audio.policy_requests.any(func(request): return request.policy == &"first_home" and request.authorized == false), "first-home voice policy was not routed safely")
+	assert_true(test_audio.policy_requests.any(func(request): return request.policy == &"first_activity_entry" and request.authorized == false), "first-activity voice policy was not routed safely")
+	activity.call("_play_answer_presentation", {"reward_delta": {}}, {"effect_names": ["level_up"], "effect_name": "level_up"}, true)
+	assert_eq(test_audio.policy_requests.back().policy, &"level_up_event")
+	assert_false(test_audio.policy_requests.back().authorized, "level-up voice was forced without explicit autoplay authorization")
+	assert_true(activity.has_method("_update_activity_music"), "boss music transition hook is missing")
+	if activity.has_method("_update_activity_music"):
+		activity._state["boss_state"] = true
+		activity.call("_update_activity_music")
+		assert_eq(test_audio.music_requests.back(), &"boss_loop")
+		activity._state["boss_state"] = false
+		activity.call("_update_activity_music")
+		assert_eq(test_audio.music_requests.back(), &"concentration_loop")
 	var first_session_id: String = activity.session_id()
 	assert_false(first_session_id.is_empty(), "ActivityRun did not construct its RunSession from activated dependencies")
 	assert_eq(activity.pinned_content_version(), "a-vertical-1")
@@ -139,6 +174,8 @@ func run(tree: SceneTree) -> void:
 	var played_sfx: Array[StringName] = (shell.get_node("AudioService") as TestAudioService).played_sfx
 	assert_true(&"combo_1" in played_sfx, "combo feedback did not select the stronger combo sound")
 	assert_true(&"heart_loss" in played_sfx, "wrong answers did not select the heart-loss sound")
+	assert_true(&"reward" in played_sfx, "reward presentation did not use reward audio")
+	assert_true(&"manipulative_place" in played_sfx, "manipulative placement audio was not wired")
 	assert_eq(activity.current_state().health, 0)
 	assert_eq(activity.current_state().completion_reason, "health_depleted")
 	assert_eq(progress.snapshot().apples, 4)

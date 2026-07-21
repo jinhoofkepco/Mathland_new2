@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 
 const SAMPLE_RATE = 48_000;
 const TAU = Math.PI * 2;
+// This is a deterministic render-gain anchor, not a delivery loudness claim.
+// Short effects are admitted by measured RMS and peak in audio-manifest.json.
+const SFX_RENDER_GAIN_ANCHOR_LUFS = -16;
 
 function midi(note) {
   return 440 * 2 ** ((note - 69) / 12);
@@ -233,7 +236,7 @@ async function renderEntry(root, temp, entry, channels) {
   const normalized = path.join(temp, `${entry.id}.normalized.wav`);
   await writeFile(wav, encodeWav(channels));
   const measured = loudnessAndPeak(wav);
-  const target = entry.targetLufs;
+  const target = entry.kind === "sfx" ? SFX_RENDER_GAIN_ANCHOR_LUFS : entry.targetLufs;
   const gain = Math.min(target - measured.lufs, -1.2 - measured.peak);
   const output = path.join(root, entry.path);
   await mkdir(path.dirname(output), { recursive: true });

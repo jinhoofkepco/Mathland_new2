@@ -925,17 +925,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -957,17 +955,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -989,17 +985,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1021,17 +1015,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1053,17 +1045,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1085,17 +1075,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1117,17 +1105,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1149,17 +1135,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1181,17 +1165,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1213,17 +1195,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1245,17 +1225,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1277,17 +1255,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1309,17 +1285,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1341,17 +1315,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1373,17 +1345,15 @@
       "license": "MathLand-Original-Audio-1.0",
       "modifications": "Original deterministic synthesis loudness-normalized and encoded to release Ogg without external samples.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1397,25 +1367,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "42e2b4c15fb1e67aa80e14dcdadd4d48ecc4033ac23e7b9c44b2d655ad1b1ca3",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1429,25 +1404,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "223b3fe77887b783753894e2c9bd125e7c9ca75fef3cac1d849937996919e1a2",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1461,25 +1441,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "724a353e84e95ec90e44a8d7afd0ff46eb3e26a0cc64114af863e130a6fc3e79",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1493,25 +1478,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "dc64fffdf6f98d0331a1a6f9b002b8ca6fe6caaf40829b910efb4a310a96e2fd",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1525,25 +1515,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "77600a87d2b8cae7ae4d9b3f91420e214ba81a1a9cb8f882736ab4561d8bcfbf",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1557,25 +1552,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "fbddff96b15105912d3215611a9123564ae312b94b1173c2a29d6b2148c7c346",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1589,25 +1589,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "2d7c8753a35a46a2f0cc76a215b3c29a71fab2a5506d3d08b0f4e0292ce60d93",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1621,25 +1626,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "b5efdaeacaf9d8dfd7cbf68b228dec6f0f20f9fc724697aa72d463aa017e11ff",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     },
     {
@@ -1653,25 +1663,30 @@
         "sample_rate_hz": 48000,
         "channels": 1
       },
-      "origin": "original",
-      "creator": "MathLand project",
+      "origin": "synthetic-derived",
+      "creator": "MathLand synthetic guide voice",
       "tool": "Ppaso-TTS v8, ffmpeg, oggenc",
       "source_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "generation_script": "tools/assets/generate_ppaso_voice.py",
+      "input_path": "assets/source/audio/dialogue-ko-KR.csv",
+      "external_model": {
+        "url": "https://huggingface.co/akamotaco/ppaso-tts-v1",
+        "revision": "53d09664c4f636a5fb6f2ebe3ec22cd83ee249b9",
+        "license": "Apache-2.0"
+      },
       "sha256": "9e732879868a939dbd753131958fc6b27c942ca0e4948a9798e803eb7b22d3a7",
       "license": "Ppaso-TTS-v8-Apache-2.0",
       "modifications": "Synthetic Korean guide voice generated from the pinned Apache-2.0 model, silence-trimmed, loudness-normalized, and encoded to release Ogg.",
       "redistribution": "confirmed",
-      "reviewer": "Codex automated audio policy and technical review",
+      "reviewer": "Codex audio policy and technical review",
       "review_date": "2026-07-21",
       "review": {
-        "math_correct": true,
-        "text_absent": true,
-        "transparency_correct": true,
-        "artifacts_absent": true,
+        "technical_checked": true,
+        "content_checked": true,
         "child_appropriate": true,
-        "silhouette_clear": true,
-        "contrast_checked": true,
-        "legible_48dp": true
+        "rights_checked": true,
+        "clipping_absent": true,
+        "release_playback_checked": true
       }
     }
   ]

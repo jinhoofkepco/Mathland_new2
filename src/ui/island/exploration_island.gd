@@ -24,6 +24,7 @@ func _ready() -> void:
 		_queued = maxi(0, int(_params.get("sync_queue_count", 0)))
 	_objectives = DailyObjectiveServiceScript.new().objectives(_profile_id, _today())
 	var ui := MathlandUiScript.scaffold(self, "island.title", "island.subtitle")
+	_offer_home_voice()
 	var body: VBoxContainer = ui.body
 	_add_status_row(body)
 	body.add_child(MathlandUiScript.section_label("island.today_objectives"))
@@ -56,6 +57,12 @@ func _ready() -> void:
 	_add_route_button(grid, "CollectionButton", "island.collection", func(): _route(AppRouteScript.COLLECTION))
 	_add_route_button(grid, "SettingsButton", "island.settings", func(): _route(AppRouteScript.SETTINGS))
 	_add_route_button(grid, "SwitchProfileButton", "island.switch_profile", switch_profile)
+
+func _offer_home_voice() -> void:
+	if _audio_service == null or not _audio_service.has_method("play_policy_voice"):
+		return
+	var value: Variant = _params.get("voice_autoplay_allowed", false)
+	_audio_service.play_policy_voice(&"first_home", {}, value if value is bool else false)
 
 func objective_keys() -> Array[String]:
 	var keys: Array[String] = []

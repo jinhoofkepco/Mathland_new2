@@ -3,6 +3,7 @@ extends Control
 
 signal state_changed(state: Dictionary)
 signal answer_submitted(answer: Variant)
+signal sfx_requested(id: StringName)
 
 func configure(_config: Dictionary, _question: Dictionary) -> void:
 	assert(false, "configure must be overridden")

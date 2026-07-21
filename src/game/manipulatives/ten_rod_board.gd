@@ -218,6 +218,7 @@ func _make_button(node_name: String, label_key: String, icon_name: String, minim
 func _accept_mutation() -> void:
 	_render_state()
 	state_changed.emit(get_answer_state())
+	sfx_requested.emit(&"manipulative_place")
 
 func _render_state() -> void:
 	if not is_node_ready() or _value_label == null:

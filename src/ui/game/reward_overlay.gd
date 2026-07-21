@@ -8,6 +8,8 @@ var _kind := "reward"
 var _amount := 0
 var _effects_service: Variant
 var _ui_policy: Variant
+var _audio_service: Variant
+var _voice_autoplay_allowed := false
 var _dismissed := false
 
 func configure(params: Dictionary) -> void:
@@ -16,6 +18,8 @@ func configure(params: Dictionary) -> void:
 	_amount = max(0, int(params.get("amount", 0)))
 	_effects_service = params.get("effects_service")
 	_ui_policy = params.get("ui_policy")
+	_audio_service = params.get("audio_service")
+	_voice_autoplay_allowed = params.get("voice_autoplay_allowed", false) is bool and params.get("voice_autoplay_allowed", false)
 	_dismissed = false
 
 func _ready() -> void:
@@ -54,9 +58,13 @@ func _ready() -> void:
 	column.add_child(skip)
 	if _ui_policy != null and _ui_policy.has_method("register_tactile"):
 		_ui_policy.register_tactile(skip)
-	MathlandUiScript.connect_tactile(skip, dismiss)
+	MathlandUiScript.connect_tactile(skip, dismiss, _audio_service)
 	if _effects_service != null and _effects_service.has_method("play"):
 		_effects_service.play(StringName(_kind), size * 0.5)
+	if _audio_service != null and _audio_service.has_method("play_sfx"):
+		_audio_service.play_sfx(&"reward")
+	if _audio_service != null and _audio_service.has_method("play_policy_voice"):
+		_audio_service.play_policy_voice(&"reward_event", {"kind": _kind}, _voice_autoplay_allowed)
 	grab_focus.call_deferred()
 
 func _gui_input(event: InputEvent) -> void:
@@ -77,4 +85,6 @@ func dismiss() -> void:
 	if _dismissed:
 		return
 	_dismissed = true
+	if _audio_service != null and _audio_service.has_method("stop_voice"):
+		_audio_service.stop_voice()
 	dismissed.emit()

@@ -33,7 +33,7 @@ export const REQUIRED_RELEASE_SVGS = [
   "assets/ui/learning/number_line_marker.svg",
 ] as const;
 
-export const AssetReviewSchema = z
+export const VisualAssetReviewSchema = z
   .object({
     math_correct: z.boolean(),
     text_absent: z.boolean(),
@@ -46,12 +46,33 @@ export const AssetReviewSchema = z
   })
   .strict();
 
+export const AssetReviewSchema = VisualAssetReviewSchema;
+
+export const AudioAssetReviewSchema = z
+  .object({
+    technical_checked: z.boolean(),
+    content_checked: z.boolean(),
+    child_appropriate: z.boolean(),
+    rights_checked: z.boolean(),
+    clipping_absent: z.boolean(),
+    release_playback_checked: z.boolean(),
+  })
+  .strict();
+
 export const AudioFormatSchema = z
   .object({
     container: z.string().trim().min(1).max(32),
     codec: z.string().trim().min(1).max(64),
     sample_rate_hz: z.number().int().positive().max(192_000),
     channels: z.number().int().min(1).max(2),
+  })
+  .strict();
+
+export const ExternalModelSchema = z
+  .object({
+    url: z.string().url().max(400),
+    revision: z.string().regex(/^[a-f0-9]{40}$/),
+    license: z.string().trim().min(1).max(96),
   })
   .strict();
 
@@ -66,7 +87,7 @@ export const AssetRecordSchema = z
     view_box: z.string().min(1).max(64).optional(),
     alpha: z.enum(["vector", "transparent-corners", "opaque", "source"]).optional(),
     audio_format: AudioFormatSchema.optional(),
-    origin: z.enum(["original", "generated-derived", "third-party"]),
+    origin: z.enum(["original", "generated-derived", "synthetic-derived", "third-party"]),
     creator: z.string().trim().min(1).max(160),
     tool: z.string().trim().min(1).max(160),
     source_path: z.string().min(1).max(240),
@@ -74,13 +95,16 @@ export const AssetRecordSchema = z
     prompt_path: z.string().min(1).max(240).optional(),
     prompt_sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     generation_date: z.iso.date().optional(),
+    generation_script: z.string().min(1).max(240).optional(),
+    input_path: z.string().min(1).max(240).optional(),
+    external_model: ExternalModelSchema.optional(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     license: z.string().trim().min(1).max(96),
     modifications: z.string().trim().min(1).max(500),
     redistribution: z.enum(["confirmed", "unconfirmed"]),
     reviewer: z.string().trim().min(1).max(160),
     review_date: z.iso.date(),
-    review: AssetReviewSchema,
+    review: z.union([VisualAssetReviewSchema, AudioAssetReviewSchema]),
   })
   .strict()
   .superRefine((asset, context) => {
@@ -107,6 +131,20 @@ export const AssetRecordSchema = z
         code: "custom",
         path: ["audio_format"],
         message: "Audio technical format is required",
+      });
+    }
+    if (asset.kind === "audio" && !AudioAssetReviewSchema.safeParse(asset.review).success) {
+      context.addIssue({
+        code: "custom",
+        path: ["review"],
+        message: "Audio requires the audio-specific technical/content/rights review",
+      });
+    }
+    if (asset.kind !== "audio" && !VisualAssetReviewSchema.safeParse(asset.review).success) {
+      context.addIssue({
+        code: "custom",
+        path: ["review"],
+        message: "Visual and prompt assets require the visual review fields",
       });
     }
     if (asset.origin === "generated-derived" && asset.prompt_path === undefined) {
@@ -137,6 +175,22 @@ export const AssetRecordSchema = z
         message: "Generated-derived releases require a production master path",
       });
     }
+    if (asset.origin === "synthetic-derived") {
+      if (asset.kind !== "audio") {
+        context.addIssue({ code: "custom", path: ["origin"], message: "Synthetic-derived is reserved for audio" });
+      }
+      for (const field of ["generation_script", "input_path", "external_model"] as const) {
+        if (asset[field] === undefined) {
+          context.addIssue({ code: "custom", path: [field], message: `${field} is required for synthetic-derived audio` });
+        }
+      }
+    } else if (asset.generation_script !== undefined || asset.input_path !== undefined || asset.external_model !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["origin"],
+        message: "Synthetic model provenance fields require synthetic-derived origin",
+      });
+    }
   });
 
 export const AssetManifestSchema = z
@@ -149,6 +203,7 @@ export const AssetManifestSchema = z
   .strict();
 
 export type AssetReview = z.infer<typeof AssetReviewSchema>;
+export type AudioAssetReview = z.infer<typeof AudioAssetReviewSchema>;
 export type AssetRecord = z.infer<typeof AssetRecordSchema>;
 export type AssetManifest = z.infer<typeof AssetManifestSchema>;
 

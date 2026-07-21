@@ -2,6 +2,18 @@ extends "res://tests/support/test_case.gd"
 
 const RewardOverlayScene = preload("res://scenes/game/reward_overlay.tscn")
 
+class RecordingAudioService extends Node:
+	var sfx: Array[StringName] = []
+	var policies: Array[Dictionary] = []
+
+	func play_sfx(id: StringName) -> bool:
+		sfx.append(id)
+		return true
+
+	func play_policy_voice(policy: StringName, context: Dictionary = {}, authorized := false) -> bool:
+		policies.append({"policy": policy, "context": context.duplicate(true), "authorized": authorized})
+		return authorized
+
 func run(tree: SceneTree) -> void:
 	await _test_background_tap_dismisses_once(tree)
 	await _test_accept_dismisses_once(tree)
@@ -36,7 +48,8 @@ func _test_accept_dismisses_once(tree: SceneTree) -> void:
 
 func _test_button_dismisses_once_and_presets_are_exposed(tree: SceneTree) -> void:
 	for kind in ["reward", "collection", "coupon"]:
-		var overlay := await _mount(tree, kind)
+		var audio := RecordingAudioService.new()
+		var overlay := await _mount(tree, kind, audio, true)
 		assert_true(overlay.has_method("preset_kind"), "RewardOverlay must expose the resolved preset")
 		if overlay.has_method("preset_kind"):
 			assert_eq(overlay.preset_kind(), kind)
@@ -47,12 +60,20 @@ func _test_button_dismisses_once_and_presets_are_exposed(tree: SceneTree) -> voi
 		button.accepted.emit()
 		button.accepted.emit()
 		assert_eq(dismissals[0], 1, "%s preset button dismissed more than once" % kind)
+		assert_true(&"reward" in audio.sfx, "%s reward presentation did not use reward SFX" % kind)
+		assert_eq(audio.policies, [{"policy": &"reward_event", "context": {"kind": kind}, "authorized": true}])
 		overlay.queue_free()
 		await tree.process_frame
+		audio.free()
 
-func _mount(tree: SceneTree, kind: String) -> Control:
+func _mount(tree: SceneTree, kind: String, audio_service: Variant = null, voice_autoplay_allowed := false) -> Control:
 	var overlay: Control = RewardOverlayScene.instantiate()
-	overlay.configure({"kind": kind, "amount": 2})
+	overlay.configure({
+		"kind": kind,
+		"amount": 2,
+		"audio_service": audio_service,
+		"voice_autoplay_allowed": voice_autoplay_allowed,
+	})
 	tree.root.add_child(overlay)
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	await tree.process_frame

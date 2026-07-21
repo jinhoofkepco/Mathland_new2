@@ -124,6 +124,7 @@ func _finish_press(local_position: Vector2) -> void:
 	_pointer_inside = false
 	_restore_visual()
 	if was_inside:
+		sfx_requested.emit(&"button_release")
 		accepted.emit()
 	else:
 		cancelled.emit()
