@@ -10,6 +10,13 @@ func _test_burst_plays_and_finishes(tree: SceneTree) -> void:
 	var burst = EffectBurstScene.instantiate()
 	tree.root.add_child(burst)
 	await tree.process_frame
+	assert_eq(burst.get_node("Visual/Caption").text, "", "scene contains literal gameplay copy")
+	var previous_locale := TranslationServer.get_locale()
+	var test_translation := Translation.new()
+	test_translation.locale = "en"
+	test_translation.add_message(&"effect.test.caption", &"Translated caption")
+	TranslationServer.add_translation(test_translation)
+	TranslationServer.set_locale("en")
 	var finished_count := [0]
 	burst.finished.connect(func(_node): finished_count[0] += 1)
 	burst.play(_preset({"duration": 0.03, "flash_duration": 0.02}), Vector2(120, 180), 1.0, false)
@@ -18,6 +25,9 @@ func _test_burst_plays_and_finishes(tree: SceneTree) -> void:
 	assert_eq(burst.configured_particle_count, 40)
 	assert_true(burst.get_node("Particles").emitting)
 	assert_eq(burst.get_node("Visual/Icon").text, "★")
+	assert_eq(burst.get_node("Visual/Caption").text, "Translated caption")
+	TranslationServer.remove_translation(test_translation)
+	TranslationServer.set_locale(previous_locale)
 	await tree.create_timer(0.08).timeout
 	assert_eq(finished_count[0], 1)
 	assert_false(burst.active)
@@ -48,7 +58,7 @@ func _preset(overrides: Dictionary = {}) -> Dictionary:
 		"flash_duration": 0.12,
 		"color": Color("ffd166"),
 		"icon": "★",
-		"label": "Great!",
+		"label_key": &"effect.test.caption",
 	}
 	for key in overrides:
 		preset[key] = overrides[key]

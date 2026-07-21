@@ -36,7 +36,7 @@ func play(preset: Dictionary, at: Vector2, particle_multiplier: float, reduced_m
 	_particles.emitting = true
 	_glow.color = Color(color, 0.24)
 	_icon.text = preset.icon
-	_label.text = preset.label
+	_label.text = tr(StringName(preset.label_key))
 	_icon.visible = true
 	_label.visible = true
 	_visual.modulate = Color.WHITE
