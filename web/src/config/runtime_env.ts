@@ -13,6 +13,25 @@ export class RuntimeEnvError extends Error {
   }
 }
 
+const ALLOWED_CLIENT_ENV_KEYS = new Set([
+  "VITE_MATHLAND_CLOUD_MODE",
+  "VITE_SUPABASE_URL",
+  "VITE_SUPABASE_PUBLISHABLE_KEY",
+]);
+
+export function assertSafeClientEnvKeys(record: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(record)) {
+    if (
+      key.startsWith("VITE_") &&
+      !ALLOWED_CLIENT_ENV_KEYS.has(key) &&
+      value !== undefined &&
+      value !== ""
+    ) {
+      throw new RuntimeEnvError(`${key} is not allowed in the browser bundle`);
+    }
+  }
+}
+
 function requiredString(record: Record<string, unknown>, key: string): string {
   const value = record[key];
   if (typeof value !== "string" || value.trim() === "") {
@@ -59,8 +78,16 @@ function parsePublishableKey(raw: string): string {
 }
 
 export function parseRuntimeEnv(record: Record<string, unknown>): RuntimeEnv {
+  assertSafeClientEnvKeys(record);
   const mode = requiredString(record, "VITE_MATHLAND_CLOUD_MODE");
   if (mode === "fake") {
+    if (
+      (typeof record.VITE_SUPABASE_URL === "string" && record.VITE_SUPABASE_URL.trim() !== "") ||
+      (typeof record.VITE_SUPABASE_PUBLISHABLE_KEY === "string" &&
+        record.VITE_SUPABASE_PUBLISHABLE_KEY.trim() !== "")
+    ) {
+      throw new RuntimeEnvError("Supabase credentials must be absent in fake mode");
+    }
     return { mode: "fake" };
   }
   if (mode !== "supabase") {

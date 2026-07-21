@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { App } from "./App";
+import { MathLandRouter } from "./router";
 
 describe("App", () => {
   it("renders the signed-out MathLand shell in Korean", () => {
@@ -17,5 +18,17 @@ describe("App", () => {
       "href",
       "/login",
     );
+  });
+
+  it("opens a GitHub Pages deep link through the URL hash", () => {
+    window.location.hash = "#/login";
+
+    render(
+      <MathLandRouter>
+        <App />
+      </MathLandRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "보호자 로그인" })).toBeVisible();
   });
 });

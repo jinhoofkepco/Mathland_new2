@@ -1,5 +1,3 @@
-import type { ValidationReport } from "@mathland/contracts";
-
 import type {
   AiPatchResult,
   ChildSummary,
@@ -13,6 +11,7 @@ import type {
   PairingCodeResult,
   SaveDraftInput,
   SessionState,
+  ValidationReportWire,
 } from "./cloud_port";
 
 export interface FakeCloudDataset {
@@ -165,7 +164,7 @@ export class FakeCloud implements CloudPort {
     return clone(next);
   }
 
-  async validateDraft(draftId: string): Promise<ValidationReport> {
+  async validateDraft(draftId: string): Promise<ValidationReportWire> {
     await this.loadDraft(draftId);
     return { valid: true, issues: [], samples: [] };
   }
