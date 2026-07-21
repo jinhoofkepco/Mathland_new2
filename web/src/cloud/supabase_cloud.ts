@@ -73,11 +73,8 @@ function rangeStart(range: DashboardQuery["range"], now = new Date()): string {
   return new Date(now.getTime() - days * 86_400_000).toISOString();
 }
 
-function selectRole(roles: GuardianRole[]): GuardianRole | null {
-  if (roles.includes("owner")) return "owner";
-  if (roles.includes("guardian")) return "guardian";
-  if (roles.includes("editor")) return "editor";
-  return null;
+function selectFamilyRole(roles: GuardianRole[]): GuardianRole | null {
+  return roles.includes("owner") || roles.includes("guardian") ? "guardian" : null;
 }
 
 export class SupabaseCloud implements CloudPort {
@@ -89,27 +86,31 @@ export class SupabaseCloud implements CloudPort {
     const user = data.session?.user;
     if (!user) return { status: "signed_out" };
 
-    const membershipResult = await this.client
-      .from("family_memberships")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("is_active", true);
-    ensureNoError("session membership", membershipResult.error);
-    const memberships = parseWire(
-      z.array(SessionMembershipRowSchema),
-      membershipResult.data,
-      "session membership",
-    );
-    let role = selectRole(memberships.map((membership) => membership.role));
+    const [owner, editor] = await Promise.all([
+      this.client.rpc("has_global_studio_role", { required_role: "owner" }),
+      this.client.rpc("has_global_studio_role", { required_role: "editor" }),
+    ]);
+    ensureNoError("owner role check", owner.error);
+    ensureNoError("editor role check", editor.error);
+    let role: GuardianRole | null = owner.data === true
+      ? "owner"
+      : editor.data === true
+      ? "editor"
+      : null;
 
     if (!role) {
-      const [owner, editor] = await Promise.all([
-        this.client.rpc("has_role", { required_role: "owner" }),
-        this.client.rpc("has_role", { required_role: "editor" }),
-      ]);
-      ensureNoError("owner role check", owner.error);
-      ensureNoError("editor role check", editor.error);
-      role = owner.data === true ? "owner" : editor.data === true ? "editor" : null;
+      const membershipResult = await this.client
+        .from("family_memberships")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+      ensureNoError("session membership", membershipResult.error);
+      const memberships = parseWire(
+        z.array(SessionMembershipRowSchema),
+        membershipResult.data,
+        "session membership",
+      );
+      role = selectFamilyRole(memberships.map((membership) => membership.role));
     }
 
     return parseWire(

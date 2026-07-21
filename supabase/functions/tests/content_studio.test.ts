@@ -10,6 +10,7 @@ import { saveDraft, type SaveDraftDependencies } from "../save-draft/index.ts";
 import { validateDraft, type ValidateDraftDependencies } from "../validate-draft/index.ts";
 import { contentHistory, type ContentHistoryDependencies } from "../content-history/index.ts";
 import type { ContentStudioRepository } from "../_shared/studio.ts";
+import { SupabaseFunctionRepository } from "../_shared/supabase.ts";
 
 const ORIGIN = "https://jinhoofkepco.github.io";
 const OWNER_ID = "00000000-0000-4000-8000-000000000301";
@@ -358,4 +359,21 @@ Deno.test("content-history rejects editors before history access", async () => {
 
   assertEquals(response.status, 403);
   assertEquals(called, false);
+});
+
+Deno.test("Studio role checks call the global-only authorization RPC", async () => {
+  let observedName: string | undefined;
+  let observedBody: Record<string, unknown> | undefined;
+  const caller = {
+    call: (name: string, _accessToken: string, body: Record<string, unknown>) => {
+      observedName = name;
+      observedBody = body;
+      return Promise.resolve(false);
+    },
+  };
+  const repository = new SupabaseFunctionRepository({} as never, caller as never);
+
+  assertEquals(await repository.hasRole("caller-token", "owner"), false);
+  assertEquals(observedName, "has_global_studio_role");
+  assertEquals(observedBody, { required_role: "owner" });
 });

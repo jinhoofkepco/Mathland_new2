@@ -341,7 +341,7 @@ export class SupabaseFunctionRepository
   }
 
   async hasRole(accessToken: string, role: StudioRole): Promise<boolean> {
-    const result = await this.caller.call<unknown>("has_role", accessToken, {
+    const result = await this.caller.call<unknown>("has_global_studio_role", accessToken, {
       required_role: role,
     });
     if (typeof result !== "boolean") throw new SupabaseRpcError("rpc_invalid_response", 503);

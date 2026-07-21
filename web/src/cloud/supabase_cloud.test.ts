@@ -21,7 +21,7 @@ function queryResult(data: unknown, error: { message: string } | null = null) {
 function clientFixture(options: {
   membershipRows?: unknown;
   childRows?: unknown;
-  rpcResult?: boolean;
+  globalRole?: "owner" | "editor";
   appRole?: unknown;
 }) {
   const membershipQuery = queryResult(options.membershipRows ?? []);
@@ -41,7 +41,10 @@ function clientFixture(options: {
       })),
     },
     from,
-    rpc: vi.fn(async () => ({ data: options.rpcResult ?? false, error: null })),
+    rpc: vi.fn(async (name: string, input: { required_role?: string }) => ({
+      data: name === "has_global_studio_role" && input.required_role === options.globalRole,
+      error: null,
+    })),
   } as unknown as SupabaseClient;
   return { client, from };
 }
@@ -66,6 +69,38 @@ describe("SupabaseCloud", () => {
     await expect(new SupabaseCloud(client).session()).resolves.toEqual({
       status: "unauthorized",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+    });
+  });
+
+  it("maps a family owner to guardian when no global Studio claim exists", async () => {
+    const { client } = clientFixture({ membershipRows: [{ role: "owner" }] });
+
+    await expect(new SupabaseCloud(client).session()).resolves.toEqual({
+      status: "authenticated",
+      userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+      role: "guardian",
+    });
+  });
+
+  it("does not grant Studio access to a family editor", async () => {
+    const { client } = clientFixture({ membershipRows: [{ role: "editor" }] });
+
+    await expect(new SupabaseCloud(client).session()).resolves.toEqual({
+      status: "unauthorized",
+      userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+    });
+  });
+
+  it("prefers the server-checked global Studio claim over family membership", async () => {
+    const { client } = clientFixture({
+      membershipRows: [{ role: "guardian" }],
+      globalRole: "owner",
+    });
+
+    await expect(new SupabaseCloud(client).session()).resolves.toEqual({
+      status: "authenticated",
+      userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+      role: "owner",
     });
   });
 
