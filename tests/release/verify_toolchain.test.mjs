@@ -17,7 +17,7 @@ const valid = {
   godotVersion: EXACT_GODOT_VERSION,
   javaVersion: "17.0.19",
   javacVersion: "17.0.19",
-  platforms: ["android-35"],
+  platforms: ["android-35", "android-36"],
   androidPlatformJarValid: true,
   buildTools: ["35.0.1", "36.1.0"],
   executables: { adb: true, apksigner: true, zipalign: true, aapt2: true },
@@ -64,6 +64,7 @@ async function createToolchainFixture(t) {
   const godot = path.join(root, "godot");
   const platformJar = path.join(sdk, "platforms", "android-35", "android.jar");
   const buildTools = path.join(sdk, "build-tools", "35.0.1");
+  await mkdir(path.join(sdk, "platforms", "android-36"), { recursive: true });
   await mkdir(path.join(sdk, "build-tools", "36.1.0"), { recursive: true });
   const tools = {
     adb: path.join(sdk, "platform-tools", "adb"),
@@ -132,7 +133,7 @@ test("reports every release-blocking mismatch in stable order", () => {
     godotVersion: "4.7.0.stable.official",
     javaVersion: "21.0.2",
     javacVersion: "21.0.2",
-    platforms: ["android-36"],
+    platforms: [],
     androidPlatformJarValid: false,
     buildTools: ["36.0.0"],
     executables: { adb: true, apksigner: false, zipalign: false, aapt2: true },
@@ -142,6 +143,7 @@ test("reports every release-blocking mismatch in stable order", () => {
     "Java major version must be 17; found 21.0.2",
     "Javac major version must be 17; found 21.0.2",
     "Android platform android-35 is missing",
+    "Godot Android platform android-36 is missing",
     "Android platform android-35/android.jar is missing or invalid",
     "Android build-tools 35.0.1 is missing",
     "Godot Android build-tools 36.1.0 is missing",
@@ -164,6 +166,7 @@ test("malformed probe data is reported instead of throwing", () => {
     "Java major version must be 17; found unknown",
     "Javac major version must be 17; found unknown",
     "Android platform android-35 is missing",
+    "Godot Android platform android-36 is missing",
     "Android platform android-35/android.jar is missing or invalid",
     "Android build-tools 35.0.1 is missing",
     "Godot Android build-tools 36.1.0 is missing",
@@ -350,4 +353,18 @@ test("CLI exits nonzero when JAVA_HOME is absent", async (t) => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /BLOCKED: JAVA_HOME must be set/);
+});
+
+test("rejects SDKs missing Godot 4.7.1 template compile dependencies", () => {
+  assert.deepEqual(
+    validateProbe({
+      ...valid,
+      platforms: ["android-35"],
+      buildTools: ["35.0.1"],
+    }),
+    [
+      "Godot Android platform android-36 is missing",
+      "Godot Android build-tools 36.1.0 is missing",
+    ],
+  );
 });

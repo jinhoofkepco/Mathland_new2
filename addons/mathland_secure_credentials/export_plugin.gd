@@ -47,7 +47,16 @@ func _configure_android_export_paths() -> void:
 		push_error("ANDROID_SDK_ROOT or ANDROID_HOME must contain platform-tools/adb")
 		return
 	if not FileAccess.file_exists(android_sdk.path_join("platforms/android-35/android.jar")):
-		push_error("Android SDK platform 35 is required")
+		push_error("Android SDK target platform 35 is required")
+		return
+	if not FileAccess.file_exists(android_sdk.path_join("platforms/android-36/android.jar")):
+		push_error("Godot 4.7.1 compile platform 36 is required")
+		return
+	if not FileAccess.file_exists(android_sdk.path_join("build-tools/35.0.1/apksigner")):
+		push_error("Android build-tools 35.0.1 signing tools are required")
+		return
+	if not FileAccess.file_exists(android_sdk.path_join("build-tools/36.1.0/aapt2")):
+		push_error("Godot 4.7.1 build-tools 36.1.0 are required")
 		return
 	var settings := EditorInterface.get_editor_settings()
 	settings.set_setting("export/android/java_sdk_path", java_home)

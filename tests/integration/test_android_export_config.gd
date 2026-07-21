@@ -2,16 +2,32 @@ extends "res://tests/support/test_case.gd"
 
 const PRESET_NAMES := ["Android Debug", "Android Smoke", "Android Release"]
 const REQUIRED_RELEASE_EXCLUDES := [
+	"node_modules/**",
+	"**/node_modules/**",
+	"package.json",
+	"package-lock.json",
+	".git",
+	".git/**",
+	".github/**",
+	".godot/**",
+	".DS_Store",
 	"tests/**",
 	"docs/**",
 	"reports/**",
+	"coverage/**",
+	"playwright-report/**",
+	"test-results/**",
 	"web/**",
 	"supabase/**",
 	"packages/**",
 	"scripts/**",
-	"android/plugins/**",
+	"tools/**",
+	"android/**",
 	".env",
 	".env.*",
+	"*.keystore",
+	"*.jks",
+	"*.p12",
 	"dist/**",
 ]
 
@@ -83,19 +99,33 @@ func _test_release_excludes_source_but_not_packaged_addon() -> void:
 	var config := ConfigFile.new()
 	if config.load("res://export_presets.cfg") != OK:
 		return
-	var excludes: String = config.get_value("preset.2", "exclude_filter", "")
-	var patterns := Array(excludes.split(",", false))
-	for required_pattern in REQUIRED_RELEASE_EXCLUDES:
-		assert_true(required_pattern in patterns, "Missing release exclusion %s" % required_pattern)
-	assert_false("addons/**" in patterns, "Packaged Android AAR must remain exportable")
+	for index in PRESET_NAMES.size():
+		var excludes: String = config.get_value("preset.%d" % index, "exclude_filter", "")
+		var patterns := Array(excludes.split(",", false))
+		for required_pattern in REQUIRED_RELEASE_EXCLUDES:
+			assert_true(
+				required_pattern in patterns,
+				"Missing %s exclusion %s" % [PRESET_NAMES[index], required_pattern]
+			)
+		assert_false("addons/**" in patterns, "Packaged Android AAR must remain exportable")
 	assert_eq(config.get_value("preset.2", "export_path", ""), "dist/MathLand-v1.0.0-arm64.apk")
 
 func _test_debug_export_bootstraps_editor_paths() -> void:
 	var export_script := FileAccess.get_file_as_string("res://scripts/android/export_debug.sh")
+	assert_true(export_script.contains("bootstrap_sdk.sh"))
 	assert_true(export_script.contains("run verify:toolchain"))
+	assert_true(export_script.find("bootstrap_sdk.sh") < export_script.find("run verify:toolchain"))
 	assert_true(export_script.contains("org.gradle.vfs.watch=false"))
+	assert_true(export_script.contains("mktemp -d"))
+	assert_true(export_script.contains("stage_project.sh"))
+	assert_true(export_script.contains('--path "$MATHLAND_STAGE_ROOT"'))
+	assert_false(export_script.contains('--path "$MATHLAND_PROJECT_ROOT"'))
 	var plugin_script := FileAccess.get_file_as_string(
 		"res://addons/mathland_secure_credentials/export_plugin.gd"
 	)
 	assert_true(plugin_script.contains("export/android/java_sdk_path"))
 	assert_true(plugin_script.contains("export/android/android_sdk_path"))
+	assert_true(plugin_script.contains("platforms/android-35/android.jar"))
+	assert_true(plugin_script.contains("platforms/android-36/android.jar"))
+	assert_true(plugin_script.contains("build-tools/35.0.1/apksigner"))
+	assert_true(plugin_script.contains("build-tools/36.1.0/aapt2"))

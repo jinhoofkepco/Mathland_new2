@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const REQUIRED_GODOT_VERSION = "4.7.1.stable.official.a13da4feb";
 const REQUIRED_JAVA_MAJOR = "17";
 const REQUIRED_PLATFORM = "android-35";
+const REQUIRED_GODOT_PLATFORM = "android-36";
 const REQUIRED_BUILD_TOOLS = "35.0.1";
 const REQUIRED_GODOT_BUILD_TOOLS = "36.1.0";
 const REQUIRED_EXECUTABLES = ["adb", "apksigner", "zipalign", "aapt2"];
@@ -33,6 +34,9 @@ export function validateProbe(probe) {
   }
   if (!platforms.includes(REQUIRED_PLATFORM)) {
     findings.push(`Android platform ${REQUIRED_PLATFORM} is missing`);
+  }
+  if (!platforms.includes(REQUIRED_GODOT_PLATFORM)) {
+    findings.push(`Godot Android platform ${REQUIRED_GODOT_PLATFORM} is missing`);
   }
   if (value.androidPlatformJarValid !== true) {
     findings.push(`Android platform ${REQUIRED_PLATFORM}/android.jar is missing or invalid`);
@@ -184,7 +188,7 @@ async function main() {
       return;
     }
     console.log(
-      `PASS: Godot ${REQUIRED_GODOT_VERSION} / JDK 17 / Android 35 / build-tools 35.0.1 + 36.1.0`,
+      `PASS: Godot ${REQUIRED_GODOT_VERSION} / JDK 17 / target Android 35 / Godot compile Android 36 / build-tools 35.0.1 + 36.1.0`,
     );
   } catch (error) {
     console.error(`BLOCKED: ${error instanceof Error ? error.message : "toolchain probe failed"}`);

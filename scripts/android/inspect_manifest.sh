@@ -72,12 +72,31 @@ reject_manifest 'android\.permission\.(READ_CONTACTS|WRITE_CONTACTS|GET_ACCOUNTS
 reject_manifest 'android\.permission\.(READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_[A-Z_]+)' "storage or media permission"
 reject_manifest '(com\.google\.android\.gms\.permission\.AD_ID|android\.permission\.ACCESS_ADSERVICES_AD_ID)' "advertising identifier permission"
 
-if ! rg --quiet '^/lib/arm64-v8a/' <<<"$MATHLAND_FILES"; then
-  echo "APK policy failed: arm64-v8a library missing" >&2
+MATHLAND_PERMISSIONS="$(
+  perl -0ne '
+    while (/<uses-permission(?:-sdk-\d+)?\b[^>]*\bandroid:name="([^"]+)"/sg) {
+      print "$1\n";
+    }
+  ' <<<"$MATHLAND_MANIFEST" | LC_ALL=C sort
+)"
+MATHLAND_EXPECTED_PERMISSIONS=$'android.permission.INTERNET\nandroid.permission.VIBRATE'
+if [ "$MATHLAND_PERMISSIONS" != "$MATHLAND_EXPECTED_PERMISSIONS" ]; then
+  echo "Manifest policy failed: permission allowlist must be exactly INTERNET and VIBRATE" >&2
+  echo "Found permissions:" >&2
+  printf '%s\n' "$MATHLAND_PERMISSIONS" >&2
   exit 1
 fi
-if rg --quiet '^/lib/(armeabi-v7a|x86|x86_64)/' <<<"$MATHLAND_FILES"; then
+
+if ! rg --quiet '^/lib/arm64-v8a/[^/]+\.so$' <<<"$MATHLAND_FILES"; then
+  echo "APK policy failed: arm64-v8a shared library missing" >&2
+  exit 1
+fi
+if rg --quiet --pcre2 '^/lib/(?!arm64-v8a(?:/|$))[^/]+/' <<<"$MATHLAND_FILES"; then
   echo "APK policy failed: non-ARM64 native library present" >&2
+  exit 1
+fi
+if rg --quiet --pcre2 '^/assets/(?:package(?:-lock)?\.json|(?:.*/)?node_modules/|(?:tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|android|dist)/|\.env(?:\.|$)|\.DS_Store$|[^/]+\.(?:keystore|jks|p12)$)' <<<"$MATHLAND_FILES"; then
+  echo "APK policy failed: host development artifact present" >&2
   exit 1
 fi
 

@@ -59,16 +59,63 @@ test("rejects dangerous permissions", () => {
   assert.match(result.stderr, /forbidden camera or microphone/);
 });
 
+test("rejects every permission outside the exact INTERNET and VIBRATE allowlist", () => {
+  const additions = [
+    '<uses-permission android:name="android.permission.READ_SMS" />',
+    '<uses-permission\n android:name="android.permission.READ_PHONE_STATE" />',
+    '<uses-permission-sdk-23 android:name="com.example.UNEXPECTED" />',
+  ];
+  for (const addition of additions) {
+    const result = runInspection({
+      manifest: validManifest.replace("</manifest>", `${addition}</manifest>`),
+    });
+    assert.equal(result.status, 1, `accepted ${addition}`);
+    assert.match(result.stderr, /permission allowlist/, result.stderr);
+  }
+});
+
 test("rejects non-ARM64 or missing ARM64 native libraries", () => {
   const wrongAbi = runInspection({ files: "/lib/x86_64/libgodot_android.so" });
   assert.equal(wrongAbi.status, 1);
-  assert.match(wrongAbi.stderr, /arm64-v8a library missing/);
+  assert.match(wrongAbi.stderr, /arm64-v8a shared library missing/);
 
   const mixedAbi = runInspection({
     files: "/lib/arm64-v8a/libgodot_android.so\n/lib/x86/libgodot_android.so",
   });
   assert.equal(mixedAbi.status, 1);
   assert.match(mixedAbi.stderr, /non-ARM64 native library present/);
+
+  const riscvAbi = runInspection({
+    files: "/lib/arm64-v8a/libgodot_android.so\n/lib/riscv64/libunexpected.so",
+  });
+  assert.equal(riscvAbi.status, 1);
+  assert.match(riscvAbi.stderr, /non-ARM64 native library present/);
+});
+
+test("requires at least one actual ARM64 shared object", () => {
+  for (const files of ["/lib/arm64-v8a/", "/lib/arm64-v8a/readme.txt"]) {
+    const result = runInspection({ files });
+    assert.equal(result.status, 1, `accepted ${files}`);
+    assert.match(result.stderr, /arm64-v8a shared library missing/);
+  }
+});
+
+test("rejects host development artifacts from packaged assets", () => {
+  const forbidden = [
+    "/assets/package.json",
+    "/assets/package-lock.json",
+    "/assets/node_modules/example/index.js",
+    "/assets/tools/private_generator.mjs",
+    "/assets/.env.local",
+    "/assets/release.keystore",
+  ];
+  for (const path of forbidden) {
+    const result = runInspection({
+      files: `/lib/arm64-v8a/libgodot_android.so\n${path}`,
+    });
+    assert.equal(result.status, 1, `accepted ${path}`);
+    assert.match(result.stderr, /host development artifact/);
+  }
 });
 
 test("rejects missing privacy and SDK declarations", () => {
