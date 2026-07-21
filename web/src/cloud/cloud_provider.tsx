@@ -1,6 +1,6 @@
 import { createContext, type PropsWithChildren, useContext, useMemo } from "react";
 
-import { parseRuntimeEnv, type RuntimeEnv } from "../config/runtime_env";
+import { parseRuntimeEnvWithDemoDefault, type RuntimeEnv } from "../config/runtime_env";
 import type { CloudPort } from "./cloud_port";
 import { createDemoFakeCloud } from "./fake_cloud";
 import { SupabaseCloud } from "./supabase_cloud";
@@ -23,7 +23,7 @@ export function CloudProvider({ cloud, children }: CloudProviderProps) {
     () =>
       cloud ??
       createCloud(
-        parseRuntimeEnv({
+        parseRuntimeEnvWithDemoDefault({
           VITE_MATHLAND_CLOUD_MODE: import.meta.env.VITE_MATHLAND_CLOUD_MODE,
           VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
           VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,

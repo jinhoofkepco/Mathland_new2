@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { FakeCloudDataset } from "./fake_cloud";
-import { FakeCloud } from "./fake_cloud";
+import { createDemoFakeCloud, FakeCloud } from "./fake_cloud";
 
 const dataset: FakeCloudDataset = {
   session: { status: "authenticated", userId: "guardian-1", role: "guardian" },
@@ -30,6 +30,21 @@ const dataset: FakeCloudDataset = {
 };
 
 describe("FakeCloud", () => {
+  it("ships a clearly synthetic, signed-in Pages demo", async () => {
+    const cloud = createDemoFakeCloud();
+
+    await expect(cloud.session()).resolves.toMatchObject({
+      status: "authenticated",
+      role: "owner",
+    });
+    await expect(cloud.listFamilies()).resolves.toEqual([
+      expect.objectContaining({ name: "MathLand 데모 가족" }),
+    ]);
+    await expect(cloud.listChildren("00000000-0000-4000-8000-000000000001")).resolves.toEqual([
+      expect.objectContaining({ nickname: "데모 아이" }),
+    ]);
+  });
+
   it("isolates children by requested family", async () => {
     const cloud = new FakeCloud(dataset);
 

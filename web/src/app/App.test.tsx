@@ -24,6 +24,10 @@ describe("App", () => {
       "href",
       "/login",
     );
+    expect(screen.getByRole("link", { name: "샘플 현황 보기" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
   });
 
   it("opens a GitHub Pages deep link through the URL hash", () => {

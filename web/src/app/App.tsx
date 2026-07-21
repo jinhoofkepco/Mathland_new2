@@ -32,6 +32,9 @@ function WelcomePage() {
           이메일로 시작하기
           <span aria-hidden="true">→</span>
         </Link>
+        <Link className="demo-action" to="/dashboard">
+          샘플 현황 보기
+        </Link>
         <p className="privacy-note">아이의 플레이는 인터넷이 없어도 안전하게 이어집니다.</p>
       </section>
       <aside className="island-preview" aria-label="MathLand 탐험 안내">

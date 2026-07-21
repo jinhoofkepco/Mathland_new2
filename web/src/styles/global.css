@@ -132,6 +132,16 @@ h1 {
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
+.demo-action {
+  display: inline-flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+  color: var(--color-ink, #183153);
+  font-weight: 750;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
 .primary-action:hover {
   transform: translateY(-2px);
   box-shadow: 0 0.5rem 0 var(--color-ink);

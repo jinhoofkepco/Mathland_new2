@@ -102,3 +102,23 @@ export function parseRuntimeEnv(record: Record<string, unknown>): RuntimeEnv {
     ),
   };
 }
+
+export function parseRuntimeEnvWithDemoDefault(record: Record<string, unknown>): RuntimeEnv {
+  assertSafeClientEnvKeys(record);
+  const rawMode = record.VITE_MATHLAND_CLOUD_MODE;
+  const hasMode = typeof rawMode === "string" && rawMode.trim() !== "";
+  const hasCloudValue = [
+    record.VITE_SUPABASE_URL,
+    record.VITE_SUPABASE_PUBLISHABLE_KEY,
+  ].some((value) => typeof value === "string" && value.trim() !== "");
+
+  if (!hasMode && !hasCloudValue) {
+    return { mode: "fake" };
+  }
+  if (!hasMode) {
+    throw new RuntimeEnvError(
+      "VITE_MATHLAND_CLOUD_MODE cloud mode is required when Supabase configuration is present",
+    );
+  }
+  return parseRuntimeEnv(record);
+}

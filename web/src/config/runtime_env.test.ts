@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRuntimeEnv } from "./runtime_env";
+import { parseRuntimeEnv, parseRuntimeEnvWithDemoDefault } from "./runtime_env";
 
 describe("parseRuntimeEnv", () => {
   it("accepts an explicit Supabase project and publishable key", () => {
@@ -60,5 +60,19 @@ describe("parseRuntimeEnv", () => {
         VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_accidental-key",
       }),
     ).toThrow(/fake mode/i);
+  });
+});
+
+describe("parseRuntimeEnvWithDemoDefault", () => {
+  it("uses the credential-free demo when Pages has no cloud variables", () => {
+    expect(parseRuntimeEnvWithDemoDefault({})).toEqual({ mode: "fake" });
+  });
+
+  it("does not hide a partial cloud configuration behind demo mode", () => {
+    expect(() =>
+      parseRuntimeEnvWithDemoDefault({
+        VITE_SUPABASE_URL: "https://mathland-family.supabase.co",
+      }),
+    ).toThrow(/cloud mode/i);
   });
 });

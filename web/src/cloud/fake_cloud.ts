@@ -32,6 +32,82 @@ const DEFAULT_DATASET: FakeCloudDataset = {
   drafts: [],
 };
 
+const DEMO_FAMILY_ID = "00000000-0000-4000-8000-000000000001";
+const DEMO_CHILD_ID = "00000000-0000-4000-8000-000000000002";
+const DEMO_USER_ID = "00000000-0000-4000-8000-000000000003";
+const DEMO_SYNC_AT = "2026-07-21T09:20:00.000Z";
+
+const DEMO_DATASET: FakeCloudDataset = {
+  session: { status: "authenticated", userId: DEMO_USER_ID, role: "owner" },
+  families: [{ id: DEMO_FAMILY_ID, name: "MathLand 데모 가족", role: "owner" }],
+  children: [
+    {
+      id: DEMO_CHILD_ID,
+      familyId: DEMO_FAMILY_ID,
+      nickname: "데모 아이",
+      lastSyncAt: DEMO_SYNC_AT,
+    },
+  ],
+  dashboards: {
+    [DEMO_FAMILY_ID]: {
+      familyId: DEMO_FAMILY_ID,
+      generatedAt: "2026-07-21T09:21:00.000Z",
+      sessions: [
+        {
+          runId: "demo-run-1",
+          profileId: DEMO_CHILD_ID,
+          startedAt: "2026-07-21T09:00:00.000Z",
+          score: 8,
+        },
+        {
+          runId: "demo-run-2",
+          profileId: DEMO_CHILD_ID,
+          startedAt: "2026-07-20T08:30:00.000Z",
+          score: 6,
+        },
+      ],
+      activities: [
+        {
+          profileId: DEMO_CHILD_ID,
+          activityId: "foundations_base_ten",
+          answerCount: 12,
+          correctCount: 10,
+          averageResponseDurationMs: 3200,
+          lastPlayedAt: DEMO_SYNC_AT,
+        },
+        {
+          profileId: DEMO_CHILD_ID,
+          activityId: "addition_ones",
+          answerCount: 8,
+          correctCount: 6,
+          averageResponseDurationMs: 4100,
+          lastPlayedAt: "2026-07-20T08:45:00.000Z",
+        },
+      ],
+      errors: [
+        {
+          profileId: DEMO_CHILD_ID,
+          activityId: "addition_ones",
+          generatorId: "addition_v1",
+          bandId: "practice",
+          incorrectCount: 2,
+          lastIncorrectAt: "2026-07-20T08:43:00.000Z",
+        },
+      ],
+      rewards: [
+        {
+          profileId: DEMO_CHILD_ID,
+          rewardId: "apple",
+          quantity: 14,
+          updatedAt: DEMO_SYNC_AT,
+        },
+      ],
+    },
+  },
+  drafts: [],
+  publications: [],
+};
+
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
@@ -249,5 +325,5 @@ export class FakeCloud implements CloudPort {
 }
 
 export function createDemoFakeCloud(): FakeCloud {
-  return new FakeCloud(DEFAULT_DATASET);
+  return new FakeCloud(DEMO_DATASET);
 }
