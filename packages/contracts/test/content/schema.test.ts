@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
+import addFormatsModule from "ajv-formats";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,19 +14,23 @@ import {
 } from "../../src/index.js";
 import { makeAllPublishedPackages, makePublished, makeValidDraft, makeValidManifest } from "./package_fixture.js";
 
-async function compileCheckedInActivitySchema(): Promise<ValidateFunction> {
-  const schemaUrl = new URL(
-    "../../src/content/activity-package-v1.schema.json",
-    import.meta.url,
-  );
+const addFormats = addFormatsModule.default;
+
+async function compileCheckedInSchema(fileName: string): Promise<ValidateFunction> {
+  const schemaUrl = new URL(`../../src/content/${fileName}`, import.meta.url);
   const schema = JSON.parse(await readFile(schemaUrl, "utf8")) as object;
   const ajv = new Ajv2020({ allErrors: true, strict: true });
+  addFormats(ajv);
   ajv.addKeyword({
     keyword: "x-mathland-semantic-validation",
     schemaType: "array",
     valid: true,
   });
   return ajv.compile(schema);
+}
+
+async function compileCheckedInActivitySchema(): Promise<ValidateFunction> {
+  return compileCheckedInSchema("activity-package-v1.schema.json");
 }
 
 function validationErrors(validate: ValidateFunction): string {
@@ -90,6 +95,15 @@ describe("content package schemas", () => {
 });
 
 describe("checked-in JSON Schemas", () => {
+  it("compiles both schemas with strict Ajv 2020 and its standard formats", async () => {
+    await expect(compileCheckedInSchema("activity-package-v1.schema.json")).resolves.toBeTypeOf(
+      "function",
+    );
+    await expect(compileCheckedInSchema("content-manifest-v1.schema.json")).resolves.toBeTypeOf(
+      "function",
+    );
+  });
+
   it("stay byte-for-byte aligned with the Zod schema generator", async () => {
     const generated = generateContentJsonSchemas();
     const schemaDirectory = new URL("../../src/content/", import.meta.url);
@@ -179,6 +193,28 @@ describe("checked-in JSON Schemas", () => {
 
       const zodValid = ActivityPackageV1Schema.safeParse(packageWithAstralTitle).success;
       const jsonSchemaValid = validate(packageWithAstralTitle) as boolean;
+
+      expect(zodValid).toBe(expectedValid);
+      expect(jsonSchemaValid, validationErrors(validate)).toBe(expectedValid);
+      expect(zodValid).toBe(jsonSchemaValid);
+    },
+  );
+
+  it.each([
+    ["2026-07-21T00:00:00Z", true],
+    ["2026-07-21T09:00:00+09:00", true],
+    ["2026-07-21T00:00:00", false],
+    ["2026-02-29T00:00:00Z", false],
+    ["next Tuesday", false],
+  ] as const)(
+    "keeps Zod and Draft 2020-12 timestamp parity for %s",
+    async (publishedAt, expectedValid) => {
+      const validate = await compileCheckedInSchema("content-manifest-v1.schema.json");
+      const manifest = makeValidManifest(makeAllPublishedPackages());
+      const candidate = { ...manifest, published_at: publishedAt };
+
+      const zodValid = ContentManifestV1Schema.safeParse(candidate).success;
+      const jsonSchemaValid = validate(candidate) as boolean;
 
       expect(zodValid).toBe(expectedValid);
       expect(jsonSchemaValid, validationErrors(validate)).toBe(expectedValid);
