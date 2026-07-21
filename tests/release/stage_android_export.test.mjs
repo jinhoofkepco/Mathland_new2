@@ -29,6 +29,7 @@ function makeSource(root, includeHostArtifacts) {
   write(root, "assets/moa.svg", "<svg />");
   write(root, "assets/source/art/generated/master.png", "provenance master");
   write(root, "addons/mathland_secure_credentials/bin/debug/plugin.aar", "aar");
+  write(root, "content/packages/addition_ones/1.0.0.json", "playable content");
   if (!includeHostArtifacts) return;
   write(root, "package.json", "host package");
   write(root, "package-lock.json", "host lock");
@@ -93,6 +94,7 @@ test("staged runtime listing is identical with or without npm and host artifacts
     const expected = [
       "addons/mathland_secure_credentials/bin/debug/plugin.aar:aar",
       "assets/moa.svg:<svg />",
+      "content/packages/addition_ones/1.0.0.json:playable content",
       "project.godot:[application]",
       "src/app.gd:extends Node",
     ];

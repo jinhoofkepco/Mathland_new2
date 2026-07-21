@@ -6,6 +6,23 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const script = resolve("scripts/android/inspect_manifest.sh");
+const activityIds = [
+  "addition_ones",
+  "common_multiples_lcm",
+  "foundations_base_ten",
+  "foundations_basic_operations",
+  "foundations_counting",
+  "foundations_number_bonds",
+  "foundations_number_line",
+  "foundations_ten_frame",
+  "multiplication",
+  "prime_factorization",
+  "subtraction_ones",
+];
+const runtimeContentFiles = [
+  "/assets/content/active-manifest.json",
+  ...activityIds.map((activityId) => `/assets/content/packages/${activityId}/1.0.0.json`),
+];
 const validManifest = `
 <manifest package="com.jinhoofkepco.mathland" android:versionCode="1" android:versionName="1.0.0">
   <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
@@ -14,7 +31,11 @@ const validManifest = `
   <application android:allowBackup="false" />
 </manifest>`;
 
-function runInspection({ manifest = validManifest, files = "/lib/arm64-v8a/libgodot_android.so" } = {}) {
+function runInspection({
+  manifest = validManifest,
+  files = "/lib/arm64-v8a/libgodot_android.so",
+  includeRuntimeContent = true,
+} = {}) {
   const fixtureRoot = mkdtempSync(join(tmpdir(), "mathland-manifest-"));
   try {
     const apk = join(fixtureRoot, "MathLand fixture.apk");
@@ -32,9 +53,10 @@ else process.exit(8);
 `,
     );
     chmodSync(analyzer, 0o755);
+    const completeFiles = [files, ...(includeRuntimeContent ? runtimeContentFiles : [])].join("\n");
     return spawnSync("bash", [script, apk], {
       encoding: "utf8",
-      env: { ...process.env, APKANALYZER_BIN: analyzer, FAKE_MANIFEST: manifest, FAKE_FILES: files },
+      env: { ...process.env, APKANALYZER_BIN: analyzer, FAKE_MANIFEST: manifest, FAKE_FILES: completeFiles },
       timeout: 5_000,
     });
   } finally {
@@ -57,6 +79,20 @@ test("accepts generated Android and Godot runtime metadata", () => {
     ].join("\n"),
   });
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("requires the active manifest and every playable content package", () => {
+  for (const missingPath of runtimeContentFiles) {
+    const result = runInspection({
+      files: [
+        "/lib/arm64-v8a/libgodot_android.so",
+        ...runtimeContentFiles.filter((path) => path !== missingPath),
+      ].join("\n"),
+      includeRuntimeContent: false,
+    });
+    assert.equal(result.status, 1, `accepted APK without ${missingPath}`);
+    assert.match(result.stderr, /playable content/);
+  }
 });
 
 test("rejects dangerous permissions", () => {

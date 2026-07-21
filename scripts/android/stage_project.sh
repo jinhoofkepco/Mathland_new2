@@ -16,6 +16,8 @@ if [ "$MATHLAND_STAGE_SOURCE" = "$MATHLAND_STAGE_DESTINATION" ]; then
 fi
 
 rsync -a \
+  --include='/content/packages/' \
+  --include='/content/packages/***' \
   --exclude='.git' \
   --exclude='.github/' \
   --exclude='.godot/' \

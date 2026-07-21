@@ -50,6 +50,35 @@ MATHLAND_NORMALIZED_FILES="$(
   ' <<<"$MATHLAND_FILES"
 )"
 
+MATHLAND_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+MATHLAND_CONTENT_MANIFEST="$MATHLAND_REPO_ROOT/content/active-manifest.json"
+if [ ! -s "$MATHLAND_CONTENT_MANIFEST" ]; then
+  echo "APK policy failed: active content manifest is unavailable" >&2
+  exit 1
+fi
+MATHLAND_EXPECTED_CONTENT_FILES="$(
+  node --input-type=module - "$MATHLAND_CONTENT_MANIFEST" <<'NODE'
+import { readFileSync } from "node:fs";
+
+const manifestPath = process.argv[2];
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+if (!Array.isArray(manifest.packages) || manifest.packages.length === 0) {
+  throw new Error("active content manifest contains no packages");
+}
+const paths = ["assets/content/active-manifest.json"];
+for (const entry of manifest.packages) {
+  if (typeof entry?.path !== "string" || !/^content\/packages\/[^/]+\/[^/]+\.json$/.test(entry.path)) {
+    throw new Error(`invalid active content package path: ${entry?.path}`);
+  }
+  paths.push(`assets/${entry.path}`);
+}
+if (new Set(paths).size !== paths.length) {
+  throw new Error("active content manifest contains duplicate package paths");
+}
+process.stdout.write(paths.join("\n"));
+NODE
+)"
+
 if rg --quiet --pcre2 '(?:^|/)\.\.(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: unsafe parent path component present" >&2
   exit 1
@@ -111,9 +140,20 @@ if rg --quiet --pcre2 '^lib/(?!arm64-v8a(?:/|$))[^/]+/' <<<"$MATHLAND_NORMALIZED
   echo "APK policy failed: non-ARM64 native library present" >&2
   exit 1
 fi
-if rg --quiet --pcre2 '(?:^|/)(?:\.git|\.github|node_modules|tests|docs|reports|coverage|playwright-report|test-results|web|supabase|packages|scripts|tools|dist)(?:/|$)|^assets/(?:[^/]+/)*android(?:/|$)|(?:^|/)(?:package(?:-lock)?\.json|\.env(?:\.[^/]*)?|\.DS_Store|[^/]*\.(?:keystore|jks|p12))(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
+if rg --quiet --pcre2 '(?:^|/)(?:\.git|\.github|node_modules|tests|docs|reports|coverage|playwright-report|test-results|web|supabase|scripts|tools|dist)(?:/|$)|^assets/(?:[^/]+/)*android(?:/|$)|(?:^|/)(?:package(?:-lock)?\.json|\.env(?:\.[^/]*)?|\.DS_Store|[^/]*\.(?:keystore|jks|p12))(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
+  echo "APK policy failed: host development artifact present" >&2
+  exit 1
+fi
+if rg --quiet --pcre2 '^(?!assets/content/packages/)(?:.*/)?packages(?:/|$)' <<<"$MATHLAND_NORMALIZED_FILES"; then
   echo "APK policy failed: host development artifact present" >&2
   exit 1
 fi
 
-echo "PASS: Android manifest and ABI policy"
+while IFS= read -r MATHLAND_EXPECTED_CONTENT_FILE; do
+  if ! rg --quiet --fixed-strings --line-regexp "$MATHLAND_EXPECTED_CONTENT_FILE" <<<"$MATHLAND_NORMALIZED_FILES"; then
+    echo "APK policy failed: playable content missing: $MATHLAND_EXPECTED_CONTENT_FILE" >&2
+    exit 1
+  fi
+done <<<"$MATHLAND_EXPECTED_CONTENT_FILES"
+
+echo "PASS: Android manifest and ABI policy; playable content verified"
