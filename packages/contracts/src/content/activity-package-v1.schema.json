@@ -46,13 +46,13 @@
             "title": {
               "type": "string",
               "minLength": 1,
-              "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+              "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
               "maxLength": 80
             },
             "description": {
               "type": "string",
               "minLength": 1,
-              "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+              "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
               "maxLength": 500
             },
             "tutorial_steps": {
@@ -62,7 +62,7 @@
               "items": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                 "maxLength": 240
               }
             }
@@ -381,7 +381,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 64,
-                "pattern": "^[^\\u0000\\ufffd]*$"
+                "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
               },
               "additionalProperties": {
                 "anyOf": [
@@ -396,7 +396,7 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                    "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                     "maxLength": 128
                   },
                   {
@@ -429,7 +429,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -444,7 +444,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -485,7 +485,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -500,7 +500,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -521,7 +521,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -536,7 +536,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -598,7 +598,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 64,
-                "pattern": "^[^\\u0000\\ufffd]*$"
+                "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
               },
               "additionalProperties": {
                 "anyOf": [
@@ -613,7 +613,7 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                    "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                     "maxLength": 128
                   },
                   {
@@ -646,7 +646,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -661,7 +661,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -702,7 +702,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -717,7 +717,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -738,7 +738,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -753,7 +753,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -815,7 +815,7 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 64,
-                "pattern": "^[^\\u0000\\ufffd]*$"
+                "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
               },
               "additionalProperties": {
                 "anyOf": [
@@ -830,7 +830,7 @@
                   {
                     "type": "string",
                     "minLength": 1,
-                    "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                    "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                     "maxLength": 128
                   },
                   {
@@ -863,7 +863,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -878,7 +878,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -919,7 +919,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -934,7 +934,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -955,7 +955,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[^\\u0000\\ufffd]*$"
+                    "pattern": "^[^\\u0000\\ud800-\\udfff\\ufffd]*$"
                   },
                   "additionalProperties": {
                     "anyOf": [
@@ -970,7 +970,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+                        "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
                         "maxLength": 128
                       },
                       {
@@ -1018,13 +1018,13 @@
         "min_band_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+          "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
           "maxLength": 32
         },
         "max_band_id": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^(?![\\s\\S]*[\\u0000\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
+          "pattern": "^(?![\\s\\S]*[\\u0000\\ud800-\\udfff\\ufffd])\\S(?:[\\s\\S]*\\S)?$",
           "maxLength": 32
         },
         "window_size": {

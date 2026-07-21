@@ -15,6 +15,12 @@ interface NumberVector {
   canonical: string;
 }
 
+interface StrictNumberVector {
+  source: string;
+  canonical?: string;
+  error?: "NON_FINITE_NUMBER" | "UNSAFE_INTEGER";
+}
+
 interface StringVectorFixture {
   c0: {
     codepoint: number;
@@ -41,6 +47,13 @@ const STRING_VECTORS = JSON.parse(
     "utf8",
   ),
 ) as StringVectorFixture;
+
+const STRICT_NUMBER_VECTORS = JSON.parse(
+  readFileSync(
+    new URL("../../../../tests/fixtures/contracts/strict_json_number_vectors.json", import.meta.url),
+    "utf8",
+  ),
+) as StrictNumberVector[];
 
 const PUBLISHED_PACKAGE = JSON.parse(
   readFileSync(
@@ -176,6 +189,40 @@ describe("canonical JSON", () => {
     );
   });
 
+  it("fails with stable domain errors before recursive serialization", () => {
+    let exactlyAtLimit: Record<string, unknown> = {};
+    const exactlyAtLimitRoot = exactlyAtLimit;
+    for (let depth = 0; depth < 64; depth += 1) {
+      const child: Record<string, unknown> = {};
+      exactlyAtLimit.child = child;
+      exactlyAtLimit = child;
+    }
+    expect(canonicalJson(exactlyAtLimitRoot)).toContain("child");
+
+    let deeplyNested: Record<string, unknown> = {};
+    const root = deeplyNested;
+    for (let depth = 0; depth < 10_000; depth += 1) {
+      const child: Record<string, unknown> = {};
+      deeplyNested.child = child;
+      deeplyNested = child;
+    }
+
+    for (const operation of [
+      () => canonicalJson(root),
+      () => contentChecksum(root),
+    ]) {
+      expect(operation).toThrowError(
+        expect.objectContaining({ code: "NESTING_TOO_DEEP" }),
+      );
+    }
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => contentChecksum(cyclic)).toThrowError(
+      expect.objectContaining({ code: "CYCLE", path: ["self"] }),
+    );
+  });
+
   it("rejects lone UTF-16 surrogates in string values and object keys", () => {
     const loneHigh = String.fromCharCode(0xd800);
     const loneLow = String.fromCharCode(0xdc00);
@@ -213,6 +260,20 @@ describe("canonical JSON", () => {
 });
 
 describe("strict raw JSON boundary", () => {
+  it("keeps integer, decimal, and exponent safety boundaries aligned with Godot", () => {
+    for (const vector of STRICT_NUMBER_VECTORS) {
+      const source = `{"value":${vector.source}}`;
+      if (vector.error !== undefined) {
+        expect(() => parseJsonStrict(source), vector.source).toThrowError(
+          expect.objectContaining({ code: vector.error, path: ["value"] }),
+        );
+        continue;
+      }
+
+      expect(canonicalJson(parseJsonStrict(source)), vector.source).toBe(vector.canonical);
+    }
+  });
+
   it("rejects duplicate keys including escaped aliases before JSON.parse can erase them", () => {
     const duplicate = '{"activity_id":"addition_ones","nested":{"seed":1,"s\\u0065ed":7}}';
 

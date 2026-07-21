@@ -10,6 +10,7 @@ export type CanonicalJsonErrorCode =
   | "SYMBOL_KEY"
   | "LONE_SURROGATE"
   | "INVALID_UNICODE"
+  | "NESTING_TOO_DEEP"
   | "CYCLE";
 
 export class CanonicalJsonError extends TypeError {
@@ -29,7 +30,9 @@ export type ContentJsonParseErrorCode =
   | "INVALID_UNICODE"
   | "DUPLICATE_KEY"
   | "SOURCE_TOO_LARGE"
-  | "NESTING_TOO_DEEP";
+  | "NESTING_TOO_DEEP"
+  | "NON_FINITE_NUMBER"
+  | "UNSAFE_INTEGER";
 
 export class ContentJsonParseError extends SyntaxError {
   readonly code: ContentJsonParseErrorCode;
@@ -52,6 +55,8 @@ export interface CanonicalJsonOptions {
 
 const MAX_JSON_SOURCE_LENGTH = 2_000_000;
 const MAX_JSON_NESTING = 64;
+const MAX_EXACT_BINARY_INTEGER = 4_503_599_627_370_496;
+const MIN_NORMAL_DOUBLE = 2.2250738585072014e-308;
 
 /**
  * Parses untrusted JSON while key spelling information still exists.
@@ -282,7 +287,8 @@ class StrictJsonScanner {
   }
 
   private scanNumber(path: (string | number)[]): void {
-    let cursor = this.index;
+    const start = this.index;
+    let cursor = start;
     if (this.source[cursor] === "-") {
       cursor += 1;
     }
@@ -321,6 +327,37 @@ class StrictJsonScanner {
       }
     }
 
+    const lexeme = this.source.slice(start, cursor);
+    if (decimalLexemeAdjustedExponent(lexeme) > 308) {
+      this.fail("NON_FINITE_NUMBER", path, start, "JSON number exceeds the finite range");
+    }
+    const number = Number(lexeme);
+    if (!Number.isFinite(number)) {
+      this.fail("NON_FINITE_NUMBER", path, start, "JSON number exceeds the finite range");
+    }
+    if (
+      (!isZeroDecimalLexeme(lexeme) && number === 0) ||
+      (number !== 0 && Math.abs(number) < MIN_NORMAL_DOUBLE)
+    ) {
+      this.fail("UNSAFE_INTEGER", path, start, "JSON number underflows across supported runtimes");
+    }
+    if (Number.isInteger(number)) {
+      const riskyFractionalInteger =
+        lexeme.includes(".") && Math.abs(number) > MAX_EXACT_BINARY_INTEGER;
+      if (
+        !Number.isSafeInteger(number) ||
+        riskyFractionalInteger ||
+        !decimalLexemeEqualsInteger(lexeme, number)
+      ) {
+        this.fail(
+          "UNSAFE_INTEGER",
+          path,
+          start,
+          "JSON integer cannot be represented exactly in the cross-language safe range",
+        );
+      }
+    }
+
     this.index = cursor;
   }
 
@@ -351,9 +388,175 @@ function isNonZeroDigit(character: string | undefined): boolean {
   return character !== undefined && character >= "1" && character <= "9";
 }
 
+function decimalLexemeEqualsInteger(lexeme: string, integer: number): boolean {
+  const sourceNegative = lexeme.startsWith("-");
+  const unsigned = sourceNegative ? lexeme.slice(1) : lexeme;
+  const exponentIndex = unsigned.search(/[eE]/);
+  const mantissa = exponentIndex < 0 ? unsigned : unsigned.slice(0, exponentIndex);
+  const exponentSource = exponentIndex < 0 ? "0" : unsigned.slice(exponentIndex + 1);
+  const decimalIndex = mantissa.indexOf(".");
+  const fractionalDigits = decimalIndex < 0 ? 0 : mantissa.length - decimalIndex - 1;
+  const coefficient = mantissa.replace(".", "").replace(/^0+/, "") || "0";
+
+  if (coefficient === "0") {
+    return integer === 0;
+  }
+  if (sourceNegative !== (integer < 0)) {
+    return false;
+  }
+
+  const decimalPower = parseCappedExponent(exponentSource) - fractionalDigits;
+  const target = Math.abs(integer).toString();
+  if (decimalPower >= 0) {
+    return (
+      coefficient.length + decimalPower === target.length &&
+      `${coefficient}${"0".repeat(decimalPower)}` === target
+    );
+  }
+
+  const divisorDigits = -decimalPower;
+  if (divisorDigits > coefficient.length) {
+    return false;
+  }
+  const integerEnd = coefficient.length - divisorDigits;
+  for (let index = integerEnd; index < coefficient.length; index += 1) {
+    if (coefficient[index] !== "0") {
+      return false;
+    }
+  }
+  const exactInteger = coefficient.slice(0, integerEnd).replace(/^0+/, "") || "0";
+  return exactInteger === target;
+}
+
+function isZeroDecimalLexeme(lexeme: string): boolean {
+  const unsigned = lexeme.startsWith("-") ? lexeme.slice(1) : lexeme;
+  const exponentIndex = unsigned.search(/[eE]/);
+  const mantissa = exponentIndex < 0 ? unsigned : unsigned.slice(0, exponentIndex);
+  for (const character of mantissa) {
+    if (character >= "1" && character <= "9") {
+      return false;
+    }
+  }
+  return true;
+}
+
+function decimalLexemeAdjustedExponent(lexeme: string): number {
+  const unsigned = lexeme.startsWith("-") ? lexeme.slice(1) : lexeme;
+  const exponentIndex = unsigned.search(/[eE]/);
+  const mantissa = exponentIndex < 0 ? unsigned : unsigned.slice(0, exponentIndex);
+  const exponentSource = exponentIndex < 0 ? "0" : unsigned.slice(exponentIndex + 1);
+  const decimalIndex = mantissa.indexOf(".");
+  const fractionalDigits = decimalIndex < 0 ? 0 : mantissa.length - decimalIndex - 1;
+  const coefficient = mantissa.replace(".", "").replace(/^0+/, "");
+  const exponent = parseCappedExponent(exponentSource);
+  return coefficient.length === 0
+    ? exponent
+    : exponent - fractionalDigits + coefficient.length - 1;
+}
+
+function parseCappedExponent(source: string): number {
+  const negative = source.startsWith("-");
+  const digits = source.startsWith("-") || source.startsWith("+") ? source.slice(1) : source;
+  let magnitude = 0;
+  for (const digit of digits) {
+    magnitude = magnitude * 10 + (digit.charCodeAt(0) - 0x30);
+    if (magnitude > MAX_JSON_SOURCE_LENGTH) {
+      return negative ? -MAX_JSON_SOURCE_LENGTH - 1 : MAX_JSON_SOURCE_LENGTH + 1;
+    }
+  }
+  return negative ? -magnitude : magnitude;
+}
+
 export function canonicalJson(value: unknown, options: CanonicalJsonOptions = {}): string {
+  assertCanonicalDomain(value);
   const omittedRootKeys = new Set(options.omitTopLevel ?? []);
   return serializeCanonical(value, [], 0, omittedRootKeys, new Set<object>());
+}
+
+type CanonicalDomainFrame =
+  | { kind: "visit"; value: unknown; path: (string | number)[]; depth: number }
+  | { kind: "leave"; value: object };
+
+function assertCanonicalDomain(root: unknown): void {
+  const activeAncestors = new Set<object>();
+  const stack: CanonicalDomainFrame[] = [{ kind: "visit", value: root, path: [], depth: 0 }];
+
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    if (frame.kind === "leave") {
+      activeAncestors.delete(frame.value);
+      continue;
+    }
+
+    const { value, path, depth } = frame;
+    if (depth > MAX_JSON_NESTING) {
+      throw new CanonicalJsonError(
+        "NESTING_TOO_DEEP",
+        path,
+        `Canonical JSON nesting exceeds ${MAX_JSON_NESTING}`,
+      );
+    }
+    if (value === null || typeof value === "boolean") {
+      continue;
+    }
+    if (typeof value === "string") {
+      assertWellFormedUnicode(value, path);
+      continue;
+    }
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) {
+        throw new CanonicalJsonError("NON_FINITE_NUMBER", path, "Canonical JSON requires finite numbers");
+      }
+      if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
+        throw new CanonicalJsonError("UNSAFE_INTEGER", path, "Canonical JSON requires safe integers");
+      }
+      continue;
+    }
+    if (typeof value !== "object") {
+      throw new CanonicalJsonError(
+        "UNSUPPORTED_TYPE",
+        path,
+        `Canonical JSON does not support ${typeof value}`,
+      );
+    }
+    if (activeAncestors.has(value)) {
+      throw new CanonicalJsonError("CYCLE", path, "Canonical JSON cannot contain reference cycles");
+    }
+
+    if (Array.isArray(value)) {
+      validateArrayProperties(value, path);
+      activeAncestors.add(value);
+      stack.push({ kind: "leave", value });
+      for (let index = value.length - 1; index >= 0; index -= 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (descriptor === undefined || !("value" in descriptor)) {
+          throw new CanonicalJsonError("SPARSE_ARRAY", [...path, index], "Sparse arrays are not JSON values");
+        }
+        stack.push({ kind: "visit", value: descriptor.value, path: [...path, index], depth: depth + 1 });
+      }
+      continue;
+    }
+
+    const prototype = Object.getPrototypeOf(value) as object | null;
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new CanonicalJsonError(
+        "NON_PLAIN_OBJECT",
+        path,
+        "Canonical JSON accepts only arrays and plain objects",
+      );
+    }
+    const keys = validateObjectProperties(value as Record<string, unknown>, path);
+    activeAncestors.add(value);
+    stack.push({ kind: "leave", value });
+    for (let index = keys.length - 1; index >= 0; index -= 1) {
+      const key = keys[index]!;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !("value" in descriptor)) {
+        throw new CanonicalJsonError("ACCESSOR_PROPERTY", [...path, key], "Accessors are not JSON values");
+      }
+      stack.push({ kind: "visit", value: descriptor.value, path: [...path, key], depth: depth + 1 });
+    }
+  }
 }
 
 function serializeCanonical(

@@ -1,0 +1,19 @@
+[
+  { "source": "9007199254740991", "canonical": "{\"value\":9007199254740991}" },
+  { "source": "-9007199254740991", "canonical": "{\"value\":-9007199254740991}" },
+  { "source": "9007199254740992", "error": "UNSAFE_INTEGER" },
+  { "source": "-9007199254740992", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740993", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740991.0", "error": "UNSAFE_INTEGER" },
+  { "source": "9007199254740991.1", "error": "UNSAFE_INTEGER" },
+  { "source": "1.0000000000000001", "error": "UNSAFE_INTEGER" },
+  { "source": "1.5", "canonical": "{\"value\":1.5}" },
+  { "source": "9.007199254740991e15", "error": "UNSAFE_INTEGER" },
+  { "source": "9.007199254740992e15", "error": "UNSAFE_INTEGER" },
+  { "source": "1e309", "error": "NON_FINITE_NUMBER" },
+  { "source": "-1e309", "error": "NON_FINITE_NUMBER" },
+  { "source": "1e-324", "error": "UNSAFE_INTEGER" },
+  { "source": "5e-324", "error": "UNSAFE_INTEGER" },
+  { "source": "0e999999", "error": "NON_FINITE_NUMBER" },
+  { "source": "0.0e309", "error": "NON_FINITE_NUMBER" }
+]

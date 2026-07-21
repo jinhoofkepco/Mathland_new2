@@ -15,8 +15,8 @@ export const SHA256_CHECKSUM_PATTERN = /^sha256:[0-9a-f]{64}$/;
 export const PACKAGE_PATH_PATTERN = new RegExp(
   `^content/packages/(?:${ACTIVITY_IDS.join("|")})/(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.json$`,
 );
-const LOSSLESS_CONTENT_STRING_PATTERN = /^[^\u0000\ufffd]*$/u;
-const NONEMPTY_TRIMMED_PATTERN = /^(?![\s\S]*[\u0000\ufffd])\S(?:[\s\S]*\S)?$/u;
+const LOSSLESS_CONTENT_STRING_PATTERN = /^[^\u0000\ud800-\udfff\ufffd]*$/u;
+const NONEMPTY_TRIMMED_PATTERN = /^(?![\s\S]*[\u0000\ud800-\udfff\ufffd])\S(?:[\s\S]*\S)?$/u;
 
 const SafeIntegerSchema = z.int();
 const PositiveIntegerSchema = z.int().positive();

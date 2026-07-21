@@ -8,6 +8,8 @@ const DOUBLE_HIDDEN_BIT := 4503599627370496
 const UINT32_SCALE := 4294967296
 const DECIMAL_SEED_MIN := 10000000000000000
 const DECIMAL_SEED_MAX := 99999999999999999
+const MAX_EXACT_BINARY_INTEGER := 4503599627370496
+const MIN_NORMAL_DOUBLE := 2.2250738585072014e-308
 
 var _safe_tuning_key_pattern := RegEx.create_from_string("^[a-z][a-z0-9_]{0,63}$")
 var _timestamp_pattern := RegEx.create_from_string(
@@ -101,6 +103,8 @@ func validate_manifest_structure(manifest: Dictionary) -> ContentValidationResul
 	return ValidationResult.new(issues.is_empty(), issues, manifest)
 
 func canonical_json(value: Variant, omit_top_level_checksum: bool = false) -> String:
+	if not _validate_canonical_domain_iterative(value):
+		return ""
 	var state := {"ok": true}
 	var encoded := _encode_canonical(value, 0, omit_top_level_checksum, state)
 	return encoded if bool(state["ok"]) else ""
@@ -502,7 +506,78 @@ func _validate_json_domain(value: Variant, path: Array, issues: Array[Dictionary
 		return
 	_add_issue(issues, "UNSUPPORTED_TYPE", path, "Value is not representable in JSON")
 
+func _validate_canonical_domain_iterative(root: Variant) -> bool:
+	var active_ancestors: Array = []
+	var stack: Array[Dictionary] = [
+		{"kind": "visit", "value": root, "path": [], "depth": 0},
+	]
+	while not stack.is_empty():
+		var frame: Dictionary = stack.pop_back()
+		if frame["kind"] == "leave":
+			for index in range(active_ancestors.size() - 1, -1, -1):
+				if is_same(active_ancestors[index], frame["value"]):
+					active_ancestors.remove_at(index)
+					break
+			continue
+
+		var value: Variant = frame["value"]
+		var path: Array = frame["path"]
+		var depth: int = frame["depth"]
+		if depth > Contract.MAX_JSON_NESTING:
+			return false
+		if value == null or value is bool:
+			continue
+		if value is String:
+			if not _is_well_formed_unicode(value):
+				return false
+			continue
+		if typeof(value) == TYPE_INT:
+			if not _is_safe_integer(value):
+				return false
+			continue
+		if typeof(value) == TYPE_FLOAT:
+			var number := float(value)
+			if not is_finite(number):
+				return false
+			if number == floor(number) and abs(number) > Contract.SAFE_INTEGER_MAX:
+				return false
+			continue
+		if not value is Array and not value is Dictionary:
+			return false
+
+		for ancestor in active_ancestors:
+			if is_same(ancestor, value):
+				return false
+		active_ancestors.append(value)
+		stack.append({"kind": "leave", "value": value})
+		if value is Array:
+			var array: Array = value
+			for index in range(array.size() - 1, -1, -1):
+				stack.append({
+					"kind": "visit",
+					"value": array[index],
+					"path": path + [index],
+					"depth": depth + 1,
+				})
+		else:
+			var object: Dictionary = value
+			var keys := object.keys()
+			for index in range(keys.size() - 1, -1, -1):
+				var key: Variant = keys[index]
+				if not key is String or not _is_well_formed_unicode(key):
+					return false
+				stack.append({
+					"kind": "visit",
+					"value": object[key],
+					"path": path + [key],
+					"depth": depth + 1,
+				})
+	return true
+
 func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: Dictionary) -> String:
+	if depth > Contract.MAX_JSON_NESTING:
+		state["ok"] = false
+		return ""
 	if value == null:
 		return "null"
 	if value is bool:
@@ -1026,7 +1101,8 @@ func _scan_string(state: Dictionary, path: Array, decode_value: bool) -> Diction
 
 func _scan_number(state: Dictionary, path: Array) -> bool:
 	var source: String = state["source"]
-	var index: int = state["index"]
+	var start: int = state["index"]
+	var index: int = start
 	if source[index] == "-":
 		index += 1
 	if index >= source.length():
@@ -1057,8 +1133,129 @@ func _scan_number(state: Dictionary, path: Array) -> bool:
 			return false
 		while index < source.length() and source[index] >= "0" and source[index] <= "9":
 			index += 1
+	var lexeme := source.substr(start, index - start)
+	if _decimal_lexeme_adjusted_exponent(lexeme) > 308:
+		_add_issue(state["issues"], "NON_FINITE_NUMBER", path, "JSON number exceeds the finite range")
+		return false
+	if _decimal_lexeme_is_zero(lexeme):
+		state["index"] = index
+		return true
+	var number := lexeme.to_float()
+	if not is_finite(number):
+		_add_issue(state["issues"], "NON_FINITE_NUMBER", path, "JSON number exceeds the finite range")
+		return false
+	if number == 0.0 or abs(number) < MIN_NORMAL_DOUBLE:
+		_add_issue(
+			state["issues"],
+			"UNSAFE_INTEGER",
+			path,
+			"JSON number underflows across supported runtimes"
+		)
+		return false
+	if number == floor(number):
+		if abs(number) > Contract.SAFE_INTEGER_MAX:
+			_add_issue(
+				state["issues"],
+				"UNSAFE_INTEGER",
+				path,
+				"JSON integer exceeds the cross-language safe range"
+			)
+			return false
+		if (
+			("." in lexeme and abs(number) > MAX_EXACT_BINARY_INTEGER)
+			or not _decimal_lexeme_equals_integer(lexeme, int(number))
+		):
+			_add_issue(
+				state["issues"],
+				"UNSAFE_INTEGER",
+				path,
+				"JSON integer cannot be represented exactly"
+			)
+			return false
 	state["index"] = index
 	return true
+
+func _decimal_lexeme_equals_integer(lexeme: String, integer: int) -> bool:
+	var source_negative := lexeme.begins_with("-")
+	var unsigned := lexeme.substr(1) if source_negative else lexeme
+	var exponent_index := unsigned.find("e")
+	if exponent_index < 0:
+		exponent_index = unsigned.find("E")
+	var mantissa := unsigned if exponent_index < 0 else unsigned.substr(0, exponent_index)
+	var exponent_source := "0" if exponent_index < 0 else unsigned.substr(exponent_index + 1)
+	var decimal_index := mantissa.find(".")
+	var fractional_digits := 0 if decimal_index < 0 else mantissa.length() - decimal_index - 1
+	var coefficient := _strip_leading_zeroes(mantissa.replace(".", ""))
+	if coefficient.is_empty():
+		coefficient = "0"
+	if coefficient == "0":
+		return integer == 0
+	if source_negative != (integer < 0):
+		return false
+
+	var decimal_power := _parse_capped_decimal_exponent(exponent_source) - fractional_digits
+	var target := str(absi(integer))
+	if decimal_power >= 0:
+		return (
+			coefficient.length() + decimal_power == target.length()
+			and coefficient + "0".repeat(decimal_power) == target
+		)
+
+	var divisor_digits := -decimal_power
+	if divisor_digits > coefficient.length():
+		return false
+	var integer_end := coefficient.length() - divisor_digits
+	for index in range(integer_end, coefficient.length()):
+		if coefficient[index] != "0":
+			return false
+	var exact_integer := _strip_leading_zeroes(coefficient.substr(0, integer_end))
+	if exact_integer.is_empty():
+		exact_integer = "0"
+	return exact_integer == target
+
+func _decimal_lexeme_is_zero(lexeme: String) -> bool:
+	var unsigned := lexeme.substr(1) if lexeme.begins_with("-") else lexeme
+	var exponent_index := unsigned.find("e")
+	if exponent_index < 0:
+		exponent_index = unsigned.find("E")
+	var mantissa := unsigned if exponent_index < 0 else unsigned.substr(0, exponent_index)
+	for index in mantissa.length():
+		if mantissa[index] >= "1" and mantissa[index] <= "9":
+			return false
+	return true
+
+func _decimal_lexeme_adjusted_exponent(lexeme: String) -> int:
+	var unsigned := lexeme.substr(1) if lexeme.begins_with("-") else lexeme
+	var exponent_index := unsigned.find("e")
+	if exponent_index < 0:
+		exponent_index = unsigned.find("E")
+	var mantissa := unsigned if exponent_index < 0 else unsigned.substr(0, exponent_index)
+	var exponent_source := "0" if exponent_index < 0 else unsigned.substr(exponent_index + 1)
+	var decimal_index := mantissa.find(".")
+	var fractional_digits := 0 if decimal_index < 0 else mantissa.length() - decimal_index - 1
+	var coefficient := _strip_leading_zeroes(mantissa.replace(".", ""))
+	var exponent := _parse_capped_decimal_exponent(exponent_source)
+	return exponent if coefficient.is_empty() else exponent - fractional_digits + coefficient.length() - 1
+
+func _parse_capped_decimal_exponent(source: String) -> int:
+	var negative := source.begins_with("-")
+	var start := 1 if source.begins_with("-") or source.begins_with("+") else 0
+	var magnitude := 0
+	for index in range(start, source.length()):
+		magnitude = magnitude * 10 + source[index].unicode_at(0) - 0x30
+		if magnitude > Contract.MAX_JSON_SOURCE_LENGTH:
+			return (
+				-Contract.MAX_JSON_SOURCE_LENGTH - 1
+				if negative
+				else Contract.MAX_JSON_SOURCE_LENGTH + 1
+			)
+	return -magnitude if negative else magnitude
+
+func _strip_leading_zeroes(value: String) -> String:
+	var index := 0
+	while index < value.length() and value[index] == "0":
+		index += 1
+	return value.substr(index)
 
 func _skip_whitespace(state: Dictionary) -> void:
 	var source: String = state["source"]
