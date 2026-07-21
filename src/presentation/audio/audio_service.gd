@@ -167,6 +167,12 @@ func stop_voice() -> void:
 		_voice_player.stop()
 		_voice_player.stream = null
 
+func toggle_voice(dialogue_id: StringName) -> bool:
+	if not dialogue_id.is_empty() and _current_voice_id == dialogue_id:
+		stop_voice()
+		return true
+	return play_voice(dialogue_id)
+
 func current_voice_id() -> StringName:
 	return _current_voice_id
 

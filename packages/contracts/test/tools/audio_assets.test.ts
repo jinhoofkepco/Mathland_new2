@@ -26,6 +26,10 @@ type MutableManifest = Record<string, unknown> & {
   voiceModel: Record<string, unknown>;
 };
 
+type MutableAssetManifest = Record<string, unknown> & {
+  assets: Array<Record<string, unknown>>;
+};
+
 async function validateMutation(
   mutate: (manifest: MutableManifest) => void,
   technical = false,
@@ -43,6 +47,29 @@ async function validateMutation(
       manifestPath,
       licensesPath: path.join(ROOT, "ASSET_LICENSES.md"),
       technical,
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+async function validateRightsMutation(
+  mutate: (manifest: MutableAssetManifest) => void,
+) {
+  const directory = await mkdtemp(path.join(tmpdir(), "mathland-audio-rights-"));
+  const assetManifestPath = path.join(directory, "asset-manifest.json");
+  try {
+    const manifest = JSON.parse(
+      await readFile(path.join(ROOT, "assets/asset-manifest.json"), "utf8"),
+    ) as MutableAssetManifest;
+    mutate(manifest);
+    await writeFile(assetManifestPath, `${JSON.stringify(manifest)}\n`, "utf8");
+    return await validateAudioWorkspace({
+      root: ROOT,
+      manifestPath: path.join(ROOT, "assets/audio/audio-manifest.json"),
+      assetManifestPath,
+      licensesPath: path.join(ROOT, "ASSET_LICENSES.md"),
+      technical: true,
     });
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -106,6 +133,44 @@ describe("offline release audio", () => {
     const report = await validateMutation(mutate);
     expect(report.issues.map((issue) => issue.code)).toContain("MANIFEST_SCHEMA_INVALID");
   });
+
+  it.each([
+    ["exploration music reassigned to boss autoplay", (manifest: MutableManifest) => {
+      manifest.music[0]!.autoplay = "boss_context";
+    }],
+    ["ordinary button effect granted the four-second cinematic budget", (manifest: MutableManifest) => {
+      manifest.sfx[0]!.maxDurationSeconds = 4;
+    }],
+    ["voice peak ceiling relaxed to -0.5 dBFS", (manifest: MutableManifest) => {
+      manifest.voice[0]!.maxPeakDbfs = -0.5;
+    }],
+    ["music peak ceiling relaxed to -0.5 dBFS", (manifest: MutableManifest) => {
+      manifest.music[0]!.maxPeakDbfs = -0.5;
+    }],
+    ["short-effect RMS tolerance widened to 2 dB", (manifest: MutableManifest) => {
+      manifest.sfx[0]!.rmsToleranceDb = 2;
+    }],
+    ["short-effect RMS target rewritten dishonestly", (manifest: MutableManifest) => {
+      manifest.sfx[0]!.targetRmsDbfs = Number(manifest.sfx[0]!.targetRmsDbfs) + 1.5;
+    }],
+  ])("rejects the reviewed-policy adversary: %s, including in technical mode", async (_label, mutate) => {
+    const report = await validateMutation(mutate, true);
+    expect(report.issues.map((item) => item.code)).toContain("ENTRY_POLICY_INVALID");
+  }, 60_000);
+
+  it.each([
+    ["voice license swapped while the human document still contains both license tokens", (manifest: MutableAssetManifest) => {
+      const record = manifest.assets.find((item) => item.id === "moa_home_welcome")!;
+      record.license = "MathLand-Original-Audio-1.0";
+    }],
+    ["rights review assertion removed from one exact asset record", (manifest: MutableAssetManifest) => {
+      const record = manifest.assets.find((item) => item.id === "button_down")!;
+      (record.review as Record<string, unknown>).rights_checked = false;
+    }],
+  ])("rejects the structured-rights adversary: %s", async (_label, mutate) => {
+    const report = await validateRightsMutation(mutate);
+    expect(report.issues.map((item) => item.code)).toContain("RIGHTS_LEDGER_MISMATCH");
+  }, 60_000);
 
   it("cross-checks every voice delivery policy against the dialogue CSV", async () => {
     const report = await validateMutation((manifest) => {

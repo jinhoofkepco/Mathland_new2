@@ -54,7 +54,11 @@ func _ready() -> void:
 	_connect_tactile(create_button, show_create_dialog)
 	_dialog = ProfileCreateDialogScene.instantiate()
 	_dialog.name = "CreateProfileDialog"
-	_dialog.configure({"profile_service": _profile_service, "ui_policy": _ui_policy})
+	_dialog.configure({
+		"profile_service": _profile_service,
+		"ui_policy": _ui_policy,
+		"audio_service": _audio_service,
+	})
 	_dialog.profile_created.connect(_on_profile_created)
 	_dialog.dismissed.connect(func(): _dialog.visible = false)
 	_dialog.visible = false

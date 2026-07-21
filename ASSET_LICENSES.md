@@ -36,6 +36,8 @@ Production masters are the checked-in PNG release files recorded by `master_path
 
 ## Original MathLand audio
 
+The machine-readable rights ledger is the ordered set of `kind: "audio"` records in `assets/asset-manifest.json`. Audio validation joins every release ID, path, SHA-256, channel count, license, redistribution assertion, review assertion, and kind-specific provenance against that structured record; the human-readable lists below are documentation rather than admission by token matching.
+
 `MathLand-Original-Audio-1.0` covers the deterministic procedural music and sound effects authored specifically for MathLand in `tools/assets/generate_original_audio.mjs`. Redistribution is confirmed. No third-party sample, system voice, or recorded performer is used.
 
 - `exploration_loop`, `concentration_loop`, `boss_loop`

@@ -274,14 +274,15 @@ func _play_answer_presentation(event: Dictionary, transition: Dictionary, correc
 	var effect_names: Variant = transition.get("effect_names", [])
 	if _audio_service != null and _audio_service.has_method("play_sfx"):
 		_audio_service.play_sfx(_answer_sfx_id(transition, effect_names, correctness))
-	if effect_names is Array and "level_up" in effect_names and _audio_service != null and _audio_service.has_method("play_policy_voice"):
-		_audio_service.play_policy_voice(&"level_up_event", {"activity_id": _activity.get("activity_id", "")}, _voice_autoplay_allowed())
 	if effect_names is Array:
 		for effect_name in effect_names:
 			_play_effect(StringName(effect_name), size * 0.5)
 	var reward_delta: Variant = event.get("reward_delta", {})
-	if reward_delta is Dictionary and int(reward_delta.get("apples", 0)) > 0:
-		_show_reward("reward", int(reward_delta.apples))
+	var reward_amount := int(reward_delta.get("apples", 0)) if reward_delta is Dictionary else 0
+	if effect_names is Array and "level_up" in effect_names:
+		_show_reward("level_up", reward_amount, &"level_up_event")
+	elif reward_amount > 0:
+		_show_reward("reward", reward_amount, &"reward_event")
 
 func _answer_sfx_id(transition: Dictionary, effect_names: Variant, correctness: bool) -> StringName:
 	if not correctness and int(transition.get("health_delta", 0)) < 0:
@@ -311,7 +312,7 @@ func present_persisted_reward_event(event: Dictionary) -> bool:
 	_show_reward(kind, 0)
 	return true
 
-func _show_reward(kind: String, amount: int) -> void:
+func _show_reward(kind: String, amount: int, voice_policy: StringName = &"reward_event") -> void:
 	if is_instance_valid(_reward_overlay):
 		_reward_overlay.queue_free()
 	_reward_overlay = RewardOverlayScene.instantiate()
@@ -322,6 +323,7 @@ func _show_reward(kind: String, amount: int) -> void:
 		"ui_policy": _ui_policy,
 		"audio_service": _audio_service,
 		"voice_autoplay_allowed": _voice_autoplay_allowed(),
+		"voice_policy": voice_policy,
 	})
 	_reward_overlay.dismissed.connect(func():
 		if is_instance_valid(_reward_overlay):
@@ -331,11 +333,11 @@ func _show_reward(kind: String, amount: int) -> void:
 	add_child(_reward_overlay)
 
 func _replay_voice() -> void:
-	if _audio_service == null or not _audio_service.has_method("play_voice") or not _audio_service.has_method("dialogue_for_activity"):
+	if _audio_service == null or not _audio_service.has_method("toggle_voice") or not _audio_service.has_method("dialogue_for_activity"):
 		return
 	var dialogue_id: Variant = _audio_service.dialogue_for_activity(_activity)
 	if dialogue_id is StringName and not dialogue_id.is_empty():
-		_audio_service.play_voice(dialogue_id)
+		_audio_service.toggle_voice(dialogue_id)
 
 func _offer_activity_intro_voice() -> void:
 	if _audio_service != null and _audio_service.has_method("play_policy_voice"):

@@ -113,6 +113,15 @@ func _test_voice_interruption_missing_and_independent_disable(tree: SceneTree) -
 	assert_true(service.register_voice(&"moa_home_welcome", voice_a))
 	assert_true(service.register_voice(&"moa_reward", voice_b))
 	assert_false(service.register_voice(&"unknown_dialogue", voice_a))
+	assert_true(service.has_method("toggle_voice"), "visible replay/stop controls need a production toggle boundary")
+	if service.has_method("toggle_voice"):
+		assert_true(service.toggle_voice(&"moa_home_welcome"))
+		assert_eq(service.current_voice_id(), &"moa_home_welcome")
+		assert_true(service.toggle_voice(&"moa_home_welcome"), "second activation must stop the active clip")
+		assert_eq(service.current_voice_id(), &"")
+		assert_true(service.toggle_voice(&"moa_home_welcome"), "stopped voice must remain replayable")
+		assert_eq(service.current_voice_id(), &"moa_home_welcome")
+		service.stop_voice()
 	var finished: Array[StringName] = []
 	var missing: Array[StringName] = []
 	service.voice_finished.connect(func(id: StringName): finished.append(id))

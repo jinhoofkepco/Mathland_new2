@@ -27,6 +27,9 @@ func _ready() -> void:
 	_offer_home_voice()
 	var body: VBoxContainer = ui.body
 	_add_status_row(body)
+	var voice_button := MathlandUiScript.tactile_button("HomeVoiceButton", "activity.speaker", "", Vector2(0, 52), 16)
+	body.add_child(voice_button)
+	_connect_tactile(voice_button, _toggle_home_voice)
 	body.add_child(MathlandUiScript.section_label("island.today_objectives"))
 	var objective_card := MathlandUiScript.card("DailyObjectives", MathlandUiScript.CREAM, 18)
 	body.add_child(objective_card)
@@ -63,6 +66,13 @@ func _offer_home_voice() -> void:
 		return
 	var value: Variant = _params.get("voice_autoplay_allowed", false)
 	_audio_service.play_policy_voice(&"first_home", {}, value if value is bool else false)
+
+func _toggle_home_voice() -> void:
+	if _audio_service == null or not _audio_service.has_method("dialogue_for_policy") or not _audio_service.has_method("toggle_voice"):
+		return
+	var dialogue_id: Variant = _audio_service.dialogue_for_policy(&"first_home")
+	if dialogue_id is StringName and not dialogue_id.is_empty():
+		_audio_service.toggle_voice(dialogue_id)
 
 func objective_keys() -> Array[String]:
 	var keys: Array[String] = []

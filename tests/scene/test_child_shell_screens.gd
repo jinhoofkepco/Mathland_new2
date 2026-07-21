@@ -9,6 +9,7 @@ const VIEWPORT_SIZES := [Vector2i(360, 800), Vector2i(1080, 2400), Vector2i(800,
 const SCREEN_CASES := {
 	"res://scenes/profile/profile_select.tscn": ["CreateProfileButton", "UnlockButton"],
 	"res://scenes/island/exploration_island.tscn": [
+		"HomeVoiceButton",
 		"ContinueButton",
 		"DailyPathButton",
 		"FreePlayButton",
@@ -69,9 +70,25 @@ class FakeContentRepository extends RefCounted:
 
 class FakeAudioService extends RefCounted:
 	var applied: Array[Dictionary] = []
+	var sfx: Array[StringName] = []
+	var toggled_voice: Array[StringName] = []
 
 	func apply_settings(settings: Dictionary) -> bool:
 		applied.append(settings.duplicate(true))
+		return true
+
+	func play_sfx(sfx_id: StringName) -> bool:
+		sfx.append(sfx_id)
+		return true
+
+	func play_policy_voice(_policy: StringName, _context: Dictionary = {}, _authorized := false) -> bool:
+		return false
+
+	func dialogue_for_policy(policy: StringName, _context: Dictionary = {}) -> StringName:
+		return &"moa_home_welcome" if policy == &"first_home" else &""
+
+	func toggle_voice(dialogue_id: StringName) -> bool:
+		toggled_voice.append(dialogue_id)
 		return true
 
 class FakeEffectsService extends RefCounted:
@@ -105,6 +122,7 @@ func run(tree: SceneTree) -> void:
 		services["ui_policy"] = UiPolicyScript.new()
 	await _test_all_screens_at_supported_viewports(tree, services)
 	await _test_profile_creation_rules(tree, profile_service)
+	await _test_profile_tactile_audio_is_wired_through_nested_dialog(tree, services)
 	await _test_profile_activation_gates_route(tree, profile_service, services)
 	await _test_island_data_and_routes(tree, services)
 	await _test_offline_copy_is_explicit(tree, services)
@@ -174,6 +192,43 @@ func _test_profile_creation_rules(tree: SceneTree, profile_service: Node) -> voi
 	viewport.queue_free()
 	await tree.process_frame
 
+func _test_profile_tactile_audio_is_wired_through_nested_dialog(tree: SceneTree, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/profile/profile_select.tscn")
+	var screen: Control = scene.instantiate()
+	screen.configure(services)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var audio := services.audio_service as FakeAudioService
+	audio.sfx.clear()
+	for button_name in ["ProfileButton_0", "UnlockButton", "CreateProfileButton"]:
+		var button: Control = screen.find_child(button_name, true, false)
+		assert_not_null(button, "%s is missing from ProfileSelect" % button_name)
+		if button != null:
+			_tap_tactile(button)
+	var dialog: Control = screen.find_child("CreateProfileDialog", true, false)
+	assert_true(dialog.visible, "CreateProfileButton did not open the nested dialog")
+	var close_button: Control = dialog.find_child("CloseButton", true, false)
+	assert_not_null(close_button)
+	if close_button != null:
+		_tap_tactile(close_button)
+	screen.show_create_dialog()
+	var save_button: Control = dialog.find_child("SaveProfileButton", true, false)
+	assert_not_null(save_button)
+	if save_button != null:
+		_tap_tactile(save_button)
+	assert_eq(audio.sfx, [
+		&"button_down", &"button_release",
+		&"button_down", &"button_release",
+		&"button_down", &"button_release",
+		&"button_down", &"button_release",
+		&"button_down", &"button_release",
+	], "ProfileSelect and ProfileCreateDialog must share production tactile audio")
+	viewport.queue_free()
+	await tree.process_frame
+
 func _test_profile_activation_gates_route(tree: SceneTree, profile_service: Node, services: Dictionary) -> void:
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(360, 800)
@@ -224,6 +279,12 @@ func _test_island_data_and_routes(tree: SceneTree, services: Dictionary) -> void
 	assert_eq(screen.apple_balance(), 27)
 	assert_eq(screen.pending_review_count(), 4)
 	assert_eq(screen.sync_state(), {"online": false, "queued": 3})
+	var home_voice: Control = screen.find_child("HomeVoiceButton", true, false)
+	assert_not_null(home_voice, "first-home voice has no visible replay/stop control")
+	if home_voice != null:
+		assert_true(home_voice.is_visible_in_tree())
+		home_voice.accepted.emit()
+		assert_eq((services.audio_service as FakeAudioService).toggled_voice.back(), &"moa_home_welcome")
 	screen.open_daily_path()
 	assert_eq((services.router as FakeRouter).calls.back().route, &"daily_path")
 	screen.switch_profile()
@@ -326,6 +387,18 @@ func _action_text(action: Control) -> String:
 		return action.text
 	var text_label := action.find_child("TextLabel", true, false)
 	return text_label.text if text_label is Label else ""
+
+func _tap_tactile(button: Control) -> void:
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = button.size * 0.5
+	button._gui_input(down)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = button.size * 0.5
+	button._gui_input(up)
 
 func _rect_inside(inner: Rect2, outer: Rect2) -> bool:
 	const EPSILON := 0.5

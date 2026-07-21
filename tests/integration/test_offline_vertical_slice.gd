@@ -35,6 +35,7 @@ class RecordingRouter extends RefCounted:
 class TestAudioService extends Node:
 	var played_sfx: Array[StringName] = []
 	var played_voice: Array[StringName] = []
+	var toggled_voice: Array[StringName] = []
 	var music_requests: Array[StringName] = []
 	var policy_requests: Array[Dictionary] = []
 
@@ -51,6 +52,19 @@ class TestAudioService extends Node:
 
 	func dialogue_for_activity(activity: Dictionary) -> StringName:
 		return &"moa_tutorial_base_ten" if activity.get("activity_id") == "foundation_ten_rods" else &""
+
+	func dialogue_for_policy(policy: StringName, context: Dictionary = {}) -> StringName:
+		if policy == &"first_activity_entry":
+			return dialogue_for_activity(context)
+		if policy == &"first_home":
+			return &"moa_home_welcome"
+		if policy == &"reward_event":
+			return &"moa_reward"
+		return &"moa_level_up" if policy == &"level_up_event" else &""
+
+	func toggle_voice(dialogue_id: StringName) -> bool:
+		toggled_voice.append(dialogue_id)
+		return true
 
 	func play_policy_voice(policy: StringName, context: Dictionary = {}, authorized := false) -> bool:
 		policy_requests.append({"policy": policy, "context": context.duplicate(true), "authorized": authorized})
@@ -107,7 +121,7 @@ func run(tree: SceneTree) -> void:
 	assert_true(speaker.is_visible_in_tree())
 	speaker.accepted.emit()
 	var test_audio: TestAudioService = shell.get_node("AudioService") as TestAudioService
-	assert_eq(test_audio.played_voice, [&"moa_tutorial_base_ten"], "speaker did not route the activity instruction dialogue")
+	assert_eq(test_audio.toggled_voice, [&"moa_tutorial_base_ten"], "speaker did not route the activity replay/stop dialogue")
 	var audio_board: Control = activity.find_child("TenRodBoard", true, false)
 	assert_true(audio_board.add_unit())
 	assert_eq(test_audio.played_sfx.back(), &"manipulative_place", "manipulative placement did not reach production audio")
@@ -117,6 +131,13 @@ func run(tree: SceneTree) -> void:
 	activity.call("_play_answer_presentation", {"reward_delta": {}}, {"effect_names": ["level_up"], "effect_name": "level_up"}, true)
 	assert_eq(test_audio.policy_requests.back().policy, &"level_up_event")
 	assert_false(test_audio.policy_requests.back().authorized, "level-up voice was forced without explicit autoplay authorization")
+	var level_up_overlay: Control = activity.find_child("RewardOverlay", true, false)
+	assert_not_null(level_up_overlay, "authorized level-up voice has no visible presentation surface")
+	if level_up_overlay != null:
+		assert_eq(level_up_overlay.preset_kind(), "level_up")
+		assert_not_null(level_up_overlay.find_child("RewardVoiceButton", true, false))
+		level_up_overlay.dismiss()
+		await tree.process_frame
 	assert_true(activity.has_method("_update_activity_music"), "boss music transition hook is missing")
 	if activity.has_method("_update_activity_music"):
 		activity._state["boss_state"] = true
