@@ -218,7 +218,10 @@ describe("pinned legacy fixture conversion", () => {
     const actual = convertLegacyCsvWithEvidence(source, fixtureName);
     expect(actual).toEqual(expected.sources[fixtureName]);
     expect(convertLegacyCsv(source, fixtureName)).toEqual(actual.draft);
-    expect(validateActivityDraft(actual.draft)).toEqual({ valid: true, issues: [], samples: [] });
+    const report = validateActivityDraft(actual.draft);
+    expect(report.valid).toBe(true);
+    expect(report.issues).toEqual([]);
+    expect(report.samples).toHaveLength(12);
 
     for (const band of actual.draft.difficulty_bands) {
       const generator = new GeneratorRegistry().create(band.generator_id);

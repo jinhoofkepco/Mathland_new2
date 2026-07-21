@@ -15,7 +15,37 @@ function issueCodes(value: { issues: { code: string }[] }): string[] {
 
 describe("activity semantic validation", () => {
   it("returns a field-addressable empty report for a valid authored draft", () => {
-    expect(validateActivityDraft(makeValidDraft())).toEqual({ valid: true, issues: [], samples: [] });
+    const report = validateActivityDraft(makeValidDraft());
+
+    expect(report.valid).toBe(true);
+    expect(report.issues).toEqual([]);
+    expect(report.samples).toHaveLength(12);
+    expect(report.samples[0]).toMatchObject({
+      contract_version: 1,
+      activity_id: "addition_ones",
+      generator_id: "addition_v1",
+      band_id: "intro",
+      seed: 1,
+    });
+  });
+
+  it("rejects generator parameters that the runtime generator cannot execute", () => {
+    const draft = makeValidDraft();
+    draft.difficulty_bands[0]!.generator_parameters.operand_min = 10;
+    draft.difficulty_bands[0]!.generator_parameters.operand_max = 1;
+
+    expect(issueCodes(validateActivityDraft(draft))).toContain("GENERATOR_PARAMETERS_INVALID");
+  });
+
+  it("rejects a poisoned authored answer for a deterministic validation seed", () => {
+    const draft = makeValidDraft();
+    const answer = draft.validation_samples[0]!.expected_answer;
+    if (answer.kind !== "integer") throw new Error("fixture answer must be integer");
+    answer.value += 999;
+
+    expect(issueCodes(validateActivityDraft(draft))).toContain(
+      "VALIDATION_SAMPLE_ANSWER_MISMATCH",
+    );
   });
 
   it("rejects an unknown generator without silently substituting one", () => {

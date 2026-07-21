@@ -246,6 +246,33 @@ Deno.test("publish-draft rejects a semantic-invalid stored draft before commit",
   assertEquals(committed, false);
 });
 
+Deno.test("publish-draft rejects a poisoned validation answer before commit", async () => {
+  let committed = false;
+  const poisoned = draftPackage();
+  const answer = poisoned.validation_samples[0]!.expected_answer;
+  if (answer.kind !== "integer") throw new Error("fixture answer must be integer");
+  answer.value += 999;
+  const response = await publishDraft(
+    post("publish-draft", {
+      draftId: DRAFT_ID,
+      expectedRevision: 3,
+      reason: "변조된 정답 샘플",
+    }),
+    publishDependencies({
+      repository: repository({
+        getDraft: () => Promise.resolve(draftRecord(poisoned)),
+        commitPublication: () => {
+          committed = true;
+          return Promise.resolve(PUBLICATION_ID);
+        },
+      }),
+    }),
+  );
+
+  assertEquals(response.status, 422);
+  assertEquals(committed, false);
+});
+
 Deno.test("publish-draft maps an atomic stale revision to a safe conflict", async () => {
   const response = await publishDraft(
     post("publish-draft", {

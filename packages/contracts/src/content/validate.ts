@@ -2,6 +2,8 @@ import type { z } from "zod";
 
 import { ACTIVITY_GENERATOR_IDS, ACTIVITY_IDS } from "./ids.js";
 import { contentChecksum } from "./checksum.js";
+import { GeneratorRegistry } from "./generation/registry.js";
+import { verifyGeneratedAnswer } from "./generation/independent_verify.js";
 import {
   ActivityPackageDraftV1Schema,
   ActivityPackageV1Schema,
@@ -10,7 +12,9 @@ import {
 import type {
   ActivityPackageDraftV1,
   ActivityPackageV1,
+  AnswerValueV1,
   ContentManifestV1,
+  QuestionInstanceV1,
   ResolvedParametersV1,
   ValidationIssue,
   ValidationReport,
@@ -26,6 +30,7 @@ const GENERATOR_ANSWER_LAYOUT_IDS = {
   common_multiple_v1: "numeric_keypad",
   prime_factorization_v1: "factor_slots",
 } as const;
+const GENERATOR_REGISTRY = new GeneratorRegistry();
 
 export type ContentPackageCollection =
   | readonly unknown[]
@@ -45,8 +50,8 @@ export function validateActivityDraft(value: unknown): ValidationReport {
     return report(issues);
   }
 
-  validateDraftSemantics(parsed.data as ActivityPackageDraftV1, issues);
-  return report(issues);
+  const samples = validateDraftSemantics(parsed.data as ActivityPackageDraftV1, issues);
+  return report(issues, samples);
 }
 
 export function validatePublishedActivity(value: unknown): ValidationReport {
@@ -63,7 +68,7 @@ export function validatePublishedActivity(value: unknown): ValidationReport {
   }
 
   const published = parsed.data as ActivityPackageV1;
-  validateDraftSemantics(published, issues);
+  const samples = validateDraftSemantics(published, issues);
   if (published.checksum !== contentChecksum(published)) {
     issues.push({
       code: "CHECKSUM_MISMATCH",
@@ -71,7 +76,7 @@ export function validatePublishedActivity(value: unknown): ValidationReport {
       message: "Package checksum does not cover the canonical authored fields",
     });
   }
-  return report(issues);
+  return report(issues, samples);
 }
 
 export function validateContentManifest(
@@ -154,7 +159,11 @@ export function validateContentManifest(
   return report(issues);
 }
 
-function validateDraftSemantics(draft: ActivityPackageDraftV1, issues: ValidationIssue[]): void {
+function validateDraftSemantics(
+  draft: ActivityPackageDraftV1,
+  issues: ValidationIssue[],
+): QuestionInstanceV1[] {
+  const samples: QuestionInstanceV1[] = [];
   if (draft.icon_id !== draft.activity_id) {
     issues.push({
       code: "ICON_ACTIVITY_MISMATCH",
@@ -205,6 +214,7 @@ function validateDraftSemantics(draft: ActivityPackageDraftV1, issues: Validatio
       ["difficulty_bands", index, "manipulative", "initial_state"],
       issues,
     );
+    validateGeneratorSamples(draft, band, index, issues, samples);
   });
 
   const [comboOne, comboTwo, comboThree] = draft.run.combo_thresholds;
@@ -251,6 +261,105 @@ function validateDraftSemantics(draft: ActivityPackageDraftV1, issues: Validatio
       message: "Each band requires one validation sample for seeds 1, 7, 42, and 20260721",
     });
   }
+  return samples;
+}
+
+function validateGeneratorSamples(
+  draft: ActivityPackageDraftV1,
+  band: ActivityPackageDraftV1["difficulty_bands"][number],
+  bandIndex: number,
+  issues: ValidationIssue[],
+  samples: QuestionInstanceV1[],
+): void {
+  const generator = GENERATOR_REGISTRY.create(band.generator_id);
+  if (generator === null) return;
+
+  const parameterReport = generator.validateParameters(band.generator_parameters);
+  if (!parameterReport.valid) {
+    issues.push({
+      code: "GENERATOR_PARAMETERS_INVALID",
+      path: ["difficulty_bands", bandIndex, "generator_parameters"],
+      message: `Runtime generator rejected parameters: ${parameterReport.issues.join(", ")}`,
+    });
+    return;
+  }
+
+  const activityInput = draft as unknown as Readonly<Record<string, unknown>>;
+  const bandInput = band as unknown as Readonly<Record<string, unknown>>;
+  for (const seed of VALIDATION_SEEDS) {
+    const authoredSampleIndex = draft.validation_samples.findIndex(
+      (candidate) => candidate.band_id === band.band_id && candidate.seed === seed,
+    );
+    const samplePath: (string | number)[] = authoredSampleIndex === -1
+      ? ["difficulty_bands", bandIndex]
+      : ["validation_samples", authoredSampleIndex];
+    let generated: ReturnType<typeof generator.generate>;
+    try {
+      generated = generator.generate(activityInput, bandInput, seed);
+    } catch {
+      generated = null;
+    }
+    if (generated === null) {
+      issues.push({
+        code: "GENERATOR_SAMPLE_FAILED",
+        path: samplePath,
+        message: `Runtime generator failed for seed ${seed}: ${generator.lastError || "UNEXPECTED_ERROR"}`,
+      });
+      continue;
+    }
+
+    const question: QuestionInstanceV1 = {
+      contract_version: 1,
+      activity_id: draft.activity_id,
+      content_version: draft.content_version,
+      generator_id: band.generator_id,
+      band_id: band.band_id,
+      seed,
+      resolved_parameters: structuredClone(generated.resolved_parameters),
+      prompt: structuredClone(generated.prompt),
+      correct_answer: structuredClone(generated.correct_answer),
+      answer_layout: structuredClone(band.answer_layout),
+      manipulative: structuredClone(band.manipulative),
+    };
+    samples.push(question);
+
+    const independentIssues = verifyGeneratedAnswer(
+      band.generator_id,
+      generated.resolved_parameters,
+      generated.correct_answer,
+    );
+    if (independentIssues.length > 0) {
+      issues.push({
+        code: "GENERATOR_ANSWER_INVALID",
+        path: samplePath,
+        message: `Independent answer verification failed for seed ${seed}: ${independentIssues.join(", ")}`,
+      });
+    }
+
+    const authored = authoredSampleIndex === -1
+      ? undefined
+      : draft.validation_samples[authoredSampleIndex];
+    if (authored !== undefined && !answersEqual(generated.correct_answer, authored.expected_answer)) {
+      issues.push({
+        code: "VALIDATION_SAMPLE_ANSWER_MISMATCH",
+        path: ["validation_samples", authoredSampleIndex, "expected_answer"],
+        message: `Authored validation answer differs from runtime output for seed ${seed}`,
+      });
+    }
+  }
+}
+
+function answersEqual(left: AnswerValueV1, right: AnswerValueV1): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "integer" && right.kind === "integer") {
+    return left.value === right.value;
+  }
+  if (left.kind === "integer_list" && right.kind === "integer_list") {
+    return left.order_matters === right.order_matters &&
+      left.values.length === right.values.length &&
+      left.values.every((value, index) => value === right.values[index]);
+  }
+  return false;
 }
 
 function validateManifestCatalogue(manifest: ContentManifestV1, issues: ValidationIssue[]): void {
@@ -440,8 +549,11 @@ function zodIssues(issues: z.core.$ZodIssue[]): ValidationIssue[] {
   }));
 }
 
-function report(issues: ValidationIssue[]): ValidationReport {
-  return { valid: issues.length === 0, issues, samples: [] };
+function report(
+  issues: ValidationIssue[],
+  samples: QuestionInstanceV1[] = [],
+): ValidationReport {
+  return { valid: issues.length === 0, issues, samples };
 }
 
 function collectionSize(packages: ContentPackageCollection): number {

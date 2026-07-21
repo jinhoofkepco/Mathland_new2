@@ -1,7 +1,4 @@
 {
-  "schema_version": 1,
-  "manifest_version": "1.0.0",
-  "published_at": "2026-07-21T00:00:00Z",
   "activity_order": [
     "addition_ones",
     "subtraction_ones",
@@ -15,72 +12,75 @@
     "foundations_number_line",
     "foundations_basic_operations"
   ],
+  "manifest_version": "1.0.0",
   "packages": [
     {
       "activity_id": "addition_ones",
+      "checksum": "sha256:e42e1b80afe2bdd75314217eb13344671f95667c023c504678eb88491650216c",
       "content_version": "1.0.0",
-      "path": "content/packages/addition_ones/1.0.0.json",
-      "checksum": "sha256:490a89c7d3cce0f9fb4a9c28ff680c30e08f50c00d29e9a9bbac4bcbbb67a45a"
+      "path": "content/packages/addition_ones/1.0.0.json"
     },
     {
       "activity_id": "subtraction_ones",
+      "checksum": "sha256:8a747ce4dfe44c7f36a38d371e6ce564ec739d3f5d2db7c562f90ef156090581",
       "content_version": "1.0.0",
-      "path": "content/packages/subtraction_ones/1.0.0.json",
-      "checksum": "sha256:14ea5c5174c571cf14b1d010663571a4de5177b928f4154ba8e51565cdbc177d"
+      "path": "content/packages/subtraction_ones/1.0.0.json"
     },
     {
       "activity_id": "multiplication",
+      "checksum": "sha256:22dddb5f3b75cc60efeb5697412fd38115cb883f2f62e2ad2831f3700feee529",
       "content_version": "1.0.0",
-      "path": "content/packages/multiplication/1.0.0.json",
-      "checksum": "sha256:642a1d19e5e2a123420fbf470ab7591abfce39d96df7c410ce41f45f4e576aa7"
+      "path": "content/packages/multiplication/1.0.0.json"
     },
     {
       "activity_id": "common_multiples_lcm",
+      "checksum": "sha256:525bf145cfb8d83b4e12f3deee25e7ec5803b0d4027f5ad2490493833f18e723",
       "content_version": "1.0.0",
-      "path": "content/packages/common_multiples_lcm/1.0.0.json",
-      "checksum": "sha256:41cbc235fa9687be5bf97870cab0a629ed2086bdc54a9a829ebeca0a25b4ea6a"
+      "path": "content/packages/common_multiples_lcm/1.0.0.json"
     },
     {
       "activity_id": "prime_factorization",
+      "checksum": "sha256:2b6314ddc36955ac76ef04306d4ba5689929f6261288a93cbd58535594eed96e",
       "content_version": "1.0.0",
-      "path": "content/packages/prime_factorization/1.0.0.json",
-      "checksum": "sha256:4749eece3405596eb7731283458288daec0c4a30ce8a0e1e20bf6440558e1fe7"
+      "path": "content/packages/prime_factorization/1.0.0.json"
     },
     {
       "activity_id": "foundations_counting",
+      "checksum": "sha256:24baa606b76e11be3f1655f03c3ba870f06d7677bf15460fbf24b2e81dd5568a",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_counting/1.0.0.json",
-      "checksum": "sha256:da514922e5fea26b56e40f121cef486c52222383dbe61119f06bd00c7c3c95b0"
+      "path": "content/packages/foundations_counting/1.0.0.json"
     },
     {
       "activity_id": "foundations_number_bonds",
+      "checksum": "sha256:cfcaf0d757a8a324040b5ca1ff22a98108709ed8a64975e5be95fa0a3f0afa00",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_number_bonds/1.0.0.json",
-      "checksum": "sha256:510ce2013b7fb4a76a316b05192fdcf7b3385095900f8e53578bbf93df313f41"
+      "path": "content/packages/foundations_number_bonds/1.0.0.json"
     },
     {
       "activity_id": "foundations_ten_frame",
+      "checksum": "sha256:b28062680b28ea50cc779af9efaeefb89f2eabe7284497bdf52b3285d24f40e8",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_ten_frame/1.0.0.json",
-      "checksum": "sha256:e57fe073997fcb59d3d24640864375c60559571af8dcac1e2ba4db2e6e873aeb"
+      "path": "content/packages/foundations_ten_frame/1.0.0.json"
     },
     {
       "activity_id": "foundations_base_ten",
+      "checksum": "sha256:f8b17f225242cd0bb8679acc114ee136cecdfce1317dd30132977101aa543aab",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_base_ten/1.0.0.json",
-      "checksum": "sha256:fc436b10fde069c94e93159188ab397c3f97a276852d00106e441cad0b6fcb00"
+      "path": "content/packages/foundations_base_ten/1.0.0.json"
     },
     {
       "activity_id": "foundations_number_line",
+      "checksum": "sha256:d8e4cea71d4de7f5a4cfe2c74e3224d692d6ed4630998451ec722651a43f0bcf",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_number_line/1.0.0.json",
-      "checksum": "sha256:df898523a4bc12028a1e0a7cf46e1788be5f6229f7b3efc9be88f8302cdf045d"
+      "path": "content/packages/foundations_number_line/1.0.0.json"
     },
     {
       "activity_id": "foundations_basic_operations",
+      "checksum": "sha256:3b695d387225af630516f93299950e66eb409321ce80157c42669a4be5342cab",
       "content_version": "1.0.0",
-      "path": "content/packages/foundations_basic_operations/1.0.0.json",
-      "checksum": "sha256:df72249b8d81724694baefdc08664ef7d75fa646bf758a87125e4b6a39fe1069"
+      "path": "content/packages/foundations_basic_operations/1.0.0.json"
     }
-  ]
+  ],
+  "published_at": "2026-07-21T00:00:00.000Z",
+  "schema_version": 1
 }

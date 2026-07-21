@@ -11,6 +11,7 @@ export * from "./expression/evaluate.js";
 export * from "./generation/rng.js";
 export * from "./generation/types.js";
 export * from "./generation/registry.js";
+export * from "./generation/independent_verify.js";
 export * from "./generation/adaptive_band.js";
 export * from "./generation/arithmetic.js";
 export * from "./generation/number_theory.js";

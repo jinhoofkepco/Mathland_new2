@@ -261,7 +261,7 @@ Deno.test("validate-draft validates an unsaved package independently without mut
   assertEquals(response.status, 200);
   assertEquals(payload.valid, true);
   assertEquals(payload.issues, []);
-  assertEquals(payload.samples, []);
+  assertEquals((payload.samples as unknown[]).length, 12);
   assertEquals(JSON.stringify(input), before);
   assert(!JSON.stringify(payload).includes("request_id"));
 });

@@ -134,7 +134,7 @@ Change the Deno validation test to expect twelve complete samples and add a publ
 Run:
 
 ```bash
-npx vitest run --config packages/contracts/vitest.config.ts packages/contracts/test/content/validate.test.ts
+npm run test:contracts -- --run test/content/validate.test.ts
 npx deno test --sloppy-imports --allow-env supabase/functions/tests/content_studio.test.ts supabase/functions/tests/publication.test.ts
 ```
 
@@ -165,7 +165,7 @@ Use stable issue codes and exact band/sample paths. Replace the synthetic test h
 - [ ] **Step 4: Run targeted and complete contract tests to verify GREEN**
 
 ```bash
-npx vitest run --config packages/contracts/vitest.config.ts packages/contracts/test/content/validate.test.ts
+npm run test:contracts -- --run test/content/validate.test.ts
 npm run test:contracts -- --run
 npx deno test --sloppy-imports --allow-env supabase/functions/tests/content_studio.test.ts supabase/functions/tests/publication.test.ts
 ```
@@ -219,7 +219,7 @@ Assert publish/rollback responses use these timestamps rather than handler time.
 - [ ] **Step 2: Run tests to verify RED**
 
 ```bash
-npx vitest run --config packages/contracts/vitest.config.ts packages/contracts/test/cloud/wire.test.ts
+npm run test:contracts -- --run test/cloud/wire.test.ts
 npx deno test --sloppy-imports --allow-env supabase/functions/tests/publication.test.ts
 ```
 
