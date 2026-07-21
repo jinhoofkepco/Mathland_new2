@@ -246,7 +246,7 @@ select throws_like(
       'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000062', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000061', null
+      '81000000-0000-4000-8000-000000000061', '덧셈 2.0.0 발행', null
     )$$,
   '%permission denied%',
   'authenticated clients cannot execute the privileged publication transaction'
@@ -261,7 +261,7 @@ select lives_ok(
       'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000062', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000061', null
+      '81000000-0000-4000-8000-000000000061', '덧셈 2.0.0 발행', null
     )$$,
   'service role commits validated version, pointer, and audit in one transaction'
 );
@@ -295,8 +295,8 @@ select throws_like(
   $$update public.content_drafts
     set activity_id = 'multiplication', created_at = statement_timestamp()
     where id = '60000000-0000-4000-8000-000000000061'$$,
-  '%identity is immutable%',
-  'draft identity remains immutable even for privileged workflows'
+  '%permission denied%',
+  'service role cannot directly mutate draft identity outside its exact RPCs'
 );
 reset role;
 

@@ -36,13 +36,27 @@ application. For every publish or rollback request it must:
    `@mathland/contracts`, and compute its canonical SHA-256 checksum.
 5. Call `commit_validated_content_publication(...)` once with the locked draft
    revision, published package, checksum, complete successful validation report,
-   actor UUID, effective time, request UUID, and optional rollback publication.
+   actor UUID, effective time, request UUID, a human-entered reason of 1–500
+   characters, and optional rollback publication.
+
+For a normal publication, the new numeric semantic version must be strictly
+greater than every immutable version already stored for the activity. Equal or
+lower versions are reserved for the rollback path, which reuses an existing
+version row.
 
 The service-role-only function rechecks transaction identities and supplied
 evidence, locks the draft, stores the immutable version, changes the publication
-pointer, and appends the audit fact in one PostgreSQL transaction. A stale draft,
-package/draft mismatch, unsuccessful report, invalid checksum shape, scheduling
-conflict, or any database error rolls the whole statement back.
+pointer, and appends the normalized reason and successful-validation status to
+the audit fact in one PostgreSQL transaction. A stale draft, package/draft
+mismatch, unsuccessful report, invalid checksum shape, invalid reason,
+scheduling conflict, or any database error rolls the whole statement back.
+
+The browser never reads `content_versions` or `content_publications` directly,
+including for an owner. An authenticated global content owner calls
+`get_content_publication_history(activity_id)`, whose fixed projection returns
+only lifecycle timestamps, actor, version, checksum, rollback identity,
+validation status, and the human reason. Editors, guardians, devices, and family
+membership owners are rejected by that trusted boundary.
 
 Rollback supplies the historical `rollback_publication_id` and its exact stored
 package/checksum identity to the same commit RPC. The transaction requires that
@@ -77,5 +91,6 @@ a new request UUID; the publication ID remains the idempotency identity.
 Scheduled activation and rollback must use these service-role boundaries.
 Deployment automation must verify that only `service_role` can execute
 `commit_validated_content_publication(...)` and
-`activate_due_content_publication(...)`, while only `authenticated` and
-`service_role` can execute `get_active_content_packages()`.
+`activate_due_content_publication(...)`. `get_active_content_packages()` is
+executable only by `authenticated`, which also covers signed-in anonymous
+devices; `service_role` has no execute grant on that device-facing RPC.

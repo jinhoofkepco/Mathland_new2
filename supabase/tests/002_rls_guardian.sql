@@ -49,9 +49,9 @@ select results_eq(
   'guardian reads no other-family membership identity'
 );
 select results_eq(
-  $$select id from public.guardian_rewards order by id$$,
+  $$select id from public.get_guardian_rewards('10000000-0000-4000-8000-000000000001') order by id$$,
   array['40000000-0000-4000-8000-000000000001'::uuid],
-  'guardian reads only rewards in their family'
+  'guardian reward RPC reads only rewards in their family'
 );
 select results_eq(
   $$select profile_id from public.guardian_reward_summary order by profile_id$$,

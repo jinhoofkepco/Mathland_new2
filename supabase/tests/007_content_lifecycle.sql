@@ -86,7 +86,8 @@ select throws_like(
       'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000071', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000071', '71000000-0000-4000-8000-000000000073'
+      '81000000-0000-4000-8000-000000000071', '다른 활동 롤백 시도',
+      '71000000-0000-4000-8000-000000000073'
     )$$,
   '%rollback publication identity%',
   'rollback rejects a source publication from another activity'
@@ -98,7 +99,8 @@ select throws_like(
       'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000071', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000072', '71000000-0000-4000-8000-000000000071'
+      '81000000-0000-4000-8000-000000000072', '버전 불일치 롤백 시도',
+      '71000000-0000-4000-8000-000000000071'
     )$$,
   '%rollback publication identity%',
   'rollback rejects a mismatched historical content version'
@@ -110,7 +112,8 @@ select throws_like(
       'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000071', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000073', '71000000-0000-4000-8000-000000000071'
+      '81000000-0000-4000-8000-000000000073', '변조 패키지 롤백 시도',
+      '71000000-0000-4000-8000-000000000071'
     )$$,
   '%rollback publication identity%',
   'rollback rejects substituted package bytes for the historical version'
@@ -122,7 +125,8 @@ select lives_ok(
       'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000071', statement_timestamp(),
-      '81000000-0000-4000-8000-000000000074', '71000000-0000-4000-8000-000000000071'
+      '81000000-0000-4000-8000-000000000074', '난이도 문제로 1.0.0 복원',
+      '71000000-0000-4000-8000-000000000071'
     )$$,
   'rollback reactivates a validated immutable historical version'
 );

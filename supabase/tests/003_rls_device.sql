@@ -39,9 +39,19 @@ select results_eq(
   'device sees only its binding'
 );
 select results_eq(
-  $$select id from public.guardian_rewards order by id$$,
+  $$select id from public.get_device_guardian_rewards() order by id$$,
   array['40000000-0000-4000-8000-000000000001'::uuid],
-  'device sees only its profile rewards'
+  'device reward RPC sees only its profile rewards'
+);
+select throws_like(
+  $$select created_by from public.guardian_rewards$$,
+  '%permission denied%',
+  'device cannot read guardian auth UUIDs from the reward base table'
+);
+select throws_like(
+  $$select id from public.guardian_rewards$$,
+  '%permission denied%',
+  'device has no direct reward base-table read path'
 );
 select results_eq(
   $$select id from public.progress_snapshots order by id$$,
