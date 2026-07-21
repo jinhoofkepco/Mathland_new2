@@ -130,6 +130,11 @@ select results_eq(
   )$$,
   'rollback handler reads one exact retired publication through its RPC'
 );
+select throws_like(
+  $$select * from public.get_due_content_publication_ids(null)$$,
+  '%batch limit must be between 1 and 100%',
+  'due publication queue rejects a null limit instead of performing unbounded work'
+);
 reset role;
 
 select is(
@@ -234,6 +239,45 @@ select is(
   ),
   0::bigint,
   'service role has no direct public table or view privileges'
+);
+
+select is(
+  (
+    select count(*)
+    from pg_catalog.pg_proc procedure
+    join pg_catalog.pg_namespace namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'public'
+      and procedure.proname in (
+        'create_guardian_reward',
+        'update_guardian_reward',
+        'delete_guardian_reward'
+      )
+      and procedure.prosecdef
+      and procedure.proconfig = array['search_path=""']::text[]
+      and pg_catalog.has_function_privilege('authenticated', procedure.oid, 'execute')
+      and not pg_catalog.has_function_privilege('anon', procedure.oid, 'execute')
+      and not pg_catalog.has_function_privilege('service_role', procedure.oid, 'execute')
+  ),
+  3::bigint,
+  'the three guardian mutation RPCs have exact authenticated-only trusted grants'
+);
+
+select is(
+  (
+    select count(*)
+    from pg_catalog.pg_class relation
+    join pg_catalog.pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'guardian_rewards'
+      and (
+        pg_catalog.has_table_privilege('authenticated', relation.oid, 'select')
+        or pg_catalog.has_table_privilege('authenticated', relation.oid, 'insert')
+        or pg_catalog.has_table_privilege('authenticated', relation.oid, 'update')
+        or pg_catalog.has_table_privilege('authenticated', relation.oid, 'delete')
+      )
+  ),
+  0::bigint,
+  'authenticated identities have no direct guardian reward relation privileges'
 );
 
 select * from finish();

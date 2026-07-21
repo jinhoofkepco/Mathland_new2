@@ -79,6 +79,18 @@ select throws_like(
       'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb21',
       '{"valid":true,"issues":[],"samples":[]}'::jsonb,
       '00000000-0000-4000-8000-000000000121', statement_timestamp(),
+      '81000000-0000-4000-8000-000000000125', E'\n\t\r', null
+    )$$,
+  '%publication reason must contain between 1 and 500 characters%',
+  'publication rejects newline, tab, and carriage-return-only reasons'
+);
+select throws_like(
+  $$select public.commit_validated_content_publication(
+      '60000000-0000-4000-8000-000000000121', 1,
+      '{"activity_id":"history_publish","content_version":"1.1.0","checksum":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb21"}'::jsonb,
+      'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb21',
+      '{"valid":true,"issues":[],"samples":[]}'::jsonb,
+      '00000000-0000-4000-8000-000000000121', statement_timestamp(),
       '81000000-0000-4000-8000-000000000122', repeat('가', 501), null
     )$$,
   '%publication reason must contain between 1 and 500 characters%',

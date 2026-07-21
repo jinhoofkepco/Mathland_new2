@@ -156,6 +156,48 @@ export const PairingCodeResultSchema = z.strictObject({
 });
 export type PairingCodeResult = z.infer<typeof PairingCodeResultSchema>;
 
+export const GuardianRewardStatusSchema = z.enum([
+  "available",
+  "claimed",
+  "cancelled",
+]);
+export type GuardianRewardStatus = z.infer<typeof GuardianRewardStatusSchema>;
+
+export const GuardianRewardProjectionRowSchema = z.strictObject({
+  id: CloudUuidSchema,
+  profile_id: CloudUuidSchema,
+  title: z.string().trim().min(1).max(120),
+  required_apples: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  status: GuardianRewardStatusSchema,
+  created_at: CloudTimestampSchema,
+  claimed_at: CloudTimestampSchema.nullable(),
+});
+export type GuardianRewardProjectionRow = z.infer<
+  typeof GuardianRewardProjectionRowSchema
+>;
+
+export const CreateGuardianRewardInputSchema = z.strictObject({
+  profileId: CloudUuidSchema,
+  title: z.string().trim().min(1).max(120),
+  requiredApples: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+});
+export type CreateGuardianRewardInput = z.infer<
+  typeof CreateGuardianRewardInputSchema
+>;
+
+export const UpdateGuardianRewardInputSchema = z.strictObject({
+  rewardId: CloudUuidSchema,
+  title: z.string().trim().min(1).max(120),
+  requiredApples: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  status: GuardianRewardStatusSchema,
+});
+export type UpdateGuardianRewardInput = z.infer<
+  typeof UpdateGuardianRewardInputSchema
+>;
+
+export const DuePublicationBatchLimitSchema = z.number().int().min(1).max(100);
+export const PublicationReasonSchema = z.string().max(500).trim().min(1);
+
 export const ContentDraftSummarySchema = z.strictObject({
   id: CloudUuidSchema,
   activityId: z.string().min(1).max(128),

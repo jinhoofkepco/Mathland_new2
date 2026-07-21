@@ -104,6 +104,31 @@ select throws_like(
   'ingest service rejects a forged local device identity'
 );
 reset role;
+select set_config(
+  'test.last_sync_at',
+  (
+    select last_sync_at::text
+    from public.devices
+    where auth_user_id = '00000000-0000-4000-8000-000000000102'
+  ),
+  true
+);
+set local role service_role;
+select throws_like(
+  $$select * from public.ingest_learning_events_for_service(
+      '00000000-0000-4000-8000-000000000102', null
+    )$$,
+  '%batch must contain between 1 and 100 events%',
+  'ingest rejects a SQL null event array'
+);
+select throws_like(
+  $$select * from public.ingest_learning_events_for_service(
+      '00000000-0000-4000-8000-000000000102', 'null'::jsonb
+    )$$,
+  '%batch must contain between 1 and 100 events%',
+  'ingest rejects a JSON null event array'
+);
+reset role;
 
 select is(
   (select count(*) from public.devices
@@ -129,6 +154,19 @@ select is(
    where auth_user_id = '00000000-0000-4000-8000-000000000102'),
   1::bigint,
   'ingest boundary advances the bound device cursor'
+);
+select is(
+  (select last_sync_at::text from public.devices
+   where auth_user_id = '00000000-0000-4000-8000-000000000102'),
+  current_setting('test.last_sync_at'),
+  'rejected null batches do not advance the device sync timestamp'
+);
+select is(
+  (select count(*) from public.audit_log
+   where action = 'pairing_challenge_created'
+     and target_id = '20000000-0000-4000-8000-000000000101'),
+  1::bigint,
+  'single-session pairing creation appends one challenge audit fact'
 );
 
 select * from finish();

@@ -46,6 +46,18 @@ insert into public.content_versions (
     'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
     '{"activity_id":"multiplication","content_version":"1.1.0","checksum":"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","marker":"pending"}',
     1, '00000000-0000-4000-8000-000000000071'
+  ),
+  (
+    '70000000-0000-4000-8000-000000000075', 'scheduled_stale', '2.0.0',
+    'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    '{"activity_id":"scheduled_stale","content_version":"2.0.0","checksum":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","marker":"stale-pending"}',
+    1, '00000000-0000-4000-8000-000000000071'
+  ),
+  (
+    '70000000-0000-4000-8000-000000000076', 'scheduled_stale', '3.0.0',
+    'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    '{"activity_id":"scheduled_stale","content_version":"3.0.0","checksum":"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","marker":"newer-active"}',
+    1, '00000000-0000-4000-8000-000000000071'
   );
 
 insert into public.content_publications (
@@ -74,6 +86,18 @@ insert into public.content_publications (
   (
     '71000000-0000-4000-8000-000000000074', 'multiplication', '1.1.0',
     '70000000-0000-4000-8000-000000000074', '00000000-0000-4000-8000-000000000071',
+    statement_timestamp(), statement_timestamp() + interval '2 seconds',
+    'pending', null, null
+  ),
+  (
+    '71000000-0000-4000-8000-000000000075', 'scheduled_stale', '3.0.0',
+    '70000000-0000-4000-8000-000000000076', '00000000-0000-4000-8000-000000000071',
+    statement_timestamp(), statement_timestamp(),
+    'active', null, null
+  ),
+  (
+    '71000000-0000-4000-8000-000000000076', 'scheduled_stale', '2.0.0',
+    '70000000-0000-4000-8000-000000000075', '00000000-0000-4000-8000-000000000071',
     statement_timestamp(), statement_timestamp() + interval '2 seconds',
     'pending', null, null
   );
@@ -223,6 +247,13 @@ reset role;
 set local role service_role;
 select lives_ok(
   $$select public.activate_due_content_publication(
+      '71000000-0000-4000-8000-000000000076',
+      '82000000-0000-4000-8000-000000000074'
+    )$$,
+  'worker safely consumes a stale due publication without downgrading the activity'
+);
+select lives_ok(
+  $$select public.activate_due_content_publication(
       '71000000-0000-4000-8000-000000000074',
       '82000000-0000-4000-8000-000000000072'
     )$$,
@@ -236,6 +267,26 @@ select lives_ok(
   'repeated activation is idempotent'
 );
 reset role;
+
+select is(
+  (select status from public.content_publications
+   where id = '71000000-0000-4000-8000-000000000075'),
+  'active',
+  'stale scheduled activation keeps the newer normal publication active'
+);
+select is(
+  (select status from public.content_publications
+   where id = '71000000-0000-4000-8000-000000000076'),
+  'cancelled',
+  'stale lower scheduled publication is deterministically cancelled'
+);
+select is(
+  (select count(*) from public.audit_log
+   where action = 'content_publication_cancelled'
+     and target_id = '71000000-0000-4000-8000-000000000076'),
+  1::bigint,
+  'stale schedule cancellation appends one audit fact'
+);
 
 select is(
   (select count(*) from public.content_publications

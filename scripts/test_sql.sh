@@ -19,3 +19,4 @@ cd "$REPO_ROOT"
 "$SUPABASE_BIN" db start
 "$SUPABASE_BIN" db reset --local --no-seed
 "$SUPABASE_BIN" test db
+"$SCRIPT_DIR/test_sql_concurrency.sh"

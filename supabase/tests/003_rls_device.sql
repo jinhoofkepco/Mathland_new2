@@ -53,6 +53,28 @@ select throws_like(
   '%permission denied%',
   'device has no direct reward base-table read path'
 );
+select throws_like(
+  $$select public.create_guardian_reward(
+      '20000000-0000-4000-8000-000000000001', '기기 위조 보상', 0
+    )$$,
+  '%not authorized%',
+  'anonymous device cannot create a guardian reward through the mutation RPC'
+);
+select throws_like(
+  $$select public.update_guardian_reward(
+      '40000000-0000-4000-8000-000000000001',
+      '기기 위조 수정', 0, 'claimed'
+    )$$,
+  '%not authorized%',
+  'anonymous device cannot update a guardian reward through the mutation RPC'
+);
+select throws_like(
+  $$select public.delete_guardian_reward(
+      '40000000-0000-4000-8000-000000000001'
+    )$$,
+  '%not authorized%',
+  'anonymous device cannot delete a guardian reward through the mutation RPC'
+);
 select results_eq(
   $$select id from public.progress_snapshots order by id$$,
   array['41000000-0000-4000-8000-000000000001'::uuid],

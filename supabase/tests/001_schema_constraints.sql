@@ -684,6 +684,27 @@ insert into public.pairing_codes (
 
 select throws_ok(
   $test$
+    insert into public.pairing_codes (
+      family_id,
+      profile_id,
+      code_digest,
+      created_by,
+      expires_at
+    ) values (
+      '20000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      decode(repeat('ce', 32), 'hex'),
+      '10000000-0000-4000-8000-000000000001',
+      now() + interval '10 minutes'
+    )
+  $test$,
+  '23505',
+  null,
+  'one child profile can have at most one active pairing challenge'
+);
+
+select throws_ok(
+  $test$
     do $block$
     begin
       insert into public.pairing_codes (
@@ -837,10 +858,10 @@ select lives_ok(
       created_by,
       expires_at
     ) values (
-      '20000000-0000-4000-8000-000000000002',
-      '30000000-0000-4000-8000-000000000002',
+      '20000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
       decode(repeat('cd', 32), 'hex'),
-      '10000000-0000-4000-8000-000000000002',
+      '10000000-0000-4000-8000-000000000001',
       now() + interval '10 minutes'
     )
   $test$,

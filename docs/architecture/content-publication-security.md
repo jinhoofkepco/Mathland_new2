@@ -47,9 +47,18 @@ version row.
 The service-role-only function rechecks transaction identities and supplied
 evidence, locks the draft, stores the immutable version, changes the publication
 pointer, and appends the normalized reason and successful-validation status to
-the audit fact in one PostgreSQL transaction. A stale draft, package/draft
-mismatch, unsuccessful report, invalid checksum shape, invalid reason,
-scheduling conflict, or any database error rolls the whole statement back.
+the audit fact in one PostgreSQL transaction. Reasons containing only POSIX
+whitespace (including spaces, newlines, tabs, and carriage returns) are rejected.
+A stale draft, package/draft mismatch, unsuccessful report, invalid checksum
+shape, invalid reason, scheduling conflict, or any database error rolls the
+whole statement back.
+
+Each activity has at most one pending schedule. A newly committed normal
+publication, replacement schedule, or explicit rollback cancels the previous
+pending row and records a `content_publication_cancelled` audit fact before
+installing its own pointer. The same activity advisory lock serializes commit,
+rollback, and activation, so a due worker cannot race a newer immediate publish
+and later downgrade it.
 
 The browser never reads `content_versions` or `content_publications` directly,
 including for an owner. An authenticated global content owner calls
@@ -81,12 +90,16 @@ and devices continue to receive the prior active package.
 
 Deployment must configure a trusted scheduler or Edge worker to call
 `activate_due_content_publication(publication_id, request_id)` with the
-service-role credential for due rows. That RPC takes an activity advisory lock
-and publication row lock, rejects early activation, retires the prior active
-pointer, changes the pending row to active, and appends its audit fact in one
-transaction. Concurrent or repeated calls return the already-active publication
-without applying the transition or audit twice. Worker failures are retried with
-a new request UUID; the publication ID remains the idempotency identity.
+service-role credential for due rows. Queue reads require an explicit limit from
+1 through 100; `NULL` never means unbounded. The activation RPC takes an activity
+advisory lock and publication row lock, rejects early activation, and compares
+the pending version with the current active version. It cancels and audits a
+stale equal/lower schedule instead of replacing a newer active publication.
+Otherwise it retires the prior active pointer, changes the pending row to active,
+and appends its audit fact in one transaction. Concurrent or repeated calls
+return the already-active or already-cancelled publication without applying the
+transition or audit twice. Worker failures are retried with a new request UUID;
+the publication ID remains the idempotency identity.
 
 Scheduled activation and rollback must use these service-role boundaries.
 Deployment automation must verify that only `service_role` can execute
