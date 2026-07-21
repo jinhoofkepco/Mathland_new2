@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Unit cube</title>
+  <desc id="desc">One isometric cube represents a single base-ten unit.</desc>
+  <path d="M128 22l88 50-88 51-88-51z" fill="#76C8F0" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M40 72v108l88 54V123z" fill="#66D3B5" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M216 72v108l-88 54V123z" fill="#F6C453" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+</svg>

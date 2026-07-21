@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Number line steps</title>
+  <desc id="desc">A marker hops three equal steps to the right on a ticked line.</desc>
+  <path d="M14 82h96M100 72l12 10-12 10M27 72v20M50 72v20M73 72v20M96 72v20" fill="none" stroke="#23415A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M27 57c10-23 36-23 46 0M73 57c7-15 19-18 28-6" fill="none" stroke="#76C8F0" stroke-width="8" stroke-linecap="round"/>
+  <path d="M96 42l7 10-12 3" fill="#F6C453" stroke="#23415A" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="27" cy="82" r="8" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+</svg>

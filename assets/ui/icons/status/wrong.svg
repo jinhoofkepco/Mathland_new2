@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Wrong answer</title>
+  <desc id="desc">A coral circle carries a strong crossed silhouette.</desc>
+  <circle cx="64" cy="64" r="48" fill="#FF8A7A" stroke="#23415A" stroke-width="8"/>
+  <path d="M42 42l44 44M86 42L42 86" fill="none" stroke="#FFF8E8" stroke-width="12" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Base-ten blocks</title>
+  <desc id="desc">A hundred flat, one ten rod, and two unit cubes show place value.</desc>
+  <rect x="12" y="19" width="54" height="90" rx="7" fill="#76C8F0" stroke="#23415A" stroke-width="8"/>
+  <path d="M23 23v82M34 23v82M45 23v82M56 23v82M16 37h46M16 55h46M16 73h46M16 91h46" fill="none" stroke="#23415A" stroke-width="2"/>
+  <rect x="77" y="19" width="17" height="90" rx="5" fill="#F6C453" stroke="#23415A" stroke-width="6"/>
+  <path d="M79 37h13M79 55h13M79 73h13M79 91h13" fill="none" stroke="#23415A" stroke-width="2"/>
+  <rect x="103" y="74" width="15" height="15" rx="4" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+  <rect x="103" y="98" width="15" height="15" rx="4" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+</svg>

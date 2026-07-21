@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Filled ten frame</title>
+  <desc id="desc">A two-by-five frame has seven occupied cells in row-major order.</desc>
+  <rect x="12" y="34" width="104" height="60" rx="8" fill="#FFF8E8" stroke="#23415A" stroke-width="8"/>
+  <path d="M33 36v56M54 36v56M74 36v56M95 36v56M14 64h100" fill="none" stroke="#23415A" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="23" cy="49" r="7" fill="#E94B4B"/>
+  <circle cx="43" cy="49" r="7" fill="#E94B4B"/>
+  <circle cx="64" cy="49" r="7" fill="#E94B4B"/>
+  <circle cx="85" cy="49" r="7" fill="#E94B4B"/>
+  <circle cx="105" cy="49" r="7" fill="#E94B4B"/>
+  <circle cx="23" cy="79" r="7" fill="#66D3B5"/>
+  <circle cx="43" cy="79" r="7" fill="#66D3B5"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Health heart</title>
+  <desc id="desc">A bold red heart represents one point of health.</desc>
+  <path d="M64 106C45 89 17 71 17 45c0-18 22-29 37-14l10 11 10-11c15-15 37-4 37 14 0 26-28 44-47 61z" fill="#E94B4B" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+</svg>

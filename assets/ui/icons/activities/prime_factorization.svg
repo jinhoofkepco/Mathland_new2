@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Factor tree</title>
+  <desc id="desc">One whole branches into two factors and four prime leaves.</desc>
+  <circle cx="64" cy="24" r="12" fill="#F6C453" stroke="#23415A" stroke-width="8"/>
+  <path d="M58 35L38 55M70 35l20 20M38 72L22 96M38 72l16 24M90 72L74 96M90 72l16 24" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="38" cy="63" r="11" fill="#76C8F0" stroke="#23415A" stroke-width="6"/>
+  <circle cx="90" cy="63" r="11" fill="#66D3B5" stroke="#23415A" stroke-width="6"/>
+  <circle cx="22" cy="104" r="8" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+  <circle cx="54" cy="104" r="8" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+  <circle cx="74" cy="104" r="8" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="106" cy="104" r="8" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+</svg>

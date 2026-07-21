@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Interactive ten frame</title>
+  <desc id="desc">A two-by-five frame holds seven counters in row-major order and three open cells.</desc>
+  <rect x="16" y="60" width="224" height="136" rx="16" fill="#FFF8E8" stroke="#23415A" stroke-width="8"/>
+  <path d="M61 64v128M106 64v128M150 64v128M195 64v128M20 128h216" fill="none" stroke="#23415A" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="39" cy="94" r="17" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="83" cy="94" r="17" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="128" cy="94" r="17" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="173" cy="94" r="17" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="217" cy="94" r="17" fill="#E94B4B" stroke="#23415A" stroke-width="5"/>
+  <circle cx="39" cy="162" r="17" fill="#66D3B5" stroke="#23415A" stroke-width="5"/>
+  <circle cx="83" cy="162" r="17" fill="#66D3B5" stroke="#23415A" stroke-width="5"/>
+</svg>
