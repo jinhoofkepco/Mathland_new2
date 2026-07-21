@@ -169,6 +169,66 @@ describe("LearningEventV1 Godot parity", () => {
     ).toBe(false);
   });
 
+  it.each(["final_score", "final_health"] as const)(
+    "rejects negative and unsafe run-completed %s values",
+    (field) => {
+      const runCompleted = {
+        ...common("run_completed", true),
+        completion_reason: "target_reached",
+        final_score: 8,
+        final_health: 2,
+        earned_rewards: { apples: 4 },
+      };
+
+      for (const invalid of [-1, Number.MAX_SAFE_INTEGER + 1]) {
+        expect(
+          LearningEventV1Schema.safeParse({ ...runCompleted, [field]: invalid }).success,
+        ).toBe(false);
+      }
+    },
+  );
+
+  it.each([-1, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid run-completed earned reward value %s",
+    (invalid) => {
+      const runCompleted = {
+        ...common("run_completed", true),
+        completion_reason: "target_reached",
+        final_score: 8,
+        final_health: 2,
+        earned_rewards: { apples: invalid },
+      };
+
+      expect(LearningEventV1Schema.safeParse(runCompleted).success).toBe(false);
+    },
+  );
+
+  it.each(["submitted_answer", "correct_answer"] as const)(
+    "rejects unsafe structured integer and integer-list elements in %s",
+    (field) => {
+      const invalidAnswers = [
+        { kind: "integer", value: Number.MAX_SAFE_INTEGER + 1 },
+        { kind: "integer", value: Number.MIN_SAFE_INTEGER - 1 },
+        {
+          kind: "integer_list",
+          values: [2, Number.MAX_SAFE_INTEGER + 1],
+          order_matters: true,
+        },
+        {
+          kind: "integer_list",
+          values: [Number.MIN_SAFE_INTEGER - 1, 2],
+          order_matters: false,
+        },
+      ];
+
+      for (const invalidAnswer of invalidAnswers) {
+        expect(
+          LearningEventV1Schema.safeParse({ ...fixture, [field]: invalidAnswer }).success,
+        ).toBe(false);
+      }
+    },
+  );
+
   it("accepts only calendar-valid canonical UTC timestamps compatible with Godot", () => {
     expect(
       LearningEventV1Schema.safeParse({

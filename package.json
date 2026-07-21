@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "test:contracts": "npm --workspace @mathland/contracts test --",
-    "test:content-tools": "npm --workspace @mathland/contracts test -- --run test/content test/tools",
+    "test:content-tools": "npm --workspace @mathland/contracts test --",
     "validate:content": "tsx tools/content/validate_content.ts --manifest content/active-manifest.json",
     "build:content": "tsx tools/content/build_content.ts"
   },
