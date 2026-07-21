@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 
+"$SCRIPT_DIR/test_supabase_config.sh"
+
 if command -v supabase >/dev/null 2>&1; then
   SUPABASE_BIN="$(command -v supabase)"
 elif [[ -x "$REPO_ROOT/node_modules/.bin/supabase" ]]; then
