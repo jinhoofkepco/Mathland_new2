@@ -22,6 +22,10 @@ const SAFE_TUNING_KEY = /^[a-z][a-z0-9_]{0,63}$/;
 const SAFE_TUNING_VALUE = /^[a-z][a-z0-9_]{0,63}$/;
 const SAFE_OPERATOR_VALUES = new Set(["+", "-", "*", "/", "%"]);
 const FORBIDDEN_OBJECT_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+const GENERATOR_ANSWER_LAYOUT_IDS = {
+  common_multiple_v1: "numeric_keypad",
+  prime_factorization_v1: "factor_slots",
+} as const;
 
 export type ContentPackageCollection =
   | readonly unknown[]
@@ -30,6 +34,11 @@ export type ContentPackageCollection =
 
 export function validateActivityDraft(value: unknown): ValidationReport {
   const issues = findForbiddenObjectKeys(value);
+  const unicodeIssues = findInvalidUnicode(value);
+  issues.push(...unicodeIssues);
+  if (unicodeIssues.length > 0) {
+    return report(issues);
+  }
   const parsed = ActivityPackageDraftV1Schema.safeParse(value);
   if (!parsed.success) {
     issues.push(...zodIssues(parsed.error.issues));
@@ -42,6 +51,11 @@ export function validateActivityDraft(value: unknown): ValidationReport {
 
 export function validatePublishedActivity(value: unknown): ValidationReport {
   const issues = findForbiddenObjectKeys(value);
+  const unicodeIssues = findInvalidUnicode(value);
+  issues.push(...unicodeIssues);
+  if (unicodeIssues.length > 0) {
+    return report(issues);
+  }
   const parsed = ActivityPackageV1Schema.safeParse(value);
   if (!parsed.success) {
     issues.push(...zodIssues(parsed.error.issues));
@@ -65,6 +79,11 @@ export function validateContentManifest(
   packages: ContentPackageCollection,
 ): ValidationReport {
   const issues = findForbiddenObjectKeys(value);
+  const unicodeIssues = findInvalidUnicode(value);
+  issues.push(...unicodeIssues);
+  if (unicodeIssues.length > 0) {
+    return report(issues);
+  }
   const parsed = ContentManifestV1Schema.safeParse(value);
   if (!parsed.success) {
     issues.push(...zodIssues(parsed.error.issues));
@@ -151,6 +170,17 @@ function validateDraftSemantics(draft: ActivityPackageDraftV1, issues: Validatio
         code: "GENERATOR_ACTIVITY_MISMATCH",
         path: ["difficulty_bands", index, "generator_id"],
         message: `${draft.activity_id} requires generator ${expectedGenerator}`,
+      });
+    }
+    const requiredLayout =
+      GENERATOR_ANSWER_LAYOUT_IDS[
+        band.generator_id as keyof typeof GENERATOR_ANSWER_LAYOUT_IDS
+      ];
+    if (requiredLayout !== undefined && band.answer_layout.id !== requiredLayout) {
+      issues.push({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", index, "answer_layout", "id"],
+        message: `${band.generator_id} requires answer layout ${requiredLayout}`,
       });
     }
     validateTuningParameters(
@@ -330,6 +360,76 @@ function findForbiddenObjectKeys(value: unknown): ValidationIssue[] {
 
   visit(value, []);
   return issues;
+}
+
+function findInvalidUnicode(value: unknown): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const ancestors = new Set<object>();
+
+  function addIssue(path: (string | number)[]): void {
+    issues.push({
+      code: "INVALID_UNICODE",
+      path,
+      message: "Content strings and object keys must not contain U+0000 or lossy Unicode",
+    });
+  }
+
+  function visit(current: unknown, path: (string | number)[]): void {
+    if (typeof current === "string") {
+      if (!isLosslessUnicode(current)) {
+        addIssue(path);
+      }
+      return;
+    }
+    if (current === null || typeof current !== "object" || ancestors.has(current)) {
+      return;
+    }
+
+    ancestors.add(current);
+    try {
+      for (const key of Reflect.ownKeys(current)) {
+        if (typeof key === "symbol" || (Array.isArray(current) && key === "length")) {
+          continue;
+        }
+        const childPath =
+          Array.isArray(current) && /^(?:0|[1-9][0-9]*)$/.test(key) ? Number(key) : key;
+        const pathWithKey = [...path, childPath];
+        if (!Array.isArray(current) && !isLosslessUnicode(key)) {
+          addIssue(pathWithKey);
+        }
+        const descriptor = Object.getOwnPropertyDescriptor(current, key);
+        if (descriptor !== undefined && "value" in descriptor) {
+          visit(descriptor.value, pathWithKey);
+        }
+      }
+    } finally {
+      ancestors.delete(current);
+    }
+  }
+
+  visit(value, []);
+  return issues;
+}
+
+function isLosslessUnicode(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit === 0 || codeUnit === 0xfffd) {
+      return false;
+    }
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      const lowCodeUnit = value.charCodeAt(index + 1);
+      if (!(lowCodeUnit >= 0xdc00 && lowCodeUnit <= 0xdfff)) {
+        return false;
+      }
+      index += 1;
+      continue;
+    }
+    if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function zodIssues(issues: z.core.$ZodIssue[]): ValidationIssue[] {

@@ -101,6 +101,12 @@ func _test_timestamp_and_integer_boundaries(fixture: Dictionary) -> void:
 	var zero_sequence := fixture.duplicate(true)
 	zero_sequence.sequence = 0
 	assert_false(LearningEventV1.validate(zero_sequence).is_empty())
+	var maximum_seed := fixture.duplicate(true)
+	maximum_seed.question_seed = 0xFFFFFFFF
+	assert_true(LearningEventV1.validate(maximum_seed).is_empty())
+	var oversized_seed := fixture.duplicate(true)
+	oversized_seed.question_seed = 0x100000000
+	assert_false(LearningEventV1.validate(oversized_seed).is_empty())
 
 func _test_create_preserves_reserved_context() -> void:
 	var created := LearningEventV1.create(

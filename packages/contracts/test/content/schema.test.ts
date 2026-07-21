@@ -46,6 +46,18 @@ describe("content package schemas", () => {
     expect(ActivityPackageV1Schema.parse(published)).toEqual(published);
   });
 
+  it.each([
+    ["smallest subnormal", Number.MIN_VALUE],
+    ["largest subnormal", 2.225073858507201e-308],
+    ["smallest normal", 2.2250738585072014e-308],
+  ])("accepts the finite binary64 %s probability boundary", (_label, boundary) => {
+    const draft = makeValidDraft();
+    draft.adaptive_policy!.demote_correctness = 0;
+    draft.adaptive_policy!.promote_correctness = boundary;
+
+    expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(true);
+  });
+
   it("rejects unknown fields at every authored object boundary", () => {
     const draft = makeValidDraft() as unknown as Record<string, unknown>;
     const run = draft.run as Record<string, unknown>;
@@ -75,6 +87,12 @@ describe("content package schemas", () => {
     expect(
       ContentManifestV1Schema.safeParse({ ...manifest, published_at: "next Tuesday" }).success,
     ).toBe(false);
+
+    for (const malformedVersion of ["1..0.0", "1.0..0", "1.0.0.", ".1.0.0"]) {
+      expect(
+        ActivityPackageV1Schema.safeParse({ ...published, content_version: malformedVersion }).success,
+      ).toBe(false);
+    }
   });
 
   it("structurally requires the ordered three-band shape and all eleven manifest entries", () => {
@@ -91,6 +109,47 @@ describe("content package schemas", () => {
     expect(
       ContentManifestV1Schema.safeParse({ ...manifest, packages: manifest.packages.slice(1) }).success,
     ).toBe(false);
+  });
+
+  it.each(["\u00a0", "\ufeff", "\u1680", "\u2003", "\u2028", "\u2029", "\u3000"])(
+    "rejects ECMAScript whitespace U+%s at authored text edges",
+    (whitespace) => {
+      const draft = makeValidDraft();
+      draft.localizations["ko-KR"].title = `${whitespace}덧셈`;
+
+      expect(ActivityPackageDraftV1Schema.safeParse(draft).success).toBe(false);
+    },
+  );
+
+  it.each([
+    ["U+0000", "\u0000"],
+    ["lone high surrogate", String.fromCharCode(0xd800)],
+    ["lone low surrogate", String.fromCharCode(0xdc00)],
+    ["U+FFFD", "\ufffd"],
+  ])("rejects %s through exported draft and published Zod schemas", (_label, invalid) => {
+    const valueDraft = makeValidDraft();
+    valueDraft.localizations["ko-KR"].description = `설명${invalid}숨김`;
+    const keyDraft = structuredClone(makeValidDraft());
+    keyDraft.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = `설명${invalid}숨김`;
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
+
+    expect(ActivityPackageDraftV1Schema.safeParse(valueDraft).success).toBe(false);
+    expect(ActivityPackageDraftV1Schema.safeParse(keyDraft).success).toBe(false);
+    expect(ActivityPackageV1Schema.safeParse(valuePackage).success).toBe(false);
+    expect(ActivityPackageV1Schema.safeParse(keyPackage).success).toBe(false);
+  });
+
+  it("limits authored validation seeds to the generator uint32 domain", () => {
+    const maximumSeed = makeValidDraft();
+    maximumSeed.validation_samples[0]!.seed = 0xffff_ffff;
+    expect(ActivityPackageDraftV1Schema.safeParse(maximumSeed).success).toBe(true);
+
+    const oversizedSeed = makeValidDraft();
+    oversizedSeed.validation_samples[0]!.seed = 0x1_0000_0000;
+    expect(ActivityPackageDraftV1Schema.safeParse(oversizedSeed).success).toBe(false);
   });
 });
 
@@ -177,6 +236,33 @@ describe("checked-in JSON Schemas", () => {
 
     expect(validate(validPackage), validationErrors(validate)).toBe(true);
     expect(validate(invalidPackage), validationErrors(validate)).toBe(false);
+  });
+
+  it("rejects U+0000 values and parameter keys through a Draft 2020-12 validator", async () => {
+    const validate = await compileCheckedInActivitySchema();
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(validate(valuePackage), validationErrors(validate)).toBe(false);
+    expect(validate(keyPackage), validationErrors(validate)).toBe(false);
+  });
+
+  it.each([
+    ["U+0000", "\u0000"],
+    ["lone high surrogate", String.fromCharCode(0xd800)],
+    ["lone low surrogate", String.fromCharCode(0xdc00)],
+    ["U+FFFD", "\ufffd"],
+  ])("rejects %s values and parameter keys through public Ajv schemas", async (_label, invalid) => {
+    const validate = await compileCheckedInActivitySchema();
+    const valuePackage = makePublished();
+    valuePackage.localizations["ko-KR"].description = `설명${invalid}숨김`;
+    const keyPackage = makePublished();
+    keyPackage.difficulty_bands[0]!.generator_parameters[`hidden${invalid}key`] = true;
+
+    expect(validate(valuePackage), validationErrors(validate)).toBe(false);
+    expect(validate(keyPackage), validationErrors(validate)).toBe(false);
   });
 
   it.each([

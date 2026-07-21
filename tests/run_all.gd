@@ -1,6 +1,6 @@
 extends SceneTree
 
-const SUITES := ["unit", "scene", "integration"]
+const SUITES := ["unit", "scene", "integration", "content", "manipulatives"]
 const TestScriptLoaderScript = preload("res://tests/support/test_script_loader.gd")
 
 func _init() -> void:
@@ -70,7 +70,10 @@ func _discover_tests_in(directory_path: String) -> Array[String]:
 			var path := "%s/%s" % [directory_path, entry]
 			if directory.current_is_dir():
 				paths.append_array(_discover_tests_in(path))
-			elif entry.begins_with("test_") and entry.ends_with(".gd"):
+			elif (
+				(entry.begins_with("test_") or entry.ends_with("_test.gd"))
+				and entry.ends_with(".gd")
+			):
 				paths.append(path)
 		entry = directory.get_next()
 	directory.list_dir_end()

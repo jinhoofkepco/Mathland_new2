@@ -15,11 +15,18 @@ export const SHA256_CHECKSUM_PATTERN = /^sha256:[0-9a-f]{64}$/;
 export const PACKAGE_PATH_PATTERN = new RegExp(
   `^content/packages/(?:${ACTIVITY_IDS.join("|")})/(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.json$`,
 );
-const NONEMPTY_TRIMMED_PATTERN = /^\S(?:[\s\S]*\S)?$/u;
+const LOSSLESS_CONTENT_STRING_PATTERN = /^[^\u0000\ud800-\udfff\ufffd]*$/u;
+const NONEMPTY_TRIMMED_PATTERN = /^(?![\s\S]*[\u0000\ud800-\udfff\ufffd])\S(?:[\s\S]*\S)?$/u;
 
 const SafeIntegerSchema = z.int();
 const PositiveIntegerSchema = z.int().positive();
 const NonNegativeIntegerSchema = z.int().nonnegative();
+const ContentStringSchema = z
+  .string()
+  .regex(
+    LOSSLESS_CONTENT_STRING_PATTERN,
+    "U+0000, lone surrogates, and U+FFFD are not valid content text",
+  );
 const SemanticVersionSchema = z.string().regex(SEMANTIC_VERSION_PATTERN, "Expected a semantic version");
 const ChecksumSchema = z.string().regex(SHA256_CHECKSUM_PATTERN, "Expected a lowercase SHA-256 checksum");
 
@@ -66,7 +73,7 @@ export const ResolvedParameterValueV1Schema = z.union([
 ]);
 
 export const ResolvedParametersV1Schema = z.record(
-  z.string().min(1).max(64),
+  ContentStringSchema.min(1).max(64),
   ResolvedParameterValueV1Schema,
 );
 
@@ -147,7 +154,7 @@ const AdaptivePolicySchema = z.strictObject({
 
 const ValidationSampleSchema = z.strictObject({
   band_id: z.enum(["intro", "practice", "challenge"]),
-  seed: NonNegativeIntegerSchema,
+  seed: NonNegativeIntegerSchema.max(0xffff_ffff),
   expected_answer: AnswerValueV1Schema,
 });
 

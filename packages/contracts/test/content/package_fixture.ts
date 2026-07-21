@@ -52,7 +52,9 @@ export function makeValidDraft(activityId: ActivityId = "addition_ones"): Activi
         operand_max: 9 + index,
         carry: index === 0 ? "forbid" : "allow",
       },
-      answer_layout: { id: "numeric_keypad" },
+      answer_layout: {
+        id: generatorId === "prime_factorization_v1" ? "factor_slots" : "numeric_keypad",
+      },
       manipulative: { id: "none", config: {}, initial_state: {} },
     })),
     adaptive_policy: {

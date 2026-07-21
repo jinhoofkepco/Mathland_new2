@@ -3,7 +3,7 @@ set -euo pipefail
 
 suite=${1:-all}
 case "$suite" in
-	all|unit|scene|integration) ;;
+	all|unit|scene|integration|content) ;;
 	*)
 		echo "invalid Godot test suite: $suite" >&2
 		exit 2

@@ -14,6 +14,7 @@ export function generateContentJsonSchemas(): Record<ContentJsonSchemaFileName, 
     "MathLand Activity Package v1",
     [
       "activity generator matches activity_id",
+      "number-theory generators require their registered answer layouts",
       "combo thresholds strictly increase",
       "adaptive bounds reference ordered bands and default off",
       "each band includes validation seeds 1, 7, 42, and 20260721",

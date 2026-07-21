@@ -75,6 +75,60 @@ describe("activity semantic validation", () => {
       expect.arrayContaining(["COMBO_THRESHOLDS", "ADAPTIVE_BOUNDS", "ADAPTIVE_THRESHOLDS", "VALIDATION_SAMPLES"]),
     );
   });
+
+  it("reports U+0000 string values and object keys with stable field paths", () => {
+    const draft = makeValidDraft();
+    draft.localizations["ko-KR"].description = "설명\u0000숨김";
+    draft.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    const report = validateActivityDraft(draft);
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
+  });
+
+  it("does not mistake an authored object length field for Array.length", () => {
+    const draft = makeValidDraft();
+    draft.difficulty_bands[0]!.generator_parameters.length = "\u0000";
+
+    expect(validateActivityDraft(draft).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "length"],
+      }),
+    );
+  });
+  it("enforces generator-specific answer layouts on the public draft validator", () => {
+    const primeDraft = makeValidDraft("prime_factorization");
+    primeDraft.difficulty_bands[1]!.answer_layout = { id: "numeric_keypad" };
+    const primeReport = validateActivityDraft(primeDraft);
+    expect(primeReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 1, "answer_layout", "id"],
+      }),
+    );
+
+    const lcmDraft = makeValidDraft("common_multiples_lcm");
+    lcmDraft.difficulty_bands[2]!.answer_layout = { id: "factor_slots" };
+    const lcmReport = validateActivityDraft(lcmDraft);
+    expect(lcmReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 2, "answer_layout", "id"],
+      }),
+    );
+  });
 });
 
 describe("published package validation", () => {
@@ -90,6 +144,33 @@ describe("published package validation", () => {
     changed.run.goal.target += 1;
     expect(changed.checksum).not.toBe(contentChecksum(changed));
     expect(issueCodes(validatePublishedActivity(changed))).toContain("CHECKSUM_MISMATCH");
+  });
+
+  it("fails closed before checksum comparison when a published package gains U+0000", () => {
+    const published = makePublished();
+    published.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyPublished = makePublished();
+    keyPublished.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(() => contentChecksum(published)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => contentChecksum(keyPublished)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => validatePublishedActivity(published)).not.toThrow();
+    expect(validatePublishedActivity(published).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(validatePublishedActivity(keyPublished).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
   });
 });
 

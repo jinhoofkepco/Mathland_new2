@@ -351,6 +351,36 @@ msgstr "A long rod representing ten"
 msgid "manipulative.unit_cube"
 msgstr "A small piece representing one"
 
+msgid "activity.run.title"
+msgstr "Math adventure"
+
+msgid "manipulative.counter"
+msgstr "Counting piece"
+
+msgid "manipulative.ten_frame_cell"
+msgstr "Ten-frame cell"
+
+msgid "manipulative.add"
+msgstr "Add one"
+
+msgid "manipulative.remove"
+msgstr "Remove one"
+
+msgid "manipulative.number_line_tick"
+msgstr "Number-line tick"
+
+msgid "manipulative.token"
+msgstr "Number token"
+
+msgid "answer.key"
+msgstr "Number key"
+
+msgid "answer.choice"
+msgstr "Choose answer"
+
+msgid "answer.factor"
+msgstr "Add factor"
+
 msgid "feedback.correct"
 msgstr "Correct!"
 
