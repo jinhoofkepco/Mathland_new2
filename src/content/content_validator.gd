@@ -505,7 +505,7 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 		if not _is_well_formed_unicode(value):
 			state["ok"] = false
 			return ""
-		return JSON.stringify(value)
+		return _encode_ecmascript_string(value)
 	if typeof(value) == TYPE_INT:
 		if not _is_safe_integer(value):
 			state["ok"] = false
@@ -548,10 +548,80 @@ func _encode_canonical(value: Variant, depth: int, omit_checksum: bool, state: D
 		keys.sort_custom(_utf16_key_less)
 		var entries: Array[String] = []
 		for key in keys:
-			entries.append("%s:%s" % [JSON.stringify(key), _encode_canonical(object[key], depth + 1, omit_checksum, state)])
+			entries.append("%s:%s" % [_encode_ecmascript_string(key), _encode_canonical(object[key], depth + 1, omit_checksum, state)])
 		return "{%s}" % ",".join(entries)
 	state["ok"] = false
 	return ""
+
+func _encode_ecmascript_string(value: String) -> String:
+	var bytes := PackedByteArray()
+	bytes.append(0x22)
+	for index in value.length():
+		_append_ecmascript_codepoint(bytes, value.unicode_at(index))
+	bytes.append(0x22)
+	return bytes.get_string_from_utf8()
+
+# Godot 4.7 normalizes U+0000 before it reaches String APIs. Keeping the shared
+# codepoint entry point makes that ECMAScript escape rule explicit and testable.
+func _encode_ecmascript_codepoints(codepoints: PackedInt32Array) -> String:
+	var bytes := PackedByteArray()
+	bytes.append(0x22)
+	for codepoint in codepoints:
+		_append_ecmascript_codepoint(bytes, codepoint)
+	bytes.append(0x22)
+	return bytes.get_string_from_utf8()
+
+func _append_ecmascript_codepoint(bytes: PackedByteArray, codepoint: int) -> void:
+	match codepoint:
+		0x22:
+			bytes.append(0x5C)
+			bytes.append(0x22)
+		0x5C:
+			bytes.append(0x5C)
+			bytes.append(0x5C)
+		0x08:
+			bytes.append(0x5C)
+			bytes.append(0x62)
+		0x09:
+			bytes.append(0x5C)
+			bytes.append(0x74)
+		0x0A:
+			bytes.append(0x5C)
+			bytes.append(0x6E)
+		0x0C:
+			bytes.append(0x5C)
+			bytes.append(0x66)
+		0x0D:
+			bytes.append(0x5C)
+			bytes.append(0x72)
+		_ when codepoint < 0x20:
+			bytes.append(0x5C)
+			bytes.append(0x75)
+			bytes.append(0x30)
+			bytes.append(0x30)
+			bytes.append(_lower_hex_byte(codepoint >> 4))
+			bytes.append(_lower_hex_byte(codepoint & 0x0F))
+		_:
+			_append_utf8_codepoint(bytes, codepoint)
+
+func _lower_hex_byte(nibble: int) -> int:
+	return 0x30 + nibble if nibble < 10 else 0x61 + nibble - 10
+
+func _append_utf8_codepoint(bytes: PackedByteArray, codepoint: int) -> void:
+	if codepoint <= 0x7F:
+		bytes.append(codepoint)
+	elif codepoint <= 0x7FF:
+		bytes.append(0xC0 | (codepoint >> 6))
+		bytes.append(0x80 | (codepoint & 0x3F))
+	elif codepoint <= 0xFFFF:
+		bytes.append(0xE0 | (codepoint >> 12))
+		bytes.append(0x80 | ((codepoint >> 6) & 0x3F))
+		bytes.append(0x80 | (codepoint & 0x3F))
+	else:
+		bytes.append(0xF0 | (codepoint >> 18))
+		bytes.append(0x80 | ((codepoint >> 12) & 0x3F))
+		bytes.append(0x80 | ((codepoint >> 6) & 0x3F))
+		bytes.append(0x80 | (codepoint & 0x3F))
 
 func _encode_ecmascript_number(number: float) -> String:
 	if number == 0.0:

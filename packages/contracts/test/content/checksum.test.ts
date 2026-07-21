@@ -15,12 +15,39 @@ interface NumberVector {
   canonical: string;
 }
 
+interface StringVectorFixture {
+  c0: {
+    codepoint: number;
+    value_canonical: string;
+    key_canonical: string;
+  }[];
+  unicode_corpus: {
+    start_codepoint: number;
+    codepoint_count: number;
+    object_checksum: string;
+  };
+}
+
 const NUMBER_VECTORS = JSON.parse(
   readFileSync(
     new URL("../../../../tests/fixtures/contracts/ecmascript_number_vectors.json", import.meta.url),
     "utf8",
   ),
 ) as NumberVector[];
+
+const STRING_VECTORS = JSON.parse(
+  readFileSync(
+    new URL("../../../../tests/fixtures/contracts/ecmascript_string_vectors.json", import.meta.url),
+    "utf8",
+  ),
+) as StringVectorFixture;
+
+const PUBLISHED_PACKAGE = JSON.parse(
+  readFileSync(
+    new URL("../../../../tests/content/fixtures/minimal_valid_activity.json", import.meta.url),
+    "utf8",
+  ),
+) as Record<string, unknown>;
 
 function numberFromBits(bits: string): number {
   const bytes = new ArrayBuffer(8);
@@ -30,6 +57,41 @@ function numberFromBits(bits: string): number {
 }
 
 describe("canonical JSON", () => {
+  it("matches ECMAScript escaping for every C0 control in values and keys", () => {
+    expect(STRING_VECTORS.c0).toHaveLength(0x20);
+    for (const vector of STRING_VECTORS.c0) {
+      const character = String.fromCharCode(vector.codepoint);
+      const value = { value: character };
+      const keyed = { [`k${character}`]: 1 };
+
+      expect(JSON.stringify(value), `value U+${vector.codepoint.toString(16).padStart(4, "0")}`).toBe(
+        vector.value_canonical,
+      );
+      expect(canonicalJson(value)).toBe(vector.value_canonical);
+      expect(JSON.stringify(keyed), `key U+${vector.codepoint.toString(16).padStart(4, "0")}`).toBe(
+        vector.key_canonical,
+      );
+      expect(canonicalJson(keyed)).toBe(vector.key_canonical);
+    }
+  });
+
+  it("matches ECMAScript across a 4,096-codepoint Unicode corpus", () => {
+    const { start_codepoint: start, codepoint_count: count, object_checksum: checksum } =
+      STRING_VECTORS.unicode_corpus;
+    const corpus = Array.from({ length: count }, (_, index) =>
+      String.fromCodePoint(start + index),
+    ).join("");
+    const value = { value: corpus };
+
+    expect([...corpus]).toHaveLength(4_096);
+    expect(canonicalJson(value)).toBe(JSON.stringify(value));
+    expect(contentChecksum(value)).toBe(checksum);
+  });
+
+  it("preserves the published package checksum fixture", () => {
+    expect(contentChecksum(PUBLISHED_PACKAGE)).toBe(PUBLISHED_PACKAGE.checksum);
+  });
+
   it("uses the exact ECMAScript shortest representation for IEEE-754 doubles", () => {
     const value = numberFromBits("3b1d8e556da8dd77");
 

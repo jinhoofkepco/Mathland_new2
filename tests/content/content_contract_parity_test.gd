@@ -3,6 +3,8 @@ extends "res://tests/support/test_case.gd"
 const ContentContractV1 = preload("res://src/content/generated/content_contract_v1.gd")
 const ContentValidatorScript = preload("res://src/content/content_validator.gd")
 const NUMBER_VECTOR_PATH := "res://tests/fixtures/contracts/ecmascript_number_vectors.json"
+const STRING_VECTOR_PATH := "res://tests/fixtures/contracts/ecmascript_string_vectors.json"
+const PUBLISHED_PACKAGE_PATH := "res://tests/content/fixtures/minimal_valid_activity.json"
 
 const EXPECTED_ACTIVITY_IDS := [
 	"addition_ones",
@@ -48,6 +50,9 @@ func run(_tree: SceneTree) -> void:
 	)
 	assert_true("checksum" in ContentContractV1.REQUIRED_PACKAGE_KEYS)
 	assert_true("packages" in ContentContractV1.REQUIRED_MANIFEST_KEYS)
+	_test_ecmascript_c0_string_escaping()
+	_test_ecmascript_unicode_corpus()
+	_test_published_package_checksum_regression()
 	_test_canonical_json_and_checksum_match_typescript()
 	_test_ecmascript_number_to_string_regression()
 	_test_ecmascript_number_property_corpus()
@@ -56,6 +61,68 @@ func run(_tree: SceneTree) -> void:
 	_test_large_json_scan_has_linear_runtime()
 	_test_lone_surrogates_fail_closed()
 	_test_object_keys_sort_by_utf16_code_units()
+
+func _test_ecmascript_c0_string_escaping() -> void:
+	var validator := ContentValidatorScript.new()
+	var fixture: Variant = JSON.parse_string(FileAccess.get_file_as_string(STRING_VECTOR_PATH))
+	assert_true(fixture is Dictionary)
+	var vectors: Array = fixture["c0"]
+	assert_eq(vectors.size(), 0x20)
+	for vector_value in vectors:
+		var vector: Dictionary = vector_value
+		var codepoint: int = vector["codepoint"]
+		if codepoint == 0:
+			assert_eq(
+				'{"value":%s}' % validator._encode_ecmascript_codepoints(PackedInt32Array([0])),
+				vector["value_canonical"],
+				"C0 value U+0000"
+			)
+			assert_eq(
+				'{%s:1}' % validator._encode_ecmascript_codepoints(PackedInt32Array([0x6B, 0])),
+				vector["key_canonical"],
+				"C0 key U+0000"
+			)
+			continue
+		var character := String.chr(codepoint)
+		assert_eq(
+			validator.canonical_json({"value": character}),
+			vector["value_canonical"],
+			"C0 value U+%04x" % codepoint
+		)
+		var keyed := {}
+		keyed["k%s" % character] = 1
+		assert_eq(
+			validator.canonical_json(keyed),
+			vector["key_canonical"],
+			"C0 key U+%04x" % codepoint
+		)
+
+func _test_ecmascript_unicode_corpus() -> void:
+	var validator := ContentValidatorScript.new()
+	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(STRING_VECTOR_PATH))
+	var metadata: Dictionary = fixture["unicode_corpus"]
+	var start: int = metadata["start_codepoint"]
+	var count: int = metadata["codepoint_count"]
+	var characters := PackedStringArray()
+	characters.resize(count)
+	for offset in count:
+		characters[offset] = String.chr(start + offset)
+	var corpus := "".join(characters)
+	assert_eq(corpus.length(), 4096)
+	assert_eq(
+		validator.content_checksum({"value": corpus}),
+		metadata["object_checksum"]
+	)
+
+func _test_published_package_checksum_regression() -> void:
+	var validator := ContentValidatorScript.new()
+	var parsed: Variant = validator.parse_json(
+		FileAccess.get_file_as_string(PUBLISHED_PACKAGE_PATH),
+		PUBLISHED_PACKAGE_PATH
+	)
+	assert_true(parsed.ok)
+	var package: Dictionary = parsed.value
+	assert_eq(validator.content_checksum(package), package["checksum"])
 
 func _test_canonical_json_and_checksum_match_typescript() -> void:
 	var validator := ContentValidatorScript.new()
