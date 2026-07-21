@@ -1,131 +1,21 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>MathLand · Visual Direction</title>
-  <style>
-    :root {
-      --accent:#5b6df6;
-      --ink:#202534;
-      --muted:#697386;
-      --line:#dfe3ec;
-      --paper:#f4f6fb;
-    }
-    * { box-sizing:border-box; }
-    body {
-      margin:0;
-      color:var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%,rgba(91,109,246,.12),transparent 28rem),
-        radial-gradient(circle at 95% 20%,rgba(65,193,161,.11),transparent 25rem),
-        var(--paper);
-      font-family:Inter,Pretendard,"Noto Sans KR",system-ui,-apple-system,sans-serif;
-    }
-    .page-shell { max-width:1240px; margin:0 auto; padding:28px 24px 54px; }
-    .preview-bar {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:16px;
-      padding:13px 17px;
-      margin-bottom:26px;
-      border:1px solid rgba(255,255,255,.72);
-      border-radius:18px;
-      background:rgba(255,255,255,.74);
-      box-shadow:0 12px 35px rgba(30,40,80,.08);
-      backdrop-filter:blur(12px);
-    }
-    .preview-bar b { font-size:14px; }
-    .preview-bar span { color:var(--muted); font-size:12px; }
-    h2 { margin:8px 0 10px; font-size:clamp(28px,4vw,44px); letter-spacing:-.04em; line-height:1.15; }
-    h3,h4 { letter-spacing:-.02em; }
-    .subtitle { color:var(--muted); line-height:1.65; }
-    .label { font-size:11px; font-weight:900; letter-spacing:.16em; color:var(--accent); }
-    .cards { width:100%; }
-    .card { border:1px solid var(--line); cursor:pointer; }
-    .card:focus-visible { outline:4px solid var(--accent); outline-offset:3px; }
-    .loading { min-height:55vh; display:grid; place-items:center; color:var(--muted); }
-    .selection-note {
-      position:fixed;
-      left:50%;
-      bottom:18px;
-      z-index:20;
-      transform:translate(-50%,18px);
-      opacity:0;
-      pointer-events:none;
-      padding:11px 16px;
-      border-radius:999px;
-      color:white;
-      background:#242a3a;
-      box-shadow:0 10px 30px rgba(0,0,0,.22);
-      font-size:12px;
-      transition:.2s ease;
-      white-space:nowrap;
-    }
-    .selection-note.show { transform:translate(-50%,0); opacity:1; }
-    @media (max-width:640px) {
-      .page-shell { padding:16px 12px 42px; }
-      .preview-bar { align-items:flex-start; flex-direction:column; }
-    }
-  </style>
-</head>
-<body>
-  <main class="page-shell">
-    <div class="preview-bar">
-      <b>MathLand · 외부 검토용 디자인 목업</b>
-      <span>카드를 눌러 비교한 뒤 Codex 대화창에 의견을 남겨주세요.</span>
-    </div>
-    <div id="preview" class="loading">목업을 불러오는 중입니다…</div>
-  </main>
-  <div id="selection-note" class="selection-note" role="status"></div>
-  <script>
-    const preview = document.getElementById('preview');
-    const note = document.getElementById('selection-note');
-    const labels = {
-      a_island: 'A · 따뜻한 수학 탐험섬',
-      b_arcade: 'B · 컬러풀 아케이드 연구소',
-      c_sketch: 'C · 손그림 교실 & 스티커북'
-    };
-
-    function toggleSelect(element) {
-      document.querySelectorAll('[data-choice]').forEach(card => card.classList.remove('selected'));
-      element.classList.add('selected');
-      const choice = element.dataset.choice;
-      localStorage.setItem('mathland-design-choice', choice);
-      note.textContent = `${labels[choice]} 선택 — 대화창에 이 선택을 알려주세요.`;
-      note.classList.add('show');
-      window.setTimeout(() => note.classList.remove('show'), 3200);
-    }
-
-    fetch('./visual-style.html', { cache: 'no-store' })
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.text();
-      })
-      .then(html => {
-        preview.className = '';
-        preview.innerHTML = html;
-        const saved = localStorage.getItem('mathland-design-choice');
-        if (saved) {
-          const selected = preview.querySelector(`[data-choice="${saved}"]`);
-          if (selected) selected.classList.add('selected');
-        }
-        preview.querySelectorAll('[data-choice]').forEach(card => {
-          card.setAttribute('tabindex', '0');
-          card.setAttribute('role', 'button');
-          card.addEventListener('keydown', event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              toggleSelect(card);
-            }
-          });
-        });
-      })
-      .catch(error => {
-        preview.innerHTML = `<p>목업을 불러오지 못했습니다: ${error.message}</p>`;
-      });
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ebfaf4" />
+    <meta
+      name="description"
+      content="MathLand 보호자용 학습 현황과 콘텐츠 관리"
+    />
+    <title>MathLand 보호자</title>
+    <script type="module" crossorigin src="/Mathland_new2/assets/index-CLV4iWef.js"></script>
+    <link rel="modulepreload" crossorigin href="/Mathland_new2/assets/react-vendor-IkUWM7qK.js">
+    <link rel="modulepreload" crossorigin href="/Mathland_new2/assets/validation-vendor-gn5WwvXS.js">
+    <link rel="modulepreload" crossorigin href="/Mathland_new2/assets/cloud-vendor-KBxT6BUo.js">
+    <link rel="stylesheet" crossorigin href="/Mathland_new2/assets/index-Q77IOyyu.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
