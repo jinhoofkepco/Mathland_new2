@@ -454,7 +454,7 @@ msgid "question.common_multiple"
 msgstr "{expression}의 최소공배수는 얼마일까요?"
 
 msgid "question.prime_factorization"
-msgstr "{value}을 소인수로 나타내 보세요."
+msgstr "{value}의 소인수를 찾아보세요."
 
 msgid "question.counting"
 msgstr "조각은 모두 몇 개일까요?"

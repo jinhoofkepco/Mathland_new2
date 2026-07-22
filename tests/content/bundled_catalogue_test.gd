@@ -15,6 +15,10 @@ const IDS := [
 	"foundations_number_line",
 	"foundations_basic_operations",
 ]
+const PROMPT_CATALOGUES := {
+	"ko": "res://resources/i18n/ko.po",
+	"en": "res://resources/i18n/en.po",
+}
 
 func run(_tree: SceneTree) -> void:
 	var repository: Variant = ContentRepositoryScript.new()
@@ -66,12 +70,46 @@ func run(_tree: SceneTree) -> void:
 	assert_eq(prompt_keys.size(), IDS.size())
 
 	var previous_locale := TranslationServer.get_locale()
-	for locale in ["ko", "en"]:
+	for locale in PROMPT_CATALOGUES:
+		var catalogue := _read_single_line_po(PROMPT_CATALOGUES[locale])
 		TranslationServer.set_locale(locale)
 		for prompt_key in prompt_keys:
+			assert_true(
+				catalogue.has(prompt_key),
+				"%s catalogue is missing prompt key %s" % [locale, prompt_key]
+			)
+			assert_false(
+				String(catalogue.get(prompt_key, "")).is_empty(),
+				"%s catalogue has an empty prompt for %s" % [locale, prompt_key]
+			)
 			assert_ne(
 				TranslationServer.translate(prompt_key),
 				prompt_key,
 				"%s exposed raw prompt key %s" % [locale, prompt_key]
 			)
+	assert_eq(
+		_read_single_line_po(PROMPT_CATALOGUES.ko).get(
+			"question.prime_factorization",
+			""
+		),
+		"{value}의 소인수를 찾아보세요."
+	)
 	TranslationServer.set_locale(previous_locale)
+
+
+func _read_single_line_po(path: String) -> Dictionary:
+	var entries := {}
+	var current_id := ""
+	for line_value in FileAccess.get_file_as_string(path).split("\n"):
+		var line := String(line_value)
+		if line.begins_with("msgid "):
+			current_id = _parse_po_string(line.trim_prefix("msgid "))
+		elif not current_id.is_empty() and line.begins_with("msgstr "):
+			entries[current_id] = _parse_po_string(line.trim_prefix("msgstr "))
+			current_id = ""
+	return entries
+
+
+func _parse_po_string(value: String) -> String:
+	var parsed: Variant = JSON.parse_string(value)
+	return String(parsed) if parsed is String else ""
