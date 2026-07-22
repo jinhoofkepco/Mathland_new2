@@ -8,7 +8,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor_id uuid := auth.uid();
+  onboarding_actor_id uuid := auth.uid();
   normalized_family_name text := pg_catalog.regexp_replace(
     family_name,
     '^[[:space:]]+|[[:space:]]+$',
@@ -27,14 +27,14 @@ declare
   new_family_id uuid := extensions.gen_random_uuid();
   new_profile_id uuid := extensions.gen_random_uuid();
 begin
-  if actor_id is null then
+  if onboarding_actor_id is null then
     raise exception 'guardian onboarding requires authentication' using errcode = '42501';
   end if;
 
   select account.is_anonymous
   into actor_is_anonymous
   from auth.users account
-  where account.id = actor_id;
+  where account.id = onboarding_actor_id;
 
   if coalesce(actor_is_anonymous, true) then
     raise exception 'anonymous device identities cannot create families' using errcode = '42501';
@@ -50,7 +50,7 @@ begin
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('guardian-onboarding:' || actor_id::text, 0)
+    pg_catalog.hashtextextended('guardian-onboarding:' || onboarding_actor_id::text, 0)
   );
 
   select audit.family_id, profile.id
@@ -59,13 +59,13 @@ begin
   join public.families family
     on family.id = audit.family_id
    and family.deleted_at is null
-   and family.created_by = actor_id
+   and family.created_by = onboarding_actor_id
   join public.child_profiles profile
     on profile.family_id = family.id
    and profile.deleted_at is null
-   and profile.created_by = actor_id
+   and profile.created_by = onboarding_actor_id
    and profile.id::text = audit.metadata ->> 'profile_id'
-  where audit.actor_id = actor_id
+  where audit.actor_id = onboarding_actor_id
     and audit.action = 'guardian_onboarding_completed'
     and audit.target_type = 'family'
     and audit.target_id = family.id::text
@@ -83,17 +83,17 @@ begin
   if exists (
     select 1
     from public.family_memberships membership
-    where membership.user_id = actor_id
+    where membership.user_id = onboarding_actor_id
       and membership.is_active
   ) then
     raise exception 'guardian account is already onboarded' using errcode = '23505';
   end if;
 
   insert into public.families (id, name, created_by)
-  values (new_family_id, normalized_family_name, actor_id);
+  values (new_family_id, normalized_family_name, onboarding_actor_id);
 
   insert into public.family_memberships (family_id, user_id, role)
-  values (new_family_id, actor_id, 'guardian');
+  values (new_family_id, onboarding_actor_id, 'guardian');
 
   insert into public.child_profiles (
     id,
@@ -106,7 +106,7 @@ begin
     new_family_id,
     'pending:' || extensions.gen_random_uuid()::text,
     normalized_child_nickname,
-    actor_id
+    onboarding_actor_id
   );
 
   insert into public.pending_child_profile_bindings (
@@ -130,7 +130,7 @@ begin
     metadata
   ) values (
     new_family_id,
-    actor_id,
+    onboarding_actor_id,
     'guardian_onboarding_completed',
     'family',
     new_family_id::text,
