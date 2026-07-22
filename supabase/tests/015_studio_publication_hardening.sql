@@ -227,24 +227,52 @@ select is(
 );
 reset role;
 
-update public.content_publications
-set effective_at = statement_timestamp()
-where id = (select publication_id from future_publication_result);
+update public.content_drafts
+set package = '{"activity_id":"studio_hardening","content_version":"3.0.0"}'::jsonb,
+    revision = revision + 1
+where id = '60000000-0000-4000-8000-000000000151';
 
 set local role service_role;
-select lives_ok(
-  format(
-    'select public.activate_due_content_publication(%L, %L)',
-    (select publication_id from future_publication_result),
-    '82000000-0000-4000-8000-000000000151'
-  ),
-  'the future publication can be activated through the trusted lifecycle RPC'
+create temporary table superseding_publication_result as
+select *
+from public.commit_validated_content_publication_v2(
+  '60000000-0000-4000-8000-000000000151',
+  3,
+  '{"activity_id":"studio_hardening","content_version":"3.0.0","checksum":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}'::jsonb,
+  'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  '{"valid":true,"issues":[],"samples":[]}'::jsonb,
+  '00000000-0000-4000-8000-000000000154',
+  null,
+  '81000000-0000-4000-8000-000000000154',
+  '예약을 대체하는 즉시 배포',
+  null
 );
+reset role;
+
+select is(
+  (
+    select effective_at = published_at and status = 'active'
+    from superseding_publication_result
+  ),
+  true,
+  'an immediate newer publication retires the active version without rewriting history'
+);
+select is(
+  (
+    select status
+    from public.content_publications
+    where id = (select publication_id from future_publication_result)
+  ),
+  'cancelled',
+  'an immediate newer publication cancels the untouched future schedule'
+);
+
+set local role service_role;
 create temporary table rollback_publication_result as
 select *
 from public.commit_validated_content_publication_v2(
   '60000000-0000-4000-8000-000000000151',
-  2,
+  3,
   '{"activity_id":"studio_hardening","content_version":"1.0.0","checksum":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}'::jsonb,
   'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
   '{"valid":true,"issues":[],"samples":[]}'::jsonb,
