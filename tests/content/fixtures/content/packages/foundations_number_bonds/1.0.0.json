@@ -1,0 +1,100 @@
+{
+  "activity_id": "foundations_number_bonds",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:cfcaf0d757a8a324040b5ca1ff22a98108709ed8a64975e5be95fa0a3f0afa00",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "intro",
+      "generator_id": "number_bonds_v1",
+      "generator_parameters": { "show_part": "left", "whole_max": 5, "whole_min": 2 },
+      "manipulative": {
+        "config": { "capacity": 5 },
+        "id": "counters",
+        "initial_state": { "initial_occupied": [] }
+      }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "practice",
+      "generator_id": "number_bonds_v1",
+      "generator_parameters": { "show_part": "right", "whole_max": 10, "whole_min": 2 },
+      "manipulative": {
+        "config": { "capacity": 10 },
+        "id": "counters",
+        "initial_state": { "initial_occupied": [] }
+      }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "challenge",
+      "generator_id": "number_bonds_v1",
+      "generator_parameters": { "show_part": "random", "whole_max": 20, "whole_min": 5 },
+      "manipulative": {
+        "config": { "capacity": 20 },
+        "id": "counters",
+        "initial_state": { "initial_occupied": [] }
+      }
+    }
+  ],
+  "icon_id": "foundations_number_bonds",
+  "localizations": {
+    "ko-KR": {
+      "description": "전체 수와 한 부분을 보고 빠진 부분을 만들어요.",
+      "title": "수 친구를 찾아요",
+      "tutorial_steps": [
+        "빠진 수만큼 조각을 놓고 답을 내요.",
+        "틀리면 하트가 하나 줄고 다시 도전할 수 있어요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 2, "completion_apples": 5 },
+    "starting_hearts": 3,
+    "timer": { "enabled": false, "profile_can_disable": true, "seconds": 60 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 2 }, "seed": 1 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 4 }, "seed": 7 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 1 }, "seed": 42 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 1 }, "seed": 20260721 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 1 }, "seed": 1 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 1 }, "seed": 7 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 7 }, "seed": 42 },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer", "value": 1 },
+      "seed": 20260721
+    },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 3 }, "seed": 1 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 11 }, "seed": 7 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 2 }, "seed": 42 },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer", "value": 7 },
+      "seed": 20260721
+    }
+  ]
+}

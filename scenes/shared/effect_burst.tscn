@@ -1,0 +1,59 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/presentation/effects/effect_burst.gd" id="1_burst"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleMaterial"]
+direction = Vector3(0, -1, 0)
+spread = 180.0
+gravity = Vector3(0, 180, 0)
+initial_velocity_min = 90.0
+initial_velocity_max = 190.0
+scale_min = 2.0
+scale_max = 5.0
+
+[node name="EffectBurst" type="Node2D" unique_id=1]
+visible = false
+script = ExtResource("1_burst")
+
+[node name="Particles" type="CPUParticles2D" parent="." unique_id=2]
+emitting = false
+amount = 24
+lifetime = 0.55
+one_shot = true
+explosiveness = 0.92
+randomness = 0.35
+process_material = SubResource("ParticleMaterial")
+
+[node name="Visual" type="Node2D" parent="." unique_id=3]
+
+[node name="Glow" type="Polygon2D" parent="Visual" unique_id=4]
+polygon = PackedVector2Array(-54, -4, -42, -34, -14, -50, 18, -48, 44, -28, 54, 2, 42, 32, 14, 50, -18, 48, -44, 28)
+color = Color(1, 0.82, 0.38, 0.24)
+
+[node name="Icon" type="Label" parent="Visual" unique_id=5]
+offset_left = -44.0
+offset_top = -50.0
+offset_right = 44.0
+offset_bottom = 26.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.08, 0.22, 0.26, 0.72)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 52
+text = "★"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Caption" type="Label" parent="Visual" unique_id=6]
+offset_left = -120.0
+offset_top = 26.0
+offset_right = 120.0
+offset_bottom = 68.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.08, 0.22, 0.26, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 26
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1

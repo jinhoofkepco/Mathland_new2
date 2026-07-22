@@ -3,23 +3,36 @@
 
 # Local builds and signing material
 builds/
+android/build/
+android/plugins/secure_credentials/.gradle/
+android/plugins/secure_credentials/.kotlin/
+android/plugins/secure_credentials/build/
+android/plugins/secure_credentials/secure_credentials/build/
+android/.build_version
+addons/mathland_secure_credentials/bin/
+/reports/
 *.keystore
 *.jks
+*.p12
 
 # Local environment and credentials
 .env
 .env.*
 !.env.example
+resources/config/cloud_public.json
+resources/config/content_update.json
 
 # JavaScript dependencies and build output
 node_modules/
-dist/
+/dist/
+web/dist/
 coverage/
 playwright-report/
 test-results/
 
 # Local Visual Companion sessions
 .superpowers/
+.worktrees/
 
 # Operating system files
 .DS_Store

@@ -1,0 +1,1538 @@
+{
+  "source_commit": "08b9e7589a335f0c5674cfac6743132f8c4870f2",
+  "expression_parity_cases": [
+    {
+      "legacy": "Mod[A+E~10]",
+      "canonical": "mod(A+E,10)",
+      "variables": {
+        "A": 7,
+        "E": 8
+      },
+      "expected": 5
+    },
+    {
+      "legacy": "Quotient[X~Y]",
+      "canonical": "quotient(X,Y)",
+      "variables": {
+        "X": 17,
+        "Y": 5
+      },
+      "expected": 3
+    },
+    {
+      "legacy": "digit[answer~3]",
+      "canonical": "digit(answer,3)",
+      "variables": {
+        "answer": 12345
+      },
+      "expected": 3
+    },
+    {
+      "legacy": "gcd[X~Y]",
+      "canonical": "gcd(X,Y)",
+      "variables": {
+        "X": 54,
+        "Y": 24
+      },
+      "expected": 6
+    },
+    {
+      "legacy": "lcm[lcm[X~Y]~Z]",
+      "canonical": "lcm(lcm(X,Y),Z)",
+      "variables": {
+        "X": 6,
+        "Y": 8,
+        "Z": 9
+      },
+      "expected": 72
+    },
+    {
+      "legacy": "65-Quotient[(sub_level)~8]",
+      "canonical": "65-quotient(sub_level,8)",
+      "variables": {
+        "sub_level": 80
+      },
+      "expected": 55
+    }
+  ],
+  "sources": {
+    "quiz_game_11.csv": {
+      "draft": {
+        "schema_version": 1,
+        "content_version": "1.0.0",
+        "activity_id": "addition_ones",
+        "localizations": {
+          "ko-KR": {
+            "title": "더하기 게임 1의자리!!",
+            "description": "더해서 1의자리!!~~~",
+            "tutorial_steps": [
+              "더해서 1의자리!!~~~"
+            ]
+          }
+        },
+        "icon_id": "addition_ones",
+        "scene_id": "activity_run",
+        "run": {
+          "starting_hearts": 3,
+          "goal": {
+            "kind": "correct_answers",
+            "target": 10
+          },
+          "timer": {
+            "enabled": true,
+            "seconds": 16,
+            "profile_can_disable": true
+          },
+          "rewards": {
+            "apples_per_correct": 5,
+            "completion_apples": 10
+          },
+          "combo_thresholds": [
+            2,
+            4,
+            7
+          ],
+          "boss_every_correct": 5,
+          "effects": {
+            "correct": "correct",
+            "wrong": "wrong",
+            "combo": "combo_1",
+            "boss": "boss",
+            "level_up": "level_up",
+            "reward": "reward",
+            "health_loss": "health_loss"
+          }
+        },
+        "difficulty_bands": [
+          {
+            "band_id": "intro",
+            "generator_id": "addition_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 1,
+              "operand_max": 6,
+              "place_mode": "ones_digit",
+              "carry": "allow"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "practice",
+            "generator_id": "addition_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 2,
+              "operand_max": 9,
+              "place_mode": "ones_digit",
+              "carry": "allow"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "challenge",
+            "generator_id": "addition_v1",
+            "generator_parameters": {
+              "operand_count": 3,
+              "operand_min": 2,
+              "operand_max": 9,
+              "place_mode": "ones_digit",
+              "carry": "allow"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          }
+        ],
+        "adaptive_policy": {
+          "enabled_by_default": false,
+          "min_band_id": "intro",
+          "max_band_id": "challenge",
+          "window_size": 5,
+          "promote_correctness": 0.8,
+          "demote_correctness": 0.4
+        },
+        "validation_samples": [
+          {
+            "band_id": "intro",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 6
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 6
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 6
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 3
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 6
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 18
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 8
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 13
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 13
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 23
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 13
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 18
+            }
+          }
+        ]
+      },
+      "compatibility_assertions": [
+        {
+          "level": 1,
+          "range": {
+            "minimum": 1,
+            "maximum": 10
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E,10)*10000+mod(B+F,10)*1000+mod(C+G,10)*100+mod(D+H,10)*10+mod(I+J,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 11,
+            "maximum": 20
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E,10)*10000+mod(B+F,10)*1000+mod(C+G,10)*100+mod(D+H,10)*10+mod(I+J,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 21,
+            "maximum": 30
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E,10)*10000+mod(B+F,10)*1000+mod(C+G,10)*100+mod(D+H,10)*10+mod(I+J,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 31,
+            "maximum": 40
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E+O,10)*10000+mod(B+F+P,10)*1000+mod(C+G+Q,10)*100+mod(D+H+R,10)*10+mod(I+J+S,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 41,
+            "maximum": 50
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E+O,10)*10000+mod(B+F+P,10)*1000+mod(C+G+Q,10)*100+mod(D+H+R,10)*10+mod(I+J+S,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 51,
+            "maximum": 60
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E+O,10)*10000+mod(B+F+P,10)*1000+mod(C+G+Q,10)*100+mod(D+H+R,10)*10+mod(I+J+S,10)"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 61,
+            "maximum": 100
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "mod(A+E+O,10)*10000+mod(B+F+P,10)*1000+mod(C+G+Q,10)*100+mod(D+H+R,10)*10+mod(I+J+S,10)"
+        }
+      ]
+    },
+    "quiz_game_7.csv": {
+      "draft": {
+        "schema_version": 1,
+        "content_version": "1.0.0",
+        "activity_id": "subtraction_ones",
+        "localizations": {
+          "ko-KR": {
+            "title": "빼기 게임 -New 1-",
+            "description": "빼서 1의자리!!",
+            "tutorial_steps": [
+              "빼서 1의자리!!"
+            ]
+          }
+        },
+        "icon_id": "subtraction_ones",
+        "scene_id": "activity_run",
+        "run": {
+          "starting_hearts": 3,
+          "goal": {
+            "kind": "correct_answers",
+            "target": 10
+          },
+          "timer": {
+            "enabled": true,
+            "seconds": 20,
+            "profile_can_disable": true
+          },
+          "rewards": {
+            "apples_per_correct": 1,
+            "completion_apples": 10
+          },
+          "combo_thresholds": [
+            2,
+            4,
+            7
+          ],
+          "boss_every_correct": 5,
+          "effects": {
+            "correct": "correct",
+            "wrong": "wrong",
+            "combo": "combo_1",
+            "boss": "boss",
+            "level_up": "level_up",
+            "reward": "reward",
+            "health_loss": "health_loss"
+          }
+        },
+        "difficulty_bands": [
+          {
+            "band_id": "intro",
+            "generator_id": "subtraction_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 1,
+              "operand_max": 6,
+              "place_mode": "ones_digit",
+              "borrow": "forbid",
+              "allow_negative": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "practice",
+            "generator_id": "subtraction_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 10,
+              "operand_max": 99,
+              "place_mode": "full",
+              "borrow": "allow",
+              "allow_negative": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "challenge",
+            "generator_id": "subtraction_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 100,
+              "operand_max": 999,
+              "place_mode": "full",
+              "borrow": "allow",
+              "allow_negative": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          }
+        ],
+        "adaptive_policy": {
+          "enabled_by_default": false,
+          "min_band_id": "intro",
+          "max_band_id": "challenge",
+          "window_size": 5,
+          "promote_correctness": 0.8,
+          "demote_correctness": 0.4
+        },
+        "validation_samples": [
+          {
+            "band_id": "intro",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 0
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 16
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 38
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 26
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 6
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 466
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 128
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 343
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 224
+            }
+          }
+        ]
+      },
+      "compatibility_assertions": [
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component A",
+          "canonical_expression": "mod(E+K,10)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component B",
+          "canonical_expression": "mod(F+L,10)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component C",
+          "canonical_expression": "mod(G+P,10)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component D",
+          "canonical_expression": "mod(H+N,10)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component I",
+          "canonical_expression": "mod(J+O,10)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "K*10000+L*1000+P*100+N*10+O"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component A",
+          "canonical_expression": "mod(E+K,10)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component B",
+          "canonical_expression": "mod(F+L,10)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component C",
+          "canonical_expression": "mod(G+P,10)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component D",
+          "canonical_expression": "mod(H+N,10)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component I",
+          "canonical_expression": "mod(J+O,10)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "K*10000+L*1000+P*100+N*10+O"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "component A",
+          "canonical_expression": "quotient((E+C)*10+F+D,10)"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "component B",
+          "canonical_expression": "mod((E+C)*10+F+D,10)"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "10*E+F"
+        },
+        {
+          "level": 4,
+          "range": null,
+          "source_field": "component G",
+          "canonical_expression": "quotient((D+A)*100+(E+B)*10+F+C,100)"
+        },
+        {
+          "level": 4,
+          "range": null,
+          "source_field": "component H",
+          "canonical_expression": "quotient(mod((D+A)*100+(E+B)*10+F+C,100),10)"
+        },
+        {
+          "level": 4,
+          "range": null,
+          "source_field": "component I",
+          "canonical_expression": "mod((D+A)*100+(E+B)*10+F+C,10)"
+        },
+        {
+          "level": 4,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "100*A+10*B+C"
+        }
+      ]
+    },
+    "quiz_game_4.csv": {
+      "draft": {
+        "schema_version": 1,
+        "content_version": "1.0.0",
+        "activity_id": "multiplication",
+        "localizations": {
+          "ko-KR": {
+            "title": "곱하기 게임",
+            "description": "곱하기~~~!!!",
+            "tutorial_steps": [
+              "곱하기~~~!!!"
+            ]
+          }
+        },
+        "icon_id": "multiplication",
+        "scene_id": "activity_run",
+        "run": {
+          "starting_hearts": 3,
+          "goal": {
+            "kind": "correct_answers",
+            "target": 10
+          },
+          "timer": {
+            "enabled": true,
+            "seconds": 26,
+            "profile_can_disable": true
+          },
+          "rewards": {
+            "apples_per_correct": 5,
+            "completion_apples": 10
+          },
+          "combo_thresholds": [
+            2,
+            4,
+            7
+          ],
+          "boss_every_correct": 5,
+          "effects": {
+            "correct": "correct",
+            "wrong": "wrong",
+            "combo": "combo_1",
+            "boss": "boss",
+            "level_up": "level_up",
+            "reward": "reward",
+            "health_loss": "health_loss"
+          }
+        },
+        "difficulty_bands": [
+          {
+            "band_id": "intro",
+            "generator_id": "multiplication_v1",
+            "generator_parameters": {
+              "left_min": 22,
+              "left_max": 47,
+              "right_min": 3,
+              "right_max": 6,
+              "display": "column"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "practice",
+            "generator_id": "multiplication_v1",
+            "generator_parameters": {
+              "left_min": 24,
+              "left_max": 79,
+              "right_min": 3,
+              "right_max": 9,
+              "display": "column"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "challenge",
+            "generator_id": "multiplication_v1",
+            "generator_parameters": {
+              "left_min": 21,
+              "left_max": 99,
+              "right_min": 1,
+              "right_max": 99,
+              "display": "column"
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          }
+        ],
+        "adaptive_policy": {
+          "enabled_by_default": false,
+          "min_band_id": "intro",
+          "max_band_id": "challenge",
+          "window_size": 5,
+          "promote_correctness": 0.8,
+          "demote_correctness": 0.4
+        },
+        "validation_samples": [
+          {
+            "band_id": "intro",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 172
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 234
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 96
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 168
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 150
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 93
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 280
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 476
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 3536
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 4960
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 7056
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 2485
+            }
+          }
+        ]
+      },
+      "compatibility_assertions": [
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component E",
+          "canonical_expression": "quotient((10*A+B)*(10*C+D),1000)"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "(10*A+B)*(10*C+D)"
+        }
+      ]
+    },
+    "quiz_game_9.csv": {
+      "draft": {
+        "schema_version": 1,
+        "content_version": "1.0.0",
+        "activity_id": "common_multiples_lcm",
+        "localizations": {
+          "ko-KR": {
+            "title": "공배수 게임",
+            "description": "공배수 구하기! -1-",
+            "tutorial_steps": [
+              "공배수 구하기! -1-"
+            ]
+          }
+        },
+        "icon_id": "common_multiples_lcm",
+        "scene_id": "activity_run",
+        "run": {
+          "starting_hearts": 3,
+          "goal": {
+            "kind": "correct_answers",
+            "target": 10
+          },
+          "timer": {
+            "enabled": true,
+            "seconds": 40,
+            "profile_can_disable": true
+          },
+          "rewards": {
+            "apples_per_correct": 5,
+            "completion_apples": 10
+          },
+          "combo_thresholds": [
+            2,
+            4,
+            7
+          ],
+          "boss_every_correct": 5,
+          "effects": {
+            "correct": "correct",
+            "wrong": "wrong",
+            "combo": "combo_1",
+            "boss": "boss",
+            "level_up": "level_up",
+            "reward": "reward",
+            "health_loss": "health_loss"
+          }
+        },
+        "difficulty_bands": [
+          {
+            "band_id": "intro",
+            "generator_id": "common_multiple_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 2,
+              "operand_max": 24,
+              "require_distinct": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "practice",
+            "generator_id": "common_multiple_v1",
+            "generator_parameters": {
+              "operand_count": 2,
+              "operand_min": 4,
+              "operand_max": 48,
+              "require_distinct": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "challenge",
+            "generator_id": "common_multiple_v1",
+            "generator_parameters": {
+              "operand_count": 3,
+              "operand_min": 4,
+              "operand_max": 32,
+              "require_distinct": false
+            },
+            "answer_layout": {
+              "id": "numeric_keypad"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          }
+        ],
+        "adaptive_policy": {
+          "enabled_by_default": false,
+          "min_band_id": "intro",
+          "max_band_id": "challenge",
+          "window_size": 5,
+          "promote_correctness": 0.8,
+          "demote_correctness": 0.4
+        },
+        "validation_samples": [
+          {
+            "band_id": "intro",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 102
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 133
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 60
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 126
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 104
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 638
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 2162
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 1598
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 2208
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 144
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 440
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer",
+              "value": 3927
+            }
+          }
+        ]
+      },
+      "compatibility_assertions": [
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component E",
+          "canonical_expression": "A*B*D"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "component F",
+          "canonical_expression": "A*B*G"
+        },
+        {
+          "level": 1,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "lcm(E,F)"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component E",
+          "canonical_expression": "A*B*D"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "component F",
+          "canonical_expression": "A*B*G"
+        },
+        {
+          "level": 2,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "lcm(E,F)"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "component E",
+          "canonical_expression": "A*B*D"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "component F",
+          "canonical_expression": "A*B*G"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "component H",
+          "canonical_expression": "A*B*C"
+        },
+        {
+          "level": 3,
+          "range": null,
+          "source_field": "answer equation",
+          "canonical_expression": "lcm(lcm(E,F),H)"
+        }
+      ]
+    },
+    "quiz_game_8_1.csv": {
+      "draft": {
+        "schema_version": 1,
+        "content_version": "1.0.0",
+        "activity_id": "prime_factorization",
+        "localizations": {
+          "ko-KR": {
+            "title": "인수분해 게임",
+            "description": "인수분해 게임!!",
+            "tutorial_steps": [
+              "인수분해 게임!!"
+            ]
+          }
+        },
+        "icon_id": "prime_factorization",
+        "scene_id": "activity_run",
+        "run": {
+          "starting_hearts": 3,
+          "goal": {
+            "kind": "correct_answers",
+            "target": 10
+          },
+          "timer": {
+            "enabled": true,
+            "seconds": 60,
+            "profile_can_disable": true
+          },
+          "rewards": {
+            "apples_per_correct": 5,
+            "completion_apples": 10
+          },
+          "combo_thresholds": [
+            2,
+            4,
+            7
+          ],
+          "boss_every_correct": 5,
+          "effects": {
+            "correct": "correct",
+            "wrong": "wrong",
+            "combo": "combo_1",
+            "boss": "boss",
+            "level_up": "level_up",
+            "reward": "reward",
+            "health_loss": "health_loss"
+          }
+        },
+        "difficulty_bands": [
+          {
+            "band_id": "intro",
+            "generator_id": "prime_factorization_v1",
+            "generator_parameters": {
+              "value_min": 8,
+              "value_max": 175,
+              "factor_count_min": 3,
+              "factor_count_max": 3,
+              "allowed_primes": [
+                2,
+                3,
+                5,
+                7
+              ]
+            },
+            "answer_layout": {
+              "id": "factor_slots"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "practice",
+            "generator_id": "prime_factorization_v1",
+            "generator_parameters": {
+              "value_min": 16,
+              "value_max": 2401,
+              "factor_count_min": 4,
+              "factor_count_max": 4,
+              "allowed_primes": [
+                2,
+                3,
+                5,
+                7
+              ]
+            },
+            "answer_layout": {
+              "id": "factor_slots"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          },
+          {
+            "band_id": "challenge",
+            "generator_id": "prime_factorization_v1",
+            "generator_parameters": {
+              "value_min": 88,
+              "value_max": 5831,
+              "factor_count_min": 4,
+              "factor_count_max": 4,
+              "allowed_primes": [
+                2,
+                3,
+                5,
+                7,
+                11,
+                13,
+                17
+              ]
+            },
+            "answer_layout": {
+              "id": "factor_slots"
+            },
+            "manipulative": {
+              "id": "none",
+              "config": {},
+              "initial_state": {}
+            }
+          }
+        ],
+        "adaptive_policy": {
+          "enabled_by_default": false,
+          "min_band_id": "intro",
+          "max_band_id": "challenge",
+          "window_size": 5,
+          "promote_correctness": 0.8,
+          "demote_correctness": 0.4
+        },
+        "validation_samples": [
+          {
+            "band_id": "intro",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                3,
+                3,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                3,
+                7,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                2,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "intro",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                3,
+                3,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                3,
+                3,
+                3,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                3,
+                7,
+                7,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                2,
+                2,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "practice",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                3,
+                3,
+                7
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 1,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                3,
+                7,
+                13
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 7,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                13,
+                13,
+                17
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 42,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                2,
+                5,
+                17,
+                17
+              ],
+              "order_matters": false
+            }
+          },
+          {
+            "band_id": "challenge",
+            "seed": 20260721,
+            "expected_answer": {
+              "kind": "integer_list",
+              "values": [
+                5,
+                7,
+                11,
+                13
+              ],
+              "order_matters": false
+            }
+          }
+        ]
+      },
+      "compatibility_assertions": [
+        {
+          "level": 1,
+          "range": {
+            "minimum": 1,
+            "maximum": 20
+          },
+          "source_field": "component E",
+          "canonical_expression": "A*B*C"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 1,
+            "maximum": 20
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "A*B*C"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 21,
+            "maximum": 40
+          },
+          "source_field": "component E",
+          "canonical_expression": "A*B*C*D"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 21,
+            "maximum": 40
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "A*B*C*D"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 41,
+            "maximum": 60
+          },
+          "source_field": "component E",
+          "canonical_expression": "A*B*C"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 41,
+            "maximum": 60
+          },
+          "source_field": "answer equation",
+          "canonical_expression": "A*B*C"
+        },
+        {
+          "level": 1,
+          "range": {
+            "minimum": 61,
+            "maximum": 100
+          },
+          "source_field": "component E",
+          "canonical_expression": "A*B*C*D"
+        }
+      ]
+    }
+  }
+}

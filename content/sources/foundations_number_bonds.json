@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_version": "1.0.0",
+  "activity_id": "foundations_number_bonds",
+  "localizations": {"ko-KR": {"title": "수 친구를 찾아요", "description": "전체 수와 한 부분을 보고 빠진 부분을 만들어요.", "tutorial_steps": ["빠진 수만큼 조각을 놓고 답을 내요.", "틀리면 하트가 하나 줄고 다시 도전할 수 있어요."]}},
+  "icon_id": "foundations_number_bonds",
+  "scene_id": "activity_run",
+  "run": {"starting_hearts": 3, "goal": {"kind": "correct_answers", "target": 8}, "timer": {"enabled": false, "seconds": 60, "profile_can_disable": true}, "rewards": {"apples_per_correct": 2, "completion_apples": 5}, "combo_thresholds": [2, 4, 7], "boss_every_correct": 4, "effects": {"correct": "correct", "wrong": "wrong", "combo": "combo_1", "boss": "boss", "level_up": "level_up", "reward": "reward", "health_loss": "health_loss"}},
+  "difficulty_bands": [
+    {"band_id": "intro", "generator_id": "number_bonds_v1", "generator_parameters": {"whole_min": 2, "whole_max": 5, "show_part": "left"}, "answer_layout": {"id": "manipulative_submit"}, "manipulative": {"id": "counters", "config": {"capacity": 5}, "initial_state": {"initial_occupied": []}}},
+    {"band_id": "practice", "generator_id": "number_bonds_v1", "generator_parameters": {"whole_min": 2, "whole_max": 10, "show_part": "right"}, "answer_layout": {"id": "manipulative_submit"}, "manipulative": {"id": "counters", "config": {"capacity": 10}, "initial_state": {"initial_occupied": []}}},
+    {"band_id": "challenge", "generator_id": "number_bonds_v1", "generator_parameters": {"whole_min": 5, "whole_max": 20, "show_part": "random"}, "answer_layout": {"id": "manipulative_submit"}, "manipulative": {"id": "counters", "config": {"capacity": 20}, "initial_state": {"initial_occupied": []}}}
+  ],
+  "adaptive_policy": {"enabled_by_default": false, "min_band_id": "intro", "max_band_id": "challenge", "window_size": 5, "promote_correctness": 0.8, "demote_correctness": 0.4},
+  "validation_samples": [
+    {"band_id":"intro","seed":1,"expected_answer":{"kind":"integer","value":2}}, {"band_id":"intro","seed":7,"expected_answer":{"kind":"integer","value":4}}, {"band_id":"intro","seed":42,"expected_answer":{"kind":"integer","value":1}}, {"band_id":"intro","seed":20260721,"expected_answer":{"kind":"integer","value":1}},
+    {"band_id":"practice","seed":1,"expected_answer":{"kind":"integer","value":1}}, {"band_id":"practice","seed":7,"expected_answer":{"kind":"integer","value":1}}, {"band_id":"practice","seed":42,"expected_answer":{"kind":"integer","value":7}}, {"band_id":"practice","seed":20260721,"expected_answer":{"kind":"integer","value":1}},
+    {"band_id":"challenge","seed":1,"expected_answer":{"kind":"integer","value":3}}, {"band_id":"challenge","seed":7,"expected_answer":{"kind":"integer","value":11}}, {"band_id":"challenge","seed":42,"expected_answer":{"kind":"integer","value":2}}, {"band_id":"challenge","seed":20260721,"expected_answer":{"kind":"integer","value":7}}
+  ]
+}

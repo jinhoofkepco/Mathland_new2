@@ -1,0 +1,66 @@
+﻿[title],공배수[enter]게임[enter]
+[icon],gongbaesu
+
+[level],1
+[gametype],+,+
+[keypad],phone3
+[description],공배수 구하기! -1-
+[questiontype],game1
+[time for each quiz],40
+[apples per quiz],5
+[question number for next level],10
+[TargetNumber],10
+[row of question display],5
+[row of question display_for button],5
+[component A],1,1,2
+[component B],2,3,4,6
+[component C],1
+[component D],1,1,1,1,1,2
+[component G],1,2,2,2,2,2
+[component E],(answer)A*B*D
+[component F],(answer)A*B*G
+[question format],[_][component E][_][component F][_][_][_][_][_][_][_][?][?][?][_]
+[answer equation],lcm[E~F]
+
+[level],2
+[gametype],+,+
+[keypad],phone3
+[description],공배수 구하기! -2-
+[questiontype],game1
+[time for each quiz],40
+[apples per quiz],10
+[question number for next level],20
+[TargetNumber],10
+[row of question display],5
+[row of question display_for button],5
+[component A],1,1,2
+[component B],2,3,4
+[component C],1
+[component D],2,3,4,5,6
+[component G],2,3,4,5,6
+[component E],(answer)A*B*D
+[component F],(answer)A*B*G
+[question format],[_][component E][_][component F][_][_][_][_][_][_][_][?][?][?][_]
+[answer equation],lcm[E~F]
+
+[level],3
+[gametype],+,+
+[keypad],phone3
+[description],공배수 구하기! -2-
+[questiontype],game1
+[time for each quiz],40
+[apples per quiz],20
+[question number for next level],100
+[TargetNumber],10
+[row of question display],5
+[row of question display_for button],5
+[component A],1,1,2
+[component B],2,3,4
+[component C],2,3,4
+[component D],2,3,4
+[component G],2,3,4
+[component E],(answer)A*B*D
+[component F],(answer)A*B*G
+[component H],(answer)A*B*C
+[question format],[_][component E][component H][component F][_][_][_][_][_][_][_][?][?][?][_]
+[answer equation],lcm[lcm[E~F]~H]

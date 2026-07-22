@@ -1,0 +1,5 @@
+{
+  "enabled": false,
+  "manifest_url": "https://content.example.com/active-manifest.json",
+  "content_base_url": "https://content.example.com/"
+}

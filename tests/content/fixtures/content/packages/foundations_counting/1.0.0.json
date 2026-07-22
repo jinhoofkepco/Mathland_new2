@@ -1,0 +1,88 @@
+{
+  "activity_id": "foundations_counting",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:24baa606b76e11be3f1655f03c3ba870f06d7677bf15460fbf24b2e81dd5568a",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "intro",
+      "generator_id": "counting_v1",
+      "generator_parameters": { "count_max": 5, "count_min": 1 },
+      "manipulative": { "config": { "capacity": 5 }, "id": "counters", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "practice",
+      "generator_id": "counting_v1",
+      "generator_parameters": { "count_max": 10, "count_min": 1 },
+      "manipulative": { "config": { "capacity": 10 }, "id": "counters", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "challenge",
+      "generator_id": "counting_v1",
+      "generator_parameters": { "count_max": 20, "count_min": 1 },
+      "manipulative": { "config": { "capacity": 20 }, "id": "counters", "initial_state": {} }
+    }
+  ],
+  "icon_id": "foundations_counting",
+  "localizations": {
+    "ko-KR": {
+      "description": "동그란 조각을 하나씩 짚으며 수를 세어요.",
+      "title": "몇 개인지 세어 봐요",
+      "tutorial_steps": [
+        "조각을 천천히 세고 답 내기 버튼을 눌러요.",
+        "문제 음성은 스피커 버튼을 눌렀을 때만 들려요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 2, "completion_apples": 5 },
+    "starting_hearts": 3,
+    "timer": { "enabled": false, "profile_can_disable": true, "seconds": 60 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 5 }, "seed": 1 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 4 }, "seed": 7 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 3 }, "seed": 42 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 1 }, "seed": 20260721 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 10 }, "seed": 1 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 4 }, "seed": 7 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 3 }, "seed": 42 },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer", "value": 1 },
+      "seed": 20260721
+    },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 10 }, "seed": 1 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 4 }, "seed": 7 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 13 }, "seed": 42 },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer", "value": 1 },
+      "seed": 20260721
+    }
+  ]
+}

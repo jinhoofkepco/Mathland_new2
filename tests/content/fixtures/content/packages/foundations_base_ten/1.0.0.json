@@ -1,0 +1,92 @@
+{
+  "activity_id": "foundations_base_ten",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:f8b17f225242cd0bb8679acc114ee136cecdfce1317dd30132977101aa543aab",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "intro",
+      "generator_id": "base_ten_v1",
+      "generator_parameters": { "max_place": "tens", "value_max": 49, "value_min": 10 },
+      "manipulative": { "config": { "max_place": "tens" }, "id": "base_ten", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "practice",
+      "generator_id": "base_ten_v1",
+      "generator_parameters": { "max_place": "tens", "value_max": 99, "value_min": 10 },
+      "manipulative": { "config": { "max_place": "tens" }, "id": "base_ten", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "challenge",
+      "generator_id": "base_ten_v1",
+      "generator_parameters": { "max_place": "hundreds", "value_max": 999, "value_min": 100 },
+      "manipulative": {
+        "config": { "max_place": "hundreds" },
+        "id": "base_ten",
+        "initial_state": {}
+      }
+    }
+  ],
+  "icon_id": "foundations_base_ten",
+  "localizations": {
+    "ko-KR": {
+      "description": "백판, 10막대, 낱개로 자리값을 눈으로 익혀요.",
+      "title": "백·십·일을 만들어요",
+      "tutorial_steps": [
+        "각 자리의 모양과 개수를 살펴봐요.",
+        "백·십·일을 합친 수를 생각하고 답을 내요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 2, "completion_apples": 5 },
+    "starting_hearts": 3,
+    "timer": { "enabled": false, "profile_can_disable": true, "seconds": 60 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 19 }, "seed": 1 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 33 }, "seed": 7 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 42 }, "seed": 42 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 30 }, "seed": 20260721 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 19 }, "seed": 1 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 73 }, "seed": 7 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 52 }, "seed": 42 },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer", "value": 40 },
+      "seed": 20260721
+    },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 469 }, "seed": 1 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 883 }, "seed": 7 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 232 }, "seed": 42 },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer", "value": 760 },
+      "seed": 20260721
+    }
+  ]
+}

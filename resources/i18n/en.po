@@ -1,0 +1,523 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.title"
+msgstr "Math Exploration Island"
+
+msgid "ui.back"
+msgstr "Back"
+
+msgid "ui.close"
+msgstr "Close"
+
+msgid "ui.save"
+msgstr "Save"
+
+msgid "ui.start"
+msgstr "Start"
+
+msgid "ui.continue"
+msgstr "Continue"
+
+msgid "ui.empty"
+msgstr "Nothing here yet"
+
+msgid "profile.select.title"
+msgstr "Who is exploring?"
+
+msgid "profile.select.subtitle"
+msgstr "Choose your explorer and enter the PIN"
+
+msgid "profile.create"
+msgstr "Create explorer"
+
+msgid "profile.unlock"
+msgstr "Go to the island"
+
+msgid "profile.pin.placeholder"
+msgstr "Four digits"
+
+msgid "profile.empty"
+msgstr "Create the first explorer"
+
+msgid "profile.create.title"
+msgstr "New explorer"
+
+msgid "profile.nickname"
+msgstr "Nickname"
+
+msgid "profile.avatar"
+msgstr "Moa buddy"
+
+msgid "profile.pin"
+msgstr "Guardian PIN"
+
+msgid "profile.error.invalid_nickname"
+msgstr "Use a nickname from 1 to 16 characters"
+
+msgid "profile.error.duplicate_nickname"
+msgstr "That nickname is already in use"
+
+msgid "profile.error.invalid_avatar"
+msgstr "Choose a Moa buddy"
+
+msgid "profile.error.invalid_pin"
+msgstr "Enter exactly four digits"
+
+msgid "profile.error.invalid_pin_attempt"
+msgstr "That PIN does not match"
+
+msgid "profile.error.pin_locked"
+msgstr "Please wait and try again"
+
+msgid "profile.error.save_failed"
+msgstr "Could not save. Please try again"
+
+msgid "avatar.moa_mint"
+msgstr "Mint Moa"
+
+msgid "avatar.moa_sky"
+msgstr "Sky Moa"
+
+msgid "avatar.moa_coral"
+msgstr "Coral Moa"
+
+msgid "island.title"
+msgstr "Moa's Exploration Island"
+
+msgid "island.subtitle"
+msgstr "Which math treasure shall we find today?"
+
+msgid "island.apples"
+msgstr "Apples %d"
+
+msgid "island.pending_review"
+msgstr "Review %d"
+
+msgid "sync.online"
+msgstr "Connected to guardian"
+
+msgid "sync.connecting"
+msgstr "Checking guardian connection"
+
+msgid "sync.re_pair_required"
+msgstr "Reconnect this device to the guardian"
+
+msgid "sync.offline"
+msgstr "Offline · safely saved on this device"
+
+msgid "sync.queued"
+msgstr "%d records waiting"
+
+msgid "sync.offline_queued"
+msgstr "Offline · %d records waiting"
+
+msgid "island.today_objectives"
+msgstr "Today's three quests"
+
+msgid "island.continue"
+msgstr "Continue exploring"
+
+msgid "island.daily_path"
+msgstr "Daily Path"
+
+msgid "island.free_play"
+msgstr "Free Play"
+
+msgid "island.inventory"
+msgstr "Inventory"
+
+msgid "island.collection"
+msgstr "Collection"
+
+msgid "island.settings"
+msgstr "Settings"
+
+msgid "island.switch_profile"
+msgstr "Switch explorer"
+
+msgid "profile.error.activation_failed"
+msgstr "Could not open this explorer. Please try again"
+
+msgid "objective.complete_three"
+msgstr "Solve 3 questions"
+
+msgid "objective.correct_five"
+msgstr "Get 5 answers right"
+
+msgid "objective.protect_hearts"
+msgstr "Finish a run with hearts left"
+
+msgid "objective.practice_foundations"
+msgstr "Explore number sense once"
+
+msgid "objective.review_two"
+msgstr "Review 2 questions"
+
+msgid "objective.earn_ten_apples"
+msgstr "Earn 10 apples"
+
+msgid "daily.title"
+msgstr "Today's Path"
+
+msgid "daily.subtitle"
+msgstr "Find three treasures in order"
+
+msgid "daily.first"
+msgstr "Start the first quest"
+
+msgid "free_play.title"
+msgstr "Free Play"
+
+msgid "free_play.subtitle"
+msgstr "Pick any math activity"
+
+msgid "free_play.empty"
+msgstr "New activities are being prepared"
+
+msgid "activity.foundation_ten_rods.title"
+msgstr "Count with ten rods"
+
+msgid "activity.foundation_ten_rods.description"
+msgstr "Build numbers by touching rods and ones"
+
+msgid "inventory.title"
+msgstr "Exploration Inventory"
+
+msgid "inventory.subtitle"
+msgstr "See the tools and rewards you have found"
+
+msgid "inventory.empty"
+msgstr "Your first treasure is waiting"
+
+msgid "inventory.shell"
+msgstr "Shimmering shell"
+
+msgid "inventory.compass"
+msgstr "Explorer compass"
+
+msgid "collection.title"
+msgstr "Math Treasure Collection"
+
+msgid "collection.subtitle"
+msgstr "Scenes you discover are saved here"
+
+msgid "collection.empty"
+msgstr "Your first discovery will appear here"
+
+msgid "collection.first_map"
+msgstr "First island map"
+
+msgid "settings.title"
+msgstr "Explorer Settings"
+
+msgid "settings.subtitle"
+msgstr "Changes apply to this explorer immediately"
+
+msgid "settings.learning"
+msgstr "Learning aids"
+
+msgid "settings.adaptive"
+msgstr "Adaptive difficulty"
+
+msgid "settings.timing_aids"
+msgstr "Timing hints"
+
+msgid "settings.timers"
+msgstr "Allow timers"
+
+msgid "settings.presentation"
+msgstr "Screen and effects"
+
+msgid "settings.reduced_motion"
+msgstr "Reduce motion"
+
+msgid "settings.effect_quality"
+msgstr "Effect quality"
+
+msgid "settings.quality.low"
+msgstr "Light"
+
+msgid "settings.quality.medium"
+msgstr "Medium"
+
+msgid "settings.quality.high"
+msgstr "Rich"
+
+msgid "settings.audio"
+msgstr "Sound"
+
+msgid "settings.master"
+msgstr "Master"
+
+msgid "settings.music"
+msgstr "Music"
+
+msgid "settings.sfx"
+msgstr "Sound effects"
+
+msgid "settings.voice"
+msgstr "Voice"
+
+msgid "settings.voice_enabled"
+msgstr "Enable question voice button"
+
+msgid "settings.remote_monitoring"
+msgstr "Guardian remote monitoring"
+
+msgid "settings.pairing.help"
+msgstr "Enter the six-digit code shown on the guardian screen. Learning stays on this device if pairing fails."
+
+msgid "settings.pairing.placeholder"
+msgstr "Six digits"
+
+msgid "settings.pairing.action"
+msgstr "Connect"
+
+msgid "settings.pairing.ready"
+msgstr "Pairing codes are never saved"
+
+msgid "settings.pairing.invalid"
+msgstr "Check the six-digit code"
+
+msgid "settings.pairing.unavailable"
+msgstr "You can keep playing safely offline"
+
+msgid "settings.pairing.connecting"
+msgstr "Connecting to the guardian screen…"
+
+msgid "settings.pairing.connected"
+msgstr "Connected to the guardian screen"
+
+msgid "settings.pairing.re_pair_required"
+msgstr "This connection expired. Tap below once more to replace its sign-in identity."
+
+msgid "settings.pairing.re_pair_action"
+msgstr "Reconnect with new sign-in"
+
+msgid "settings.pairing.code_failed"
+msgstr "The code is invalid or expired"
+
+msgid "settings.pairing.network"
+msgstr "Reconnect to the internet and try again"
+
+msgid "settings.pairing.failed"
+msgstr "Could not connect. Learning remains safely stored on this device."
+
+msgid "effect.correct.caption"
+msgstr "Correct!"
+
+msgid "effect.wrong.caption"
+msgstr "Try again"
+
+msgid "effect.combo_1.caption"
+msgstr "Combo!"
+
+msgid "effect.combo_2.caption"
+msgstr "Super combo!"
+
+msgid "effect.boss.caption"
+msgstr "Boss question"
+
+msgid "effect.health_loss.caption"
+msgstr "A heart was lost"
+
+msgid "effect.target_reached.caption"
+msgstr "Goal reached!"
+
+msgid "effect.level_up.caption"
+msgstr "Level up!"
+
+msgid "effect.health_depleted.caption"
+msgstr "See you next adventure"
+
+msgid "effect.reward.caption"
+msgstr "Reward found!"
+
+msgid "effect.collection.caption"
+msgstr "Collection found!"
+
+msgid "effect.coupon.caption"
+msgstr "Coupon found!"
+
+msgid "activity.foundation_ten_rods.add"
+msgstr "Build the answer with rods and ones"
+
+msgid "activity.foundation_ten_rods.add_prompt"
+msgstr "%d + %d = ?"
+
+msgid "activity.speaker"
+msgstr "Play/stop"
+
+msgid "activity.score"
+msgstr "Score %d"
+
+msgid "activity.intro.title"
+msgstr "Ten-rod adventure"
+
+msgid "activity.intro.body"
+msgstr "A long rod is 10 and a small one is 1. Add and remove them to build your answer."
+
+msgid "activity.intro.skip"
+msgstr "Start now"
+
+msgid "activity.error.generic"
+msgstr "Check saved progress and try again"
+
+msgid "manipulative.tens"
+msgstr "Ten rods"
+
+msgid "manipulative.units"
+msgstr "Ones"
+
+msgid "manipulative.tens_count"
+msgstr "Ten rods × %d"
+
+msgid "manipulative.units_count"
+msgstr "Ones × %d"
+
+msgid "manipulative.add_ten"
+msgstr "+ ten rod"
+
+msgid "manipulative.remove_ten"
+msgstr "- ten rod"
+
+msgid "manipulative.add_unit"
+msgstr "+ one"
+
+msgid "manipulative.remove_unit"
+msgstr "- one"
+
+msgid "manipulative.submit"
+msgstr "Submit answer"
+
+msgid "manipulative.ten_rod"
+msgstr "A long rod representing ten"
+
+msgid "manipulative.unit_cube"
+msgstr "A small piece representing one"
+
+msgid "activity.run.title"
+msgstr "Math adventure"
+
+msgid "manipulative.counter"
+msgstr "Counting piece"
+
+msgid "manipulative.ten_frame_cell"
+msgstr "Ten-frame cell"
+
+msgid "manipulative.add"
+msgstr "Add one"
+
+msgid "manipulative.remove"
+msgstr "Remove one"
+
+msgid "manipulative.number_line_tick"
+msgstr "Number-line tick"
+
+msgid "manipulative.token"
+msgstr "Number token"
+
+msgid "answer.key"
+msgstr "Number key"
+
+msgid "answer.choice"
+msgstr "Choose answer"
+
+msgid "answer.choice.selected"
+msgstr "Selected answer %d"
+
+msgid "answer.choice.unselected"
+msgstr "Answer %d, not selected"
+
+msgid "answer.factor"
+msgstr "Add factor"
+
+msgid "feedback.correct"
+msgstr "Correct!"
+
+msgid "feedback.wrong"
+msgstr "One heart was lost"
+
+msgid "question.addition"
+msgstr "What is the sum of {expression}?"
+
+msgid "question.subtraction"
+msgstr "What is the difference in {expression}?"
+
+msgid "question.multiplication"
+msgstr "What is the product of {expression}?"
+
+msgid "question.common_multiple"
+msgstr "What is the least common multiple of {expression}?"
+
+msgid "question.prime_factorization"
+msgstr "Show {value} as prime factors."
+
+msgid "question.counting"
+msgstr "How many pieces are there?"
+
+msgid "question.number_bonds"
+msgstr "The whole is {whole} and one part is {shown_part}. What is missing?"
+
+msgid "question.ten_frame"
+msgstr "What number is shown in the ten-frame?"
+
+msgid "question.base_ten"
+msgstr "What number do the hundreds, tens, and ones show?"
+
+msgid "question.number_line"
+msgstr "Where do you land if you move {step} from {start}?"
+
+msgid "question.basic_operations"
+msgstr "Build the answer to {expression} with the pieces."
+
+msgid "result.title"
+msgstr "Adventure result"
+
+msgid "result.subtitle"
+msgstr "Every reward you earned is kept"
+
+msgid "result.reason.health_depleted"
+msgstr "All hearts are used. Ready to try again?"
+
+msgid "result.reason.target_reached"
+msgstr "You reached the goal!"
+
+msgid "result.reason.unknown"
+msgstr "This adventure is complete"
+
+msgid "result.score"
+msgstr "Correct answers"
+
+msgid "result.apples"
+msgstr "Apples earned"
+
+msgid "result.review"
+msgstr "Questions to review"
+
+msgid "result.island_delta"
+msgstr "Apples added to the island"
+
+msgid "result.restart"
+msgstr "Play this again"
+
+msgid "result.island"
+msgstr "Return to island"
+
+msgid "reward.reward"
+msgstr "You found apples!"
+
+msgid "reward.collection"
+msgstr "New collection found!"
+
+msgid "reward.coupon"
+msgstr "New coupon found!"
+
+msgid "reward.level_up"
+msgstr "Level up!"
+
+msgid "reward.tap_to_continue"
+msgstr "Tap to continue"

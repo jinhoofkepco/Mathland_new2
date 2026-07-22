@@ -1,0 +1,5 @@
+/.gradle/
+/.kotlin/
+/build/
+/secure_credentials/build/
+/local.properties

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Number line steps</title>
+  <desc id="desc">A marker hops three equal steps to the right on a ticked line.</desc>
+  <path d="M12 82h100M100 72l12 10-12 10" fill="none" stroke="#23415A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <line class="number-line-tick" x1="24" y1="72" x2="24" y2="92" stroke="#23415A" stroke-width="7" stroke-linecap="round"/>
+  <line class="number-line-tick" x1="48" y1="72" x2="48" y2="92" stroke="#23415A" stroke-width="7" stroke-linecap="round"/>
+  <line class="number-line-tick" x1="72" y1="72" x2="72" y2="92" stroke="#23415A" stroke-width="7" stroke-linecap="round"/>
+  <line class="number-line-tick" x1="96" y1="72" x2="96" y2="92" stroke="#23415A" stroke-width="7" stroke-linecap="round"/>
+  <path class="number-line-hop" d="M24 60Q36 34 48 60" fill="none" stroke="#76C8F0" stroke-width="8" stroke-linecap="round"/>
+  <path class="number-line-hop" d="M48 60Q60 34 72 60" fill="none" stroke="#76C8F0" stroke-width="8" stroke-linecap="round"/>
+  <path class="number-line-hop" d="M72 60Q84 34 96 60" fill="none" stroke="#76C8F0" stroke-width="8" stroke-linecap="round"/>
+  <path d="M91 51l7 9-11 3" fill="#F6C453" stroke="#23415A" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="24" cy="82" r="8" fill="#FF8A7A" stroke="#23415A" stroke-width="5"/>
+</svg>

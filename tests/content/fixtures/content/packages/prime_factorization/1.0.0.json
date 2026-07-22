@@ -1,0 +1,150 @@
+{
+  "activity_id": "prime_factorization",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:2b6314ddc36955ac76ef04306d4ba5689929f6261288a93cbd58535594eed96e",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "factor_slots" },
+      "band_id": "intro",
+      "generator_id": "prime_factorization_v1",
+      "generator_parameters": {
+        "allowed_primes": [2, 3, 5],
+        "factor_count_max": 3,
+        "factor_count_min": 2,
+        "value_max": 100,
+        "value_min": 4
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "factor_slots" },
+      "band_id": "practice",
+      "generator_id": "prime_factorization_v1",
+      "generator_parameters": {
+        "allowed_primes": [2, 3, 5, 7],
+        "factor_count_max": 4,
+        "factor_count_min": 2,
+        "value_max": 1000,
+        "value_min": 12
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "factor_slots" },
+      "band_id": "challenge",
+      "generator_id": "prime_factorization_v1",
+      "generator_parameters": {
+        "allowed_primes": [2, 3, 5, 7, 11],
+        "factor_count_max": 5,
+        "factor_count_min": 3,
+        "value_max": 20000,
+        "value_min": 100
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    }
+  ],
+  "icon_id": "prime_factorization",
+  "localizations": {
+    "ko-KR": {
+      "description": "수를 소수 조각으로 정확하게 나누어 표현해요.",
+      "title": "소인수분해 탐험",
+      "tutorial_steps": [
+        "소수 버튼을 차례로 눌러 원래 수를 만들어요.",
+        "순서가 달라도 같은 소인수들이면 정답이에요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 3, "completion_apples": 8 },
+    "starting_hearts": 3,
+    "timer": { "enabled": true, "profile_can_disable": true, "seconds": 120 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    {
+      "band_id": "intro",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 3, 5] },
+      "seed": 1
+    },
+    {
+      "band_id": "intro",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 3, 3] },
+      "seed": 7
+    },
+    {
+      "band_id": "intro",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 3] },
+      "seed": 42
+    },
+    {
+      "band_id": "intro",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 3] },
+      "seed": 20260721
+    },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 3, 5, 5] },
+      "seed": 1
+    },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [7, 7] },
+      "seed": 7
+    },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [2, 7] },
+      "seed": 42
+    },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [3, 7] },
+      "seed": 20260721
+    },
+    {
+      "band_id": "challenge",
+      "expected_answer": {
+        "kind": "integer_list",
+        "order_matters": false,
+        "values": [2, 5, 5, 11, 11]
+      },
+      "seed": 1
+    },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [3, 5, 5, 7] },
+      "seed": 7
+    },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [3, 7, 11] },
+      "seed": 42
+    },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer_list", "order_matters": false, "values": [5, 7, 7] },
+      "seed": 20260721
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  ACTIVITY_IDS,
+  contentChecksum,
+  validateActivityDraft,
+  validateContentManifest,
+  validatePublishedActivity,
+} from "../../src/index.js";
+import { makeAllPublishedPackages, makePublished, makeValidDraft, makeValidManifest } from "./package_fixture.js";
+
+function issueCodes(value: { issues: { code: string }[] }): string[] {
+  return value.issues.map((issue) => issue.code);
+}
+
+describe("activity semantic validation", () => {
+  it("returns a field-addressable empty report for a valid authored draft", () => {
+    const report = validateActivityDraft(makeValidDraft());
+
+    expect(report.valid).toBe(true);
+    expect(report.issues).toEqual([]);
+    expect(report.samples).toHaveLength(12);
+    expect(report.samples[0]).toMatchObject({
+      contract_version: 1,
+      activity_id: "addition_ones",
+      generator_id: "addition_v1",
+      band_id: "intro",
+      seed: 1,
+    });
+  });
+
+  it("rejects generator parameters that the runtime generator cannot execute", () => {
+    const draft = makeValidDraft();
+    draft.difficulty_bands[0]!.generator_parameters.operand_min = 10;
+    draft.difficulty_bands[0]!.generator_parameters.operand_max = 1;
+
+    expect(issueCodes(validateActivityDraft(draft))).toContain("GENERATOR_PARAMETERS_INVALID");
+  });
+
+  it("rejects a poisoned authored answer for a deterministic validation seed", () => {
+    const draft = makeValidDraft();
+    const answer = draft.validation_samples[0]!.expected_answer;
+    if (answer.kind !== "integer") throw new Error("fixture answer must be integer");
+    answer.value += 999;
+
+    expect(issueCodes(validateActivityDraft(draft))).toContain(
+      "VALIDATION_SAMPLE_ANSWER_MISMATCH",
+    );
+  });
+
+  it("rejects an unknown generator without silently substituting one", () => {
+    const draft = structuredClone(makeValidDraft()) as unknown as Record<string, unknown>;
+    const bands = draft.difficulty_bands as Record<string, unknown>[];
+    bands[1]!.generator_id = "unknown_generator";
+
+    const report = validateActivityDraft(draft);
+
+    expect(report.valid).toBe(false);
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({ path: ["difficulty_bands", 1, "generator_id"] }),
+    );
+  });
+
+  it.each(["../escape.svg", "javascript:alert(1)", "https://evil.invalid/icon.svg"]) (
+    "rejects arbitrary resource paths and URLs: %s",
+    (badValue) => {
+      const draft = { ...makeValidDraft(), icon_id: badValue };
+      const report = validateActivityDraft(draft);
+
+      expect(report.valid).toBe(false);
+      expect(report.issues).toContainEqual(expect.objectContaining({ path: ["icon_id"] }));
+    },
+  );
+
+  it("rejects cross-activity generators and unsafe tuning strings with exact paths", () => {
+    const draft = structuredClone(makeValidDraft());
+    draft.difficulty_bands[0]!.generator_id = "subtraction_v1";
+    draft.difficulty_bands[2]!.generator_parameters.carry = "../remote-rules.json";
+
+    const report = validateActivityDraft(draft);
+
+    expect(issueCodes(report)).toContain("GENERATOR_ACTIVITY_MISMATCH");
+    expect(issueCodes(report)).toContain("UNSAFE_TUNING_STRING");
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({ path: ["difficulty_bands", 2, "generator_parameters", "carry"] }),
+    );
+  });
+
+  it("rejects unordered combo thresholds, invalid adaptive bounds, and incomplete sample seeds", () => {
+    const draft = structuredClone(makeValidDraft());
+    draft.run.combo_thresholds = [4, 4, 2];
+    draft.adaptive_policy = {
+      enabled_by_default: false,
+      min_band_id: "challenge",
+      max_band_id: "intro",
+      window_size: 5,
+      promote_correctness: 0.3,
+      demote_correctness: 0.7,
+    };
+    draft.validation_samples.pop();
+
+    const report = validateActivityDraft(draft);
+
+    expect(issueCodes(report)).toEqual(
+      expect.arrayContaining(["COMBO_THRESHOLDS", "ADAPTIVE_BOUNDS", "ADAPTIVE_THRESHOLDS", "VALIDATION_SAMPLES"]),
+    );
+  });
+
+  it("reports U+0000 string values and object keys with stable field paths", () => {
+    const draft = makeValidDraft();
+    draft.localizations["ko-KR"].description = "설명\u0000숨김";
+    draft.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    const report = validateActivityDraft(draft);
+
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(report.issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
+  });
+
+  it("does not mistake an authored object length field for Array.length", () => {
+    const draft = makeValidDraft();
+    draft.difficulty_bands[0]!.generator_parameters.length = "\u0000";
+
+    expect(validateActivityDraft(draft).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "length"],
+      }),
+    );
+  });
+  it("enforces generator-specific answer layouts on the public draft validator", () => {
+    const primeDraft = makeValidDraft("prime_factorization");
+    primeDraft.difficulty_bands[1]!.answer_layout = { id: "numeric_keypad" };
+    const primeReport = validateActivityDraft(primeDraft);
+    expect(primeReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 1, "answer_layout", "id"],
+      }),
+    );
+
+    const lcmDraft = makeValidDraft("common_multiples_lcm");
+    lcmDraft.difficulty_bands[2]!.answer_layout = { id: "factor_slots" };
+    const lcmReport = validateActivityDraft(lcmDraft);
+    expect(lcmReport.issues).toContainEqual(
+      expect.objectContaining({
+        code: "ANSWER_LAYOUT_GENERATOR_MISMATCH",
+        path: ["difficulty_bands", 2, "answer_layout", "id"],
+      }),
+    );
+  });
+});
+
+describe("published package validation", () => {
+  it("accepts only the checksum of the complete draft without the top-level checksum", () => {
+    const published = makePublished();
+
+    expect(validatePublishedActivity(published).valid).toBe(true);
+    expect(
+      issueCodes(validatePublishedActivity({ ...published, checksum: `sha256:${"0".repeat(64)}` })),
+    ).toContain("CHECKSUM_MISMATCH");
+
+    const changed = structuredClone(published);
+    changed.run.goal.target += 1;
+    expect(changed.checksum).not.toBe(contentChecksum(changed));
+    expect(issueCodes(validatePublishedActivity(changed))).toContain("CHECKSUM_MISMATCH");
+  });
+
+  it("fails closed before checksum comparison when a published package gains U+0000", () => {
+    const published = makePublished();
+    published.localizations["ko-KR"].description = "설명\u0000숨김";
+    const keyPublished = makePublished();
+    keyPublished.difficulty_bands[0]!.generator_parameters["hidden\u0000key"] = true;
+
+    expect(() => contentChecksum(published)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => contentChecksum(keyPublished)).toThrowError(
+      expect.objectContaining({ code: "INVALID_UNICODE" }),
+    );
+    expect(() => validatePublishedActivity(published)).not.toThrow();
+    expect(validatePublishedActivity(published).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["localizations", "ko-KR", "description"],
+      }),
+    );
+    expect(validatePublishedActivity(keyPublished).issues).toContainEqual(
+      expect.objectContaining({
+        code: "INVALID_UNICODE",
+        path: ["difficulty_bands", 0, "generator_parameters", "hidden\u0000key"],
+      }),
+    );
+  });
+});
+
+describe("content manifest validation", () => {
+  it("accepts the complete allowlisted catalogue from an array or path map", () => {
+    const packages = makeAllPublishedPackages();
+    const manifest = makeValidManifest(packages);
+    const byPath = Object.fromEntries(manifest.packages.map((entry, index) => [entry.path, packages[index]]));
+
+    expect(validateContentManifest(manifest, packages)).toEqual({ valid: true, issues: [], samples: [] });
+    expect(validateContentManifest(manifest, byPath)).toEqual({ valid: true, issues: [], samples: [] });
+  });
+
+  it("rejects missing, duplicated, or reordered catalogue identities", () => {
+    const packages = makeAllPublishedPackages();
+    const manifest = makeValidManifest(packages);
+    const duplicate = structuredClone(manifest);
+    duplicate.packages[1] = structuredClone(duplicate.packages[0]!);
+    const reordered = structuredClone(manifest);
+    [reordered.activity_order[0], reordered.activity_order[1]] = [
+      reordered.activity_order[1]!,
+      reordered.activity_order[0]!,
+    ];
+
+    expect(validateContentManifest(manifest, packages.slice(1)).valid).toBe(false);
+    expect(issueCodes(validateContentManifest(duplicate, packages))).toContain("MANIFEST_ACTIVITY_SET");
+    expect(issueCodes(validateContentManifest(reordered, packages))).toContain("MANIFEST_ACTIVITY_ORDER");
+  });
+
+  it("rejects traversal, identity/path mismatch, and package checksum mismatch", () => {
+    const packages = makeAllPublishedPackages();
+    const manifest = makeValidManifest(packages);
+    const traversal = structuredClone(manifest) as unknown as Record<string, unknown>;
+    const entries = traversal.packages as Record<string, unknown>[];
+    entries[0]!.path = "content/packages/../escape.json";
+    const wrongPath = structuredClone(manifest);
+    wrongPath.packages[0]!.path = `content/packages/${ACTIVITY_IDS[1]}/1.0.0.json`;
+    const changedPackages = structuredClone(packages);
+    changedPackages[0]!.run.goal.target += 1;
+
+    expect(validateContentManifest(traversal, packages).valid).toBe(false);
+    expect(issueCodes(validateContentManifest(wrongPath, packages))).toContain("MANIFEST_PACKAGE_PATH");
+    expect(issueCodes(validateContentManifest(manifest, changedPackages))).toContain("CHECKSUM_MISMATCH");
+  });
+});

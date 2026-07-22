@@ -1,0 +1,10 @@
+id,text,pronunciation_notes,max_duration_seconds,skippable,autoplay_policy,speaker_replay
+moa_home_welcome,"안녕! 나는 수학 탐험가 모아야. 함께 떠나 볼까?","모아를 또렷하고 따뜻하게",6,true,first_home,true
+moa_tutorial_counting,"조개를 하나씩 눌러 보며 몇 개인지 세어 보자.","몇 개인지 자연스럽게",6,true,first_activity_entry,true
+moa_tutorial_number_bonds,"두 부분을 합치면 어떤 수가 되는지 찾아보자.","부분과 합치면에 가벼운 강조",6,true,first_activity_entry,true
+moa_tutorial_ten_frame,"십틀의 채워진 칸을 보고 수를 떠올려 보자.","십틀을 십-틀로 또렷하게",6,true,first_activity_entry,true
+moa_tutorial_base_ten,"백판, 십 막대, 낱개로 수를 만들어 보자.","십 막대를 띄어 읽기",6,true,first_activity_entry,true
+moa_tutorial_number_line,"수직선에서 알맞은 곳으로 표지를 옮겨 보자.","수직선을 또렷하게",6,true,first_activity_entry,true
+moa_tutorial_basic_operations,"그림을 보며 더하기와 빼기를 골라 보자.","더하기와 빼기에 가벼운 강조",6,true,first_activity_entry,true
+moa_reward,"멋진 탐험이었어! 사과 보상을 받았어.","밝지만 소리 지르지 않기",5,true,reward_event,true
+moa_level_up,"새로운 탐험 단계가 열렸어. 정말 잘했어!","축하하는 따뜻한 어조",5,true,level_up_event,true

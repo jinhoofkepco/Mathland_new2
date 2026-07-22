@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "dom", "dom.iterable", "esnext"],
+    "strict": true
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "semiColons": true
+  },
+  "imports": {
+    "zod": "npm:zod@4.4.3"
+  },
+  "lock": false,
+  "minimumDependencyAge": 0,
+  "nodeModulesDir": "none",
+  "unstable": ["sloppy-imports"],
+  "tasks": {
+    "check:functions": "deno check --sloppy-imports supabase/functions/create-pairing-code/index.ts supabase/functions/pair-device/index.ts supabase/functions/ingest-events/index.ts supabase/functions/save-draft/index.ts supabase/functions/validate-draft/index.ts supabase/functions/publish-draft/index.ts supabase/functions/content-history/index.ts supabase/functions/rollback-publication/index.ts supabase/functions/activate-publications/index.ts",
+    "test:functions": "deno test --sloppy-imports --allow-env supabase/functions/tests"
+  }
+}

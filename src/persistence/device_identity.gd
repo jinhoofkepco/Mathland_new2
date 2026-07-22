@@ -1,0 +1,22 @@
+class_name DeviceIdentity
+extends RefCounted
+
+const FILE_NAME := "device.json"
+const UUID_V4 = preload("res://src/core/uuid_v4.gd")
+
+var _store: Variant
+
+func _init(store: Variant) -> void:
+	_store = store
+
+func load_or_create() -> String:
+	var loaded: Dictionary = _store.load(FILE_NAME)
+	var value: Variant = loaded.get("value", null)
+	if loaded.get("ok", false) and value is Dictionary:
+		var device_id: Variant = value.get("device_id", null)
+		if device_id is String and UUID_V4.is_valid(device_id):
+			return device_id
+	var device_id := UUID_V4.generate()
+	if _store.save(FILE_NAME, {"schema_version": 1, "device_id": device_id}) != OK:
+		return ""
+	return device_id

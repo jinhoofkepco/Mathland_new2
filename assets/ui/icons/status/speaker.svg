@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Play voice</title>
+  <desc id="desc">A navy speaker sends two visible sound waves.</desc>
+  <path d="M17 51h25l27-23v72L42 77H17z" fill="#76C8F0" stroke="#23415A" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M82 48c9 9 9 23 0 32M94 36c16 16 16 40 0 56" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+</svg>

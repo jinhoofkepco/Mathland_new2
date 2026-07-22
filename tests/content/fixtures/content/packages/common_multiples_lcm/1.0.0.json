@@ -1,0 +1,103 @@
+{
+  "activity_id": "common_multiples_lcm",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:525bf145cfb8d83b4e12f3deee25e7ec5803b0d4027f5ad2490493833f18e723",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "numeric_keypad" },
+      "band_id": "intro",
+      "generator_id": "common_multiple_v1",
+      "generator_parameters": {
+        "operand_count": 2,
+        "operand_max": 10,
+        "operand_min": 2,
+        "require_distinct": false
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "numeric_keypad" },
+      "band_id": "practice",
+      "generator_id": "common_multiple_v1",
+      "generator_parameters": {
+        "operand_count": 2,
+        "operand_max": 30,
+        "operand_min": 2,
+        "require_distinct": true
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "numeric_keypad" },
+      "band_id": "challenge",
+      "generator_id": "common_multiple_v1",
+      "generator_parameters": {
+        "operand_count": 3,
+        "operand_max": 30,
+        "operand_min": 2,
+        "require_distinct": true
+      },
+      "manipulative": { "config": {}, "id": "none", "initial_state": {} }
+    }
+  ],
+  "icon_id": "common_multiples_lcm",
+  "localizations": {
+    "ko-KR": {
+      "description": "여러 수가 함께 만나는 가장 작은 배수를 찾아요.",
+      "title": "최소공배수 탐험",
+      "tutorial_steps": [
+        "주어진 모든 수로 나누어지는 가장 작은 수를 입력해요.",
+        "필요하면 천천히 배수를 적어 보세요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 3, "completion_apples": 7 },
+    "starting_hearts": 3,
+    "timer": { "enabled": true, "profile_can_disable": true, "seconds": 90 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 6 }, "seed": 1 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 18 }, "seed": 7 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 72 }, "seed": 42 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 45 }, "seed": 20260721 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 84 }, "seed": 1 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 48 }, "seed": 7 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 60 }, "seed": 42 },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer", "value": 285 },
+      "seed": 20260721
+    },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 420 }, "seed": 1 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 336 }, "seed": 7 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 60 }, "seed": 42 },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer", "value": 855 },
+      "seed": 20260721
+    }
+  ]
+}

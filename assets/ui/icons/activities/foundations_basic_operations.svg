@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Basic operations</title>
+  <desc id="desc">A plus tile and a minus tile form a balanced pair.</desc>
+  <rect x="12" y="26" width="46" height="76" rx="14" fill="#66D3B5" stroke="#23415A" stroke-width="8"/>
+  <path d="M35 46v36M22 64h26" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+  <rect x="70" y="26" width="46" height="76" rx="14" fill="#FF8A7A" stroke="#23415A" stroke-width="8"/>
+  <path d="M81 64h24" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+</svg>

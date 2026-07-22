@@ -1,0 +1,132 @@
+﻿[title],더하기[enter]게임[enter]1의자리!!
+[icon],plus
+
+[level],1
+[gametype],+,+
+[keypad],phone3
+[description],더해서 1의자리!!~~~
+[questiontype],game1
+[time for each quiz,1,60],16
+[time for each quiz,61,100],22-Quotient[(sub_level)~8]
+[apples per quiz],5+Quotient[(sub_level)~5]
+[sub level increasement],5
+[sub level decreasement],10
+[question number for next level],1000
+[TargetNumber],10
+[row of question display],11
+[row of question display_for button],8
+[component A,1,10],1,2,3,4,5,6
+[component B,1,10],1,2,3,4,5,6
+[component C,1,10],1,2,3,4,5,6
+[component D,1,10],1,2,3,4,5,6
+[component I,1,10],1,2,3,4,5,6
+[component E,1,10],1,2,3,4,5
+[component F,1,10],1,2,3,4,5
+[component G,1,10],1,2,3,4,5
+[component H,1,10],1,2,3,4,5
+[component J,1,10],1,2,3,4,5
+[question format,1,10],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,1,10],Mod[A+E~10]*10000+Mod[B+F~10]*1000+Mod[C+G~10]*100+Mod[D+H~10]*10+Mod[I+J~10]
+[log1,1,40],1의자리::A+E=Mod[A+E~10]=digit[answer~5]
+[log2,1,40],1의자리::B+F=Mod[B+F~10]=digit[answer~4]
+[log3,1,40],1의자리::C+G=Mod[C+G~10]=digit[answer~3]
+[log4,1,40],1의자리::D+H=Mod[D+H~10]=digit[answer~2]
+[log5,1,40],1의자리::I+J=Mod[I+J~10]=digit[answer~1]
+[log1,41,100],1의자리::A+E+O=Mod[A+E+O~10]=digit[answer~5]
+[log2,41,100],1의자리::B+F+P=Mod[B+F+P~10]=digit[answer~4]
+[log3,41,100],1의자리::C+G+Q=Mod[C+G+Q~10]=digit[answer~3]
+[log4,41,100],1의자리::D+H+R=Mod[D+H+R~10]=digit[answer~2]
+[log5,41,100],1의자리::I+J+S=Mod[I+J+S~10]=digit[answer~1]
+[component A,11,20],2,3,4,5,6,7,8
+[component B,11,20],2,3,4,5,6,7,8
+[component C,11,20],2,3,4,5,6,7,8
+[component D,11,20],2,3,4,5,6,7,8
+[component I,11,20],2,3,4,5,6,7,8
+[component E,11,20],1,2,3,4,5
+[component F,11,20],1,2,3,4,5
+[component G,11,20],1,2,3,4,5
+[component H,11,20],1,2,3,4,5
+[component J,11,20],1,2,3,4,5
+[question format,11,20],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,11,20],Mod[A+E~10]*10000+Mod[B+F~10]*1000+Mod[C+G~10]*100+Mod[D+H~10]*10+Mod[I+J~10]
+[component A,21,30],2,3,4,5,6,7,8,9
+[component B,21,30],2,3,4,5,6,7,8,9
+[component C,21,30],2,3,4,5,6,7,8,9
+[component D,21,30],2,3,4,5,6,7,8,9
+[component I,21,30],2,3,4,5,6,7,8,9
+[component E,21,30],2,3,4,5,6,7
+[component F,21,30],2,3,4,5,6,7
+[component G,21,30],2,3,4,5,6,7
+[component H,21,30],2,3,4,5,6,7
+[component J,21,30],2,3,4,5,6,7
+[question format,21,30],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,21,30],Mod[A+E~10]*10000+Mod[B+F~10]*1000+Mod[C+G~10]*100+Mod[D+H~10]*10+Mod[I+J~10]
+[component A,31,40],2,3,4,5,6,7,8,9
+[component B,31,40],2,3,4,5,6,7,8,9
+[component C,31,40],2,3,4,5,6,7,8,9
+[component D,31,40],2,3,4,5,6,7,8,9
+[component I,31,40],2,3,4,5,6,7,8,9
+[component E,31,40],2,3,4,5,6,7
+[component F,31,40],2,3,4,5,6,7
+[component G,31,40],2,3,4,5,6,7
+[component H,31,40],2,3,4,5,6,7
+[component J,31,40],2,3,4,5,6,7
+[component O,31,40],1,2,3,4
+[component P,31,40],1,2,3,4
+[component Q,31,40],1,2,3,4
+[component R,31,40],1,2,3,4
+[component S,31,40],1,2,3,4
+[question format,31,40],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][+][h_][component O][h_][component P][h_][component Q][h_][component R][h_][component S][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,31,40],Mod[A+E+O~10]*10000+Mod[B+F+P~10]*1000+Mod[C+G+Q~10]*100+Mod[D+H+R~10]*10+Mod[I+J+S~10]
+[component A,41,50],2,3,4,5,6,7,8,9
+[component B,41,50],2,3,4,5,6,7,8,9
+[component C,41,50],2,3,4,5,6,7,8,9
+[component D,41,50],2,3,4,5,6,7,8,9
+[component I,41,50],2,3,4,5,6,7,8,9
+[component E,41,50],2,3,4,5,6,7
+[component F,41,50],2,3,4,5,6,7
+[component G,41,50],2,3,4,5,6,7
+[component H,41,50],2,3,4,5,6,7
+[component J,41,50],2,3,4,5,6,7
+[component O,41,50],2,3,4,5,6
+[component P,41,50],2,3,4,5,6
+[component Q,41,50],2,3,4,5,6
+[component R,41,50],2,3,4,5,6
+[component S,41,50],2,3,4,5,6
+[question format,41,50],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][+][h_][component O][h_][component P][h_][component Q][h_][component R][h_][component S][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,41,50],Mod[A+E+O~10]*10000+Mod[B+F+P~10]*1000+Mod[C+G+Q~10]*100+Mod[D+H+R~10]*10+Mod[I+J+S~10]
+[component A,51,60],2,3,4,5,6,7,8,9
+[component B,51,60],2,3,4,5,6,7,8,9
+[component C,51,60],2,3,4,5,6,7,8,9
+[component D,51,60],2,3,4,5,6,7,8,9
+[component I,51,60],2,3,4,5,6,7,8,9
+[component E,51,60],2,3,4,5,6,7,8,9
+[component F,51,60],2,3,4,5,6,7,8,9
+[component G,51,60],2,3,4,5,6,7,8,9
+[component H,51,60],2,3,4,5,6,7,8,9
+[component J,51,60],2,3,4,5,6,7,8,9
+[component O,51,60],2,3,4,5,6,7
+[component P,51,60],2,3,4,5,6,7
+[component Q,51,60],2,3,4,5,6,7
+[component R,51,60],2,3,4,5,6,7
+[component S,51,60],2,3,4,5,6,7
+[question format,51,60],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][+][h_][component O][h_][component P][h_][component Q][h_][component R][h_][component S][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,51,60],Mod[A+E+O~10]*10000+Mod[B+F+P~10]*1000+Mod[C+G+Q~10]*100+Mod[D+H+R~10]*10+Mod[I+J+S~10]
+[component A,61,100],2,3,4,5,6,7,8,9
+[component B,61,100],2,3,4,5,6,7,8,9
+[component C,61,100],2,3,4,5,6,7,8,9
+[component D,61,100],2,3,4,5,6,7,8,9
+[component I,61,100],2,3,4,5,6,7,8,9
+[component E,61,100],2,3,4,5,6,7,8,9
+[component F,61,100],2,3,4,5,6,7,8,9
+[component G,61,100],2,3,4,5,6,7,8,9
+[component H,61,100],2,3,4,5,6,7,8,9
+[component J,61,100],2,3,4,5,6,7,8,9
+[component O,61,100],2,3,4,5,6,7,8,9
+[component P,61,100],2,3,4,5,6,7,8,9
+[component Q,61,100],2,3,4,5,6,7,8,9
+[component R,61,100],2,3,4,5,6,7,8,9
+[component S,61,100],2,3,4,5,6,7,8,9
+[question format,61,100],[_][h_][component A][h_][component B][h_][component C][h_][component D][h_][component I][+][h_][component E][h_][component F][h_][component G][h_][component H][h_][component J][+][h_][component O][h_][component P][h_][component Q][h_][component R][h_][component S][h_][h_][?][h_][?][h_][?][h_][?][h_][?]
+[answer equation,61,100],Mod[A+E+O~10]*10000+Mod[B+F+P~10]*1000+Mod[C+G+Q~10]*100+Mod[D+H+R~10]*10+Mod[I+J+S~10]
+

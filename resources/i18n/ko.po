@@ -1,0 +1,523 @@
+msgid ""
+msgstr ""
+"Language: ko\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.title"
+msgstr "수학 탐험섬"
+
+msgid "ui.back"
+msgstr "뒤로"
+
+msgid "ui.close"
+msgstr "닫기"
+
+msgid "ui.save"
+msgstr "저장"
+
+msgid "ui.start"
+msgstr "시작"
+
+msgid "ui.continue"
+msgstr "이어서 탐험"
+
+msgid "ui.empty"
+msgstr "아직 비어 있어요"
+
+msgid "profile.select.title"
+msgstr "누가 탐험하나요?"
+
+msgid "profile.select.subtitle"
+msgstr "내 탐험가를 고르고 비밀번호를 입력해요"
+
+msgid "profile.create"
+msgstr "새 탐험가 만들기"
+
+msgid "profile.unlock"
+msgstr "섬으로 출발"
+
+msgid "profile.pin.placeholder"
+msgstr "숫자 4자리"
+
+msgid "profile.empty"
+msgstr "첫 탐험가를 만들어 주세요"
+
+msgid "profile.create.title"
+msgstr "새 탐험가"
+
+msgid "profile.nickname"
+msgstr "별명"
+
+msgid "profile.avatar"
+msgstr "친구 모아"
+
+msgid "profile.pin"
+msgstr "보호자 숫자 비밀번호"
+
+msgid "profile.error.invalid_nickname"
+msgstr "별명을 1~16자로 적어 주세요"
+
+msgid "profile.error.duplicate_nickname"
+msgstr "같은 별명의 탐험가가 이미 있어요"
+
+msgid "profile.error.invalid_avatar"
+msgstr "모아 친구를 골라 주세요"
+
+msgid "profile.error.invalid_pin"
+msgstr "숫자 4자리를 입력해 주세요"
+
+msgid "profile.error.invalid_pin_attempt"
+msgstr "비밀번호가 맞지 않아요"
+
+msgid "profile.error.pin_locked"
+msgstr "잠시 뒤 다시 시도해 주세요"
+
+msgid "profile.error.save_failed"
+msgstr "저장하지 못했어요. 다시 눌러 주세요"
+
+msgid "avatar.moa_mint"
+msgstr "민트 모아"
+
+msgid "avatar.moa_sky"
+msgstr "하늘 모아"
+
+msgid "avatar.moa_coral"
+msgstr "산호 모아"
+
+msgid "island.title"
+msgstr "모아의 탐험섬"
+
+msgid "island.subtitle"
+msgstr "오늘은 어떤 수학 보물을 찾을까요?"
+
+msgid "island.apples"
+msgstr "사과 %d"
+
+msgid "island.pending_review"
+msgstr "다시 볼 문제 %d"
+
+msgid "sync.online"
+msgstr "보호자와 연결됨"
+
+msgid "sync.connecting"
+msgstr "보호자 연결 확인 중"
+
+msgid "sync.re_pair_required"
+msgstr "보호자 연결을 다시 확인해 주세요"
+
+msgid "sync.offline"
+msgstr "오프라인 · 기기에 안전하게 저장 중"
+
+msgid "sync.queued"
+msgstr "보낼 기록 %d개"
+
+msgid "sync.offline_queued"
+msgstr "오프라인 · 보낼 기록 %d개"
+
+msgid "island.today_objectives"
+msgstr "오늘의 탐험 3개"
+
+msgid "island.continue"
+msgstr "이어서 탐험"
+
+msgid "island.daily_path"
+msgstr "오늘의 길"
+
+msgid "island.free_play"
+msgstr "마음대로 놀기"
+
+msgid "island.inventory"
+msgstr "가방"
+
+msgid "island.collection"
+msgstr "도감"
+
+msgid "island.settings"
+msgstr "설정"
+
+msgid "island.switch_profile"
+msgstr "탐험가 바꾸기"
+
+msgid "profile.error.activation_failed"
+msgstr "탐험가를 열지 못했어요. 다시 시도해 주세요"
+
+msgid "objective.complete_three"
+msgstr "문제 3개 풀기"
+
+msgid "objective.correct_five"
+msgstr "정답 5개 맞히기"
+
+msgid "objective.protect_hearts"
+msgstr "하트를 지키며 한 판 끝내기"
+
+msgid "objective.practice_foundations"
+msgstr "수 감각 탐험 1회"
+
+msgid "objective.review_two"
+msgstr "다시 볼 문제 2개 풀기"
+
+msgid "objective.earn_ten_apples"
+msgstr "사과 10개 모으기"
+
+msgid "daily.title"
+msgstr "오늘의 탐험길"
+
+msgid "daily.subtitle"
+msgstr "세 보물을 차례로 찾아봐요"
+
+msgid "daily.first"
+msgstr "첫 번째 탐험 시작"
+
+msgid "free_play.title"
+msgstr "마음대로 놀기"
+
+msgid "free_play.subtitle"
+msgstr "하고 싶은 수학 놀이를 골라요"
+
+msgid "free_play.empty"
+msgstr "새 놀이를 준비하고 있어요"
+
+msgid "activity.foundation_ten_rods.title"
+msgstr "10막대 수 세기"
+
+msgid "activity.foundation_ten_rods.description"
+msgstr "막대와 낱개를 만지며 수를 만들어요"
+
+msgid "inventory.title"
+msgstr "탐험 가방"
+
+msgid "inventory.subtitle"
+msgstr "모은 도구와 보상을 확인해요"
+
+msgid "inventory.empty"
+msgstr "첫 보물을 기다리고 있어요"
+
+msgid "inventory.shell"
+msgstr "반짝 조개"
+
+msgid "inventory.compass"
+msgstr "탐험 나침반"
+
+msgid "collection.title"
+msgstr "수학 보물 도감"
+
+msgid "collection.subtitle"
+msgstr "탐험하며 발견한 장면이 모여요"
+
+msgid "collection.empty"
+msgstr "첫 장면을 발견하면 여기에 기록돼요"
+
+msgid "collection.first_map"
+msgstr "첫 번째 섬 지도"
+
+msgid "settings.title"
+msgstr "내 탐험 설정"
+
+msgid "settings.subtitle"
+msgstr "바꾸는 즉시 이 탐험가에게만 적용돼요"
+
+msgid "settings.learning"
+msgstr "학습 도움"
+
+msgid "settings.adaptive"
+msgstr "적응형 난이도"
+
+msgid "settings.timing_aids"
+msgstr "시간 힌트"
+
+msgid "settings.timers"
+msgstr "타이머 허용"
+
+msgid "settings.presentation"
+msgstr "화면과 효과"
+
+msgid "settings.reduced_motion"
+msgstr "움직임 줄이기"
+
+msgid "settings.effect_quality"
+msgstr "효과 품질"
+
+msgid "settings.quality.low"
+msgstr "가볍게"
+
+msgid "settings.quality.medium"
+msgstr "보통"
+
+msgid "settings.quality.high"
+msgstr "풍성하게"
+
+msgid "settings.audio"
+msgstr "소리"
+
+msgid "settings.master"
+msgstr "전체 소리"
+
+msgid "settings.music"
+msgstr "음악"
+
+msgid "settings.sfx"
+msgstr "효과음"
+
+msgid "settings.voice"
+msgstr "목소리"
+
+msgid "settings.voice_enabled"
+msgstr "문제 음성 버튼 사용"
+
+msgid "settings.remote_monitoring"
+msgstr "보호자 원격 확인"
+
+msgid "settings.pairing.help"
+msgstr "보호자 화면에 표시된 숫자 6자리를 입력하세요. 실패해도 이 기기의 학습 기록은 그대로 남아요."
+
+msgid "settings.pairing.placeholder"
+msgstr "숫자 6자리"
+
+msgid "settings.pairing.action"
+msgstr "연결하기"
+
+msgid "settings.pairing.ready"
+msgstr "연결 코드는 저장하지 않아요"
+
+msgid "settings.pairing.invalid"
+msgstr "숫자 6자리를 확인해 주세요"
+
+msgid "settings.pairing.unavailable"
+msgstr "지금은 오프라인으로 안전하게 이용할 수 있어요"
+
+msgid "settings.pairing.connecting"
+msgstr "보호자 화면과 연결 중…"
+
+msgid "settings.pairing.connected"
+msgstr "보호자 화면과 연결됐어요"
+
+msgid "settings.pairing.re_pair_required"
+msgstr "연결 인증이 만료됐어요. 새 인증으로 바꾸려면 아래 버튼을 한 번 더 눌러 주세요"
+
+msgid "settings.pairing.re_pair_action"
+msgstr "새 인증으로 다시 연결"
+
+msgid "settings.pairing.code_failed"
+msgstr "코드가 만료되었거나 맞지 않아요"
+
+msgid "settings.pairing.network"
+msgstr "인터넷 연결 후 다시 시도해 주세요"
+
+msgid "settings.pairing.failed"
+msgstr "연결하지 못했어요. 학습 기록은 이 기기에 안전하게 남아 있어요"
+
+msgid "effect.correct.caption"
+msgstr "정답!"
+
+msgid "effect.wrong.caption"
+msgstr "다시 해봐요"
+
+msgid "effect.combo_1.caption"
+msgstr "콤보!"
+
+msgid "effect.combo_2.caption"
+msgstr "슈퍼 콤보!"
+
+msgid "effect.boss.caption"
+msgstr "보스 문제"
+
+msgid "effect.health_loss.caption"
+msgstr "하트가 줄었어요"
+
+msgid "effect.target_reached.caption"
+msgstr "목표 달성!"
+
+msgid "effect.level_up.caption"
+msgstr "레벨 업!"
+
+msgid "effect.health_depleted.caption"
+msgstr "다음 탐험에서 만나요"
+
+msgid "effect.reward.caption"
+msgstr "보상 획득!"
+
+msgid "effect.collection.caption"
+msgstr "도감 발견!"
+
+msgid "effect.coupon.caption"
+msgstr "쿠폰 획득!"
+
+msgid "activity.foundation_ten_rods.add"
+msgstr "막대와 낱개로 답을 만들어요"
+
+msgid "activity.foundation_ten_rods.add_prompt"
+msgstr "%d + %d = ?"
+
+msgid "activity.speaker"
+msgstr "듣기/정지"
+
+msgid "activity.score"
+msgstr "점수 %d"
+
+msgid "activity.intro.title"
+msgstr "10막대 탐험"
+
+msgid "activity.intro.body"
+msgstr "긴 막대는 10, 작은 낱개는 1이에요. 더하고 빼며 답을 만들어 봐요."
+
+msgid "activity.intro.skip"
+msgstr "바로 시작"
+
+msgid "activity.error.generic"
+msgstr "저장 상태를 확인한 뒤 다시 시도해 주세요"
+
+msgid "manipulative.tens"
+msgstr "10막대"
+
+msgid "manipulative.units"
+msgstr "낱개"
+
+msgid "manipulative.tens_count"
+msgstr "10막대 × %d"
+
+msgid "manipulative.units_count"
+msgstr "낱개 × %d"
+
+msgid "manipulative.add_ten"
+msgstr "+10막대"
+
+msgid "manipulative.remove_ten"
+msgstr "-10막대"
+
+msgid "manipulative.add_unit"
+msgstr "+낱개"
+
+msgid "manipulative.remove_unit"
+msgstr "-낱개"
+
+msgid "manipulative.submit"
+msgstr "이 답 내기"
+
+msgid "manipulative.ten_rod"
+msgstr "10을 나타내는 긴 막대"
+
+msgid "manipulative.unit_cube"
+msgstr "1을 나타내는 낱개"
+
+msgid "activity.run.title"
+msgstr "수학 탐험"
+
+msgid "manipulative.counter"
+msgstr "수 세기 조각"
+
+msgid "manipulative.ten_frame_cell"
+msgstr "10칸판 칸"
+
+msgid "manipulative.add"
+msgstr "하나 놓기"
+
+msgid "manipulative.remove"
+msgstr "하나 빼기"
+
+msgid "manipulative.number_line_tick"
+msgstr "수직선 눈금"
+
+msgid "manipulative.token"
+msgstr "수 조각"
+
+msgid "answer.key"
+msgstr "숫자 입력"
+
+msgid "answer.choice"
+msgstr "답 고르기"
+
+msgid "answer.choice.selected"
+msgstr "선택된 답 %d"
+
+msgid "answer.choice.unselected"
+msgstr "선택되지 않은 답 %d"
+
+msgid "answer.factor"
+msgstr "인수 넣기"
+
+msgid "feedback.correct"
+msgstr "맞았어요!"
+
+msgid "feedback.wrong"
+msgstr "하트가 하나 줄었어요"
+
+msgid "question.addition"
+msgstr "{expression}의 합은 얼마일까요?"
+
+msgid "question.subtraction"
+msgstr "{expression}의 차는 얼마일까요?"
+
+msgid "question.multiplication"
+msgstr "{expression}의 곱은 얼마일까요?"
+
+msgid "question.common_multiple"
+msgstr "{expression}의 최소공배수는 얼마일까요?"
+
+msgid "question.prime_factorization"
+msgstr "{value}의 소인수를 찾아보세요."
+
+msgid "question.counting"
+msgstr "조각은 모두 몇 개일까요?"
+
+msgid "question.number_bonds"
+msgstr "전체가 {whole}이고 보이는 부분이 {shown_part}일 때 빠진 수는 얼마일까요?"
+
+msgid "question.ten_frame"
+msgstr "10칸판에 표시된 수는 얼마일까요?"
+
+msgid "question.base_ten"
+msgstr "백·십·일 조각이 나타내는 수는 얼마일까요?"
+
+msgid "question.number_line"
+msgstr "{start}에서 {step}만큼 움직이면 어디일까요?"
+
+msgid "question.basic_operations"
+msgstr "{expression}의 답을 조각으로 만들어 보세요."
+
+msgid "result.title"
+msgstr "탐험 결과"
+
+msgid "result.subtitle"
+msgstr "모은 보상은 그대로 남아 있어요"
+
+msgid "result.reason.health_depleted"
+msgstr "하트를 모두 썼어요. 다시 도전해 볼까요?"
+
+msgid "result.reason.target_reached"
+msgstr "목표를 달성했어요!"
+
+msgid "result.reason.unknown"
+msgstr "이번 탐험을 마쳤어요"
+
+msgid "result.score"
+msgstr "맞힌 문제"
+
+msgid "result.apples"
+msgstr "이번에 모은 사과"
+
+msgid "result.review"
+msgstr "다시 볼 문제"
+
+msgid "result.island_delta"
+msgstr "섬에 더해진 사과"
+
+msgid "result.restart"
+msgstr "같은 놀이 다시 하기"
+
+msgid "result.island"
+msgstr "탐험섬으로"
+
+msgid "reward.reward"
+msgstr "사과를 찾았어요!"
+
+msgid "reward.collection"
+msgstr "새 도감을 발견했어요!"
+
+msgid "reward.coupon"
+msgstr "새 쿠폰을 찾았어요!"
+
+msgid "reward.level_up"
+msgstr "레벨이 올랐어요!"
+
+msgid "reward.tap_to_continue"
+msgstr "눌러서 계속"

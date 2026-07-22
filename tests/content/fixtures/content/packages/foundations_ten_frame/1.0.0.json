@@ -1,0 +1,88 @@
+{
+  "activity_id": "foundations_ten_frame",
+  "adaptive_policy": {
+    "demote_correctness": 0.4,
+    "enabled_by_default": false,
+    "max_band_id": "challenge",
+    "min_band_id": "intro",
+    "promote_correctness": 0.8,
+    "window_size": 5
+  },
+  "checksum": "sha256:b28062680b28ea50cc779af9efaeefb89f2eabe7284497bdf52b3285d24f40e8",
+  "content_version": "1.0.0",
+  "difficulty_bands": [
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "intro",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": { "frame_count": 1, "target_max": 5, "target_min": 0 },
+      "manipulative": { "config": { "frame_count": 1 }, "id": "ten_frame", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "practice",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": { "frame_count": 1, "target_max": 10, "target_min": 0 },
+      "manipulative": { "config": { "frame_count": 1 }, "id": "ten_frame", "initial_state": {} }
+    },
+    {
+      "answer_layout": { "id": "manipulative_submit" },
+      "band_id": "challenge",
+      "generator_id": "ten_frame_v1",
+      "generator_parameters": { "frame_count": 2, "target_max": 20, "target_min": 0 },
+      "manipulative": { "config": { "frame_count": 2 }, "id": "ten_frame", "initial_state": {} }
+    }
+  ],
+  "icon_id": "foundations_ten_frame",
+  "localizations": {
+    "ko-KR": {
+      "description": "다섯과 열을 한눈에 보는 수 감각을 만들어요.",
+      "title": "10칸판을 채워요",
+      "tutorial_steps": [
+        "채워진 동그라미를 묶어 보고 답을 내요.",
+        "두 판에서는 열 개와 남은 개수를 나누어 세어요."
+      ]
+    }
+  },
+  "run": {
+    "boss_every_correct": 4,
+    "combo_thresholds": [2, 4, 7],
+    "effects": {
+      "boss": "boss",
+      "combo": "combo_1",
+      "correct": "correct",
+      "health_loss": "health_loss",
+      "level_up": "level_up",
+      "reward": "reward",
+      "wrong": "wrong"
+    },
+    "goal": { "kind": "correct_answers", "target": 8 },
+    "rewards": { "apples_per_correct": 2, "completion_apples": 5 },
+    "starting_hearts": 3,
+    "timer": { "enabled": false, "profile_can_disable": true, "seconds": 60 }
+  },
+  "scene_id": "activity_run",
+  "schema_version": 1,
+  "validation_samples": [
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 3 }, "seed": 1 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 3 }, "seed": 7 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 42 },
+    { "band_id": "intro", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 20260721 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 1 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 7 },
+    { "band_id": "practice", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 42 },
+    {
+      "band_id": "practice",
+      "expected_answer": { "kind": "integer", "value": 8 },
+      "seed": 20260721
+    },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 15 }, "seed": 1 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 0 }, "seed": 7 },
+    { "band_id": "challenge", "expected_answer": { "kind": "integer", "value": 18 }, "seed": 42 },
+    {
+      "band_id": "challenge",
+      "expected_answer": { "kind": "integer", "value": 9 },
+      "seed": 20260721
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "c0": [
+    {
+      "codepoint": 0,
+      "value_canonical": "{\"value\":\"\\u0000\"}",
+      "key_canonical": "{\"k\\u0000\":1}"
+    },
+    {
+      "codepoint": 1,
+      "value_canonical": "{\"value\":\"\\u0001\"}",
+      "key_canonical": "{\"k\\u0001\":1}"
+    },
+    {
+      "codepoint": 2,
+      "value_canonical": "{\"value\":\"\\u0002\"}",
+      "key_canonical": "{\"k\\u0002\":1}"
+    },
+    {
+      "codepoint": 3,
+      "value_canonical": "{\"value\":\"\\u0003\"}",
+      "key_canonical": "{\"k\\u0003\":1}"
+    },
+    {
+      "codepoint": 4,
+      "value_canonical": "{\"value\":\"\\u0004\"}",
+      "key_canonical": "{\"k\\u0004\":1}"
+    },
+    {
+      "codepoint": 5,
+      "value_canonical": "{\"value\":\"\\u0005\"}",
+      "key_canonical": "{\"k\\u0005\":1}"
+    },
+    {
+      "codepoint": 6,
+      "value_canonical": "{\"value\":\"\\u0006\"}",
+      "key_canonical": "{\"k\\u0006\":1}"
+    },
+    {
+      "codepoint": 7,
+      "value_canonical": "{\"value\":\"\\u0007\"}",
+      "key_canonical": "{\"k\\u0007\":1}"
+    },
+    {
+      "codepoint": 8,
+      "value_canonical": "{\"value\":\"\\b\"}",
+      "key_canonical": "{\"k\\b\":1}"
+    },
+    {
+      "codepoint": 9,
+      "value_canonical": "{\"value\":\"\\t\"}",
+      "key_canonical": "{\"k\\t\":1}"
+    },
+    {
+      "codepoint": 10,
+      "value_canonical": "{\"value\":\"\\n\"}",
+      "key_canonical": "{\"k\\n\":1}"
+    },
+    {
+      "codepoint": 11,
+      "value_canonical": "{\"value\":\"\\u000b\"}",
+      "key_canonical": "{\"k\\u000b\":1}"
+    },
+    {
+      "codepoint": 12,
+      "value_canonical": "{\"value\":\"\\f\"}",
+      "key_canonical": "{\"k\\f\":1}"
+    },
+    {
+      "codepoint": 13,
+      "value_canonical": "{\"value\":\"\\r\"}",
+      "key_canonical": "{\"k\\r\":1}"
+    },
+    {
+      "codepoint": 14,
+      "value_canonical": "{\"value\":\"\\u000e\"}",
+      "key_canonical": "{\"k\\u000e\":1}"
+    },
+    {
+      "codepoint": 15,
+      "value_canonical": "{\"value\":\"\\u000f\"}",
+      "key_canonical": "{\"k\\u000f\":1}"
+    },
+    {
+      "codepoint": 16,
+      "value_canonical": "{\"value\":\"\\u0010\"}",
+      "key_canonical": "{\"k\\u0010\":1}"
+    },
+    {
+      "codepoint": 17,
+      "value_canonical": "{\"value\":\"\\u0011\"}",
+      "key_canonical": "{\"k\\u0011\":1}"
+    },
+    {
+      "codepoint": 18,
+      "value_canonical": "{\"value\":\"\\u0012\"}",
+      "key_canonical": "{\"k\\u0012\":1}"
+    },
+    {
+      "codepoint": 19,
+      "value_canonical": "{\"value\":\"\\u0013\"}",
+      "key_canonical": "{\"k\\u0013\":1}"
+    },
+    {
+      "codepoint": 20,
+      "value_canonical": "{\"value\":\"\\u0014\"}",
+      "key_canonical": "{\"k\\u0014\":1}"
+    },
+    {
+      "codepoint": 21,
+      "value_canonical": "{\"value\":\"\\u0015\"}",
+      "key_canonical": "{\"k\\u0015\":1}"
+    },
+    {
+      "codepoint": 22,
+      "value_canonical": "{\"value\":\"\\u0016\"}",
+      "key_canonical": "{\"k\\u0016\":1}"
+    },
+    {
+      "codepoint": 23,
+      "value_canonical": "{\"value\":\"\\u0017\"}",
+      "key_canonical": "{\"k\\u0017\":1}"
+    },
+    {
+      "codepoint": 24,
+      "value_canonical": "{\"value\":\"\\u0018\"}",
+      "key_canonical": "{\"k\\u0018\":1}"
+    },
+    {
+      "codepoint": 25,
+      "value_canonical": "{\"value\":\"\\u0019\"}",
+      "key_canonical": "{\"k\\u0019\":1}"
+    },
+    {
+      "codepoint": 26,
+      "value_canonical": "{\"value\":\"\\u001a\"}",
+      "key_canonical": "{\"k\\u001a\":1}"
+    },
+    {
+      "codepoint": 27,
+      "value_canonical": "{\"value\":\"\\u001b\"}",
+      "key_canonical": "{\"k\\u001b\":1}"
+    },
+    {
+      "codepoint": 28,
+      "value_canonical": "{\"value\":\"\\u001c\"}",
+      "key_canonical": "{\"k\\u001c\":1}"
+    },
+    {
+      "codepoint": 29,
+      "value_canonical": "{\"value\":\"\\u001d\"}",
+      "key_canonical": "{\"k\\u001d\":1}"
+    },
+    {
+      "codepoint": 30,
+      "value_canonical": "{\"value\":\"\\u001e\"}",
+      "key_canonical": "{\"k\\u001e\":1}"
+    },
+    {
+      "codepoint": 31,
+      "value_canonical": "{\"value\":\"\\u001f\"}",
+      "key_canonical": "{\"k\\u001f\":1}"
+    }
+  ],
+  "unicode_corpus": {
+    "start_codepoint": 32,
+    "codepoint_count": 4096,
+    "object_checksum": "sha256:1d1836f779e4c6838faa12ef8a2c5c5e75af4f132c7660426e4b86d94d4d92a2"
+  }
+}

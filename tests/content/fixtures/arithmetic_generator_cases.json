@@ -1,0 +1,44 @@
+[
+  {
+    "name": "addition carry required",
+    "generator_id": "addition_v1",
+    "seed": 1,
+    "parameters": {"operand_count":2,"operand_min":0,"operand_max":9,"place_mode":"ones_digit","carry":"require"},
+    "expected": {"operands":[9,9],"operator":"+","carry":true,"display_mode":"ones_digit","answer":18}
+  },
+  {
+    "name": "addition carry forbidden rejection",
+    "generator_id": "addition_v1",
+    "seed": 1,
+    "parameters": {"operand_count":2,"operand_min":0,"operand_max":9,"place_mode":"ones_digit","carry":"forbid"},
+    "expected": {"operands":[1,5],"operator":"+","carry":false,"display_mode":"ones_digit","answer":6}
+  },
+  {
+    "name": "three operand addition",
+    "generator_id": "addition_v1",
+    "seed": 305419896,
+    "parameters": {"operand_count":3,"operand_min":1,"operand_max":20,"place_mode":"full","carry":"allow"},
+    "expected": {"operands":[18,12,5],"operator":"+","carry":true,"display_mode":"full","answer":35}
+  },
+  {
+    "name": "subtraction borrow forbidden",
+    "generator_id": "subtraction_v1",
+    "seed": 1,
+    "parameters": {"operand_count":2,"operand_min":5,"operand_max":19,"place_mode":"ones_digit","borrow":"forbid","allow_negative":false},
+    "expected": {"operands":[11,10],"operator":"-","borrow":false,"display_mode":"ones_digit","answer":1}
+  },
+  {
+    "name": "subtraction borrow required rejection",
+    "generator_id": "subtraction_v1",
+    "seed": 1,
+    "parameters": {"operand_count":2,"operand_min":5,"operand_max":19,"place_mode":"ones_digit","borrow":"require","allow_negative":false},
+    "expected": {"operands":[14,9],"operator":"-","borrow":true,"display_mode":"ones_digit","answer":5}
+  },
+  {
+    "name": "multiplication horizontal",
+    "generator_id": "multiplication_v1",
+    "seed": 1,
+    "parameters": {"left_min":2,"left_max":9,"right_min":2,"right_max":9,"display":"horizontal"},
+    "expected": {"operands":[3,3],"operator":"*","display_mode":"horizontal","answer":9}
+  }
+]

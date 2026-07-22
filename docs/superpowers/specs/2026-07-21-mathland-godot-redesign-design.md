@@ -1,6 +1,6 @@
 # MathLand Godot Redesign Design
 
-**Status:** User-approved product design; awaiting written-spec review
+**Status:** User-approved for implementation
 
 **Date:** 2026-07-21
 
@@ -428,7 +428,7 @@ AI image generation may create raster concept and production candidates after th
 
 ## 18. Build, signing, and release
 
-- Godot 4.7.1, OpenJDK 17, Android platform 35, and build-tools 35.0.1 are the initial Android toolchain.
+- Godot 4.7.1, OpenJDK 17, Android platform 35, build-tools 35.0.1 for signing/inspection, and build-tools 36.1.0 required by the official Godot 4.7.1 Gradle template are the Android toolchain.
 - Android minimum SDK is 24 and target SDK is 35.
 - The `v1.0.0` release APK uses the Compatibility renderer and ARM64. Other ABIs are outside the first release and may be added by a later release.
 - A new signing keystore is generated outside the repository. Its password is stored in macOS Keychain and its certificate fingerprint is documented without exposing the secret.

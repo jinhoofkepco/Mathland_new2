@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Number bond</title>
+  <desc id="desc">One whole circle connects to two smaller part circles.</desc>
+  <circle cx="64" cy="32" r="20" fill="#F6C453" stroke="#23415A" stroke-width="8"/>
+  <path d="M55 51L35 78M73 51l20 27" fill="none" stroke="#23415A" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="31" cy="94" r="22" fill="#76C8F0" stroke="#23415A" stroke-width="8"/>
+  <circle cx="97" cy="94" r="22" fill="#66D3B5" stroke="#23415A" stroke-width="8"/>
+</svg>

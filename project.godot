@@ -1,0 +1,39 @@
+; Engine configuration file.
+; Edit through the Godot editor when possible.
+config_version=5
+
+[application]
+
+config/name="Mathland"
+config/features=PackedStringArray("4.7")
+config/icon="res://assets/ui/app/mathland_launcher.svg"
+config/quit_on_go_back=false
+config/version="1.0.0"
+run/main_scene="res://scenes/app/app_shell.tscn"
+
+[autoload]
+
+ProfileService="*res://src/profiles/profile_service.gd"
+LifecycleService="*res://src/app/app_lifecycle.gd"
+
+[display/window]
+
+size/viewport_width=1080
+size/viewport_height=1920
+handheld/orientation=1
+stretch/mode="canvas_items"
+
+[internationalization]
+
+locale/fallback="ko"
+locale/translations=PackedStringArray("res://resources/i18n/ko.po", "res://resources/i18n/en.po")
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/mathland_secure_credentials/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
