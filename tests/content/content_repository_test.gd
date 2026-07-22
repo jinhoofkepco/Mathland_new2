@@ -43,18 +43,29 @@ func _test_returns_deep_copy_and_pins_requested_version() -> void:
 	assert_eq(repository.get_manifest_version(), "1.0.0")
 
 func _test_returns_immutable_ordered_summaries() -> void:
+	var prior_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("ko_KR")
 	var repository := ContentRepositoryScript.new()
 	var initialized: Variant = repository.initialize(VALID_MANIFEST_PATH, "user://missing-content-cache")
 	assert_true(initialized.ok, JSON.stringify(initialized.issues))
 	if not initialized.ok:
+		TranslationServer.set_locale(prior_locale)
 		return
 	var summaries: Array[Dictionary] = repository.list_activities()
 	assert_eq(summaries.size(), 11)
-	assert_eq(summaries[0].keys(), ["activity_id", "title", "icon_id"])
+	assert_eq(summaries[0].keys(), ["activity_id", "title", "description", "icon_id", "content_version"])
 	assert_eq(summaries[0]["activity_id"], "addition_ones")
+	assert_eq(summaries[0].get("title"), "addition_ones 탐험")
+	assert_false(String(summaries[0].get("description", "")).is_empty())
+	assert_eq(summaries[0].get("content_version"), "1.0.0")
 	assert_eq(summaries[10]["activity_id"], "foundations_basic_operations")
 	summaries[0]["title"] = "변조"
 	assert_ne(repository.list_activities()[0]["title"], "변조")
+	TranslationServer.set_locale("en_US")
+	var fallback := repository.list_activities()[0]
+	assert_eq(fallback.get("title"), "addition_ones 탐험", "missing locale must safely fall back to packaged Korean")
+	assert_false(String(fallback.get("description", "")).is_empty())
+	TranslationServer.set_locale(prior_locale)
 
 func _test_rejects_invalid_packages() -> void:
 	var repository := ContentRepositoryScript.new()

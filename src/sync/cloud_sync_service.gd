@@ -12,7 +12,7 @@ var _retry_policy: Variant
 var _config: Dictionary
 var _active := false
 var _retry_scheduled := false
-var _state := "online"
+var _state := "connecting"
 var _last_success_at: Variant = null
 var _last_diagnostic := ""
 var _known_acknowledged_sequence := 0
@@ -33,6 +33,7 @@ func _init(
 	_cursor_store = cursor_store
 	_retry_policy = retry_policy
 	_config = config.duplicate(true)
+	_hydrate_cursor()
 
 func status() -> Dictionary:
 	return {
@@ -71,6 +72,25 @@ func pair_device(code: String, profile_id: String, display_name: String) -> Dict
 		request_sync()
 	else:
 		_last_diagnostic = String(result.get("error", "pairing_failed"))
+		if _last_diagnostic == "re_pair_required":
+			_state = "suspended"
+		diagnostic.emit(_last_diagnostic)
+	status_changed.emit(status())
+	return result
+
+func re_pair_device(code: String, profile_id: String, display_name: String) -> Dictionary:
+	if _last_diagnostic != "re_pair_required":
+		return {"ok": false, "error": "re_pair_not_required"}
+	if _auth == null or not _auth.has_method("re_pair"):
+		return {"ok": false, "error": "pairing_unavailable"}
+	var result: Dictionary = await _auth.re_pair(code, profile_id, display_name)
+	if result.get("ok", false):
+		_state = "connecting"
+		_last_diagnostic = ""
+		request_sync()
+	else:
+		_state = "suspended"
+		_last_diagnostic = String(result.get("error", "pairing_failed"))
 		diagnostic.emit(_last_diagnostic)
 	status_changed.emit(status())
 	return result
@@ -95,9 +115,6 @@ func _drain_batches(schedule_retries: bool) -> Dictionary:
 		var recovery_snapshot_error := _snapshot_error(acknowledged_sequence, "")
 		if not recovery_snapshot_error.is_empty():
 			return _suspend(recovery_snapshot_error)
-		var recovery_compaction_error := _compact_through(acknowledged_sequence)
-		if not recovery_compaction_error.is_empty():
-			return _suspend(recovery_compaction_error)
 	var session: Dictionary = await _auth.ensure_session()
 	if not session.get("ok", false):
 		return _handle_auth_start_failure(session, schedule_retries)
@@ -127,7 +144,11 @@ func _drain_batches(schedule_retries: bool) -> Dictionary:
 		if int(response.get("status", 0)) == 401:
 			var refreshed: Dictionary = await _auth.ensure_session(true)
 			if not refreshed.get("ok", false):
-				return _suspend("authentication")
+				return _suspend(
+					"re_pair_required"
+					if refreshed.get("error") == "re_pair_required"
+					else "authentication"
+				)
 			response = await _post_batch(batch)
 		if not response.get("ok", false):
 			var classification: StringName = _retry_policy.classify(response)
@@ -147,9 +168,6 @@ func _drain_batches(schedule_retries: bool) -> Dictionary:
 		if cursor_error is int and cursor_error != OK:
 			return _suspend("cursor_save_failed")
 		_known_acknowledged_sequence = next_sequence
-		var compaction_error := _compact_through(next_sequence)
-		if not compaction_error.is_empty():
-			return _suspend(compaction_error)
 		acknowledged_sequence = next_sequence
 		_retry_policy.record_success()
 	return {"ok": true, "acknowledged_sequence": acknowledged_sequence}
@@ -231,8 +249,8 @@ func _validate_batch(batch: Array[Dictionary], after_sequence: int) -> String:
 func _dependencies_available() -> bool:
 	return (
 		_journal != null
+		and _journal.has_method("replay")
 		and _journal.has_method("unacknowledged")
-		and _journal.has_method("compact_through")
 		and _progress_service != null
 		and _progress_service.has_method("snapshot")
 		and _auth != null
@@ -265,16 +283,6 @@ func _snapshot_error(required_sequence: int, expected_profile_id: String) -> Str
 		return "snapshot_behind"
 	return ""
 
-func _compact_through(sequence: int) -> String:
-	var compact_result: Variant = _journal.compact_through(sequence)
-	if (
-		(compact_result is int and compact_result != OK)
-		or (compact_result is Dictionary and not compact_result.get("ok", false))
-		or (not compact_result is int and not compact_result is Dictionary)
-	):
-		return "journal_compaction_failed"
-	return ""
-
 func _is_nonnegative_safe_integer(value: Variant) -> bool:
 	if value is int:
 		return value >= 0 and value <= 9007199254740991
@@ -287,6 +295,8 @@ func _is_nonnegative_safe_integer(value: Variant) -> bool:
 	)
 
 func _handle_auth_start_failure(result: Dictionary, schedule_retries: bool) -> Dictionary:
+	if result.get("error") == "re_pair_required":
+		return _suspend("re_pair_required")
 	var status_code := int(result.get("status", 0))
 	if status_code <= 0 or status_code >= 500:
 		return _retry("authentication_network", schedule_retries)
@@ -326,3 +336,36 @@ func _pending_count() -> int:
 		if event_value is Dictionary and int(event_value.get("sequence", -1)) > _known_acknowledged_sequence:
 			count += 1
 	return count
+
+func _hydrate_cursor() -> void:
+	if _journal == null or not _journal.has_method("replay"):
+		_state = "offline"
+		_last_diagnostic = "sync_dependencies_unavailable"
+		return
+	var replayed: Variant = _journal.replay()
+	if (
+		not replayed is Dictionary
+		or not replayed.get("ok", false)
+		or not replayed.get("events", null) is Array
+	):
+		_state = "suspended"
+		_last_diagnostic = "journal_replay_failed"
+		return
+	if _cursor_store == null or not _cursor_store.has_method("load_cursor"):
+		_state = "offline"
+		_last_diagnostic = "sync_dependencies_unavailable"
+		return
+	var cursor_value: Variant = _cursor_store.load_cursor()
+	if not cursor_value is Dictionary:
+		_state = "suspended"
+		_last_diagnostic = "invalid_sync_cursor"
+		return
+	var cursor: Dictionary = cursor_value
+	if (
+		not String(cursor.get("diagnostic", "")).is_empty()
+		or not _is_nonnegative_safe_integer(cursor.get("acknowledged_sequence", null))
+	):
+		_state = "suspended"
+		_last_diagnostic = "invalid_sync_cursor"
+		return
+	_known_acknowledged_sequence = int(cursor.acknowledged_sequence)

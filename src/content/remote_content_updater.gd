@@ -52,6 +52,8 @@ func check_and_install() -> Dictionary:
 		return {"ok": false, "status": "manifest_invalid"}
 	var manifest: Dictionary = manifest_value
 	if _is_current_publication(manifest):
+		if not _persist_version_index(manifest):
+			return {"ok": false, "status": "cache_unavailable"}
 		return {"ok": true, "status": "up_to_date"}
 	var publication_id := _fingerprint(manifest)
 	if publication_id.is_empty():
@@ -105,6 +107,8 @@ func check_and_install() -> Dictionary:
 	var active_manifest := manifest.duplicate(true)
 	if not _validate_installed_candidate(active_manifest, publication_id):
 		return {"ok": false, "status": "validation_failed"}
+	if not _persist_version_index(active_manifest):
+		return {"ok": false, "status": "cache_unavailable"}
 	var previous_pointer := _read_json("%s/active-manifest.json" % _cache_root)
 	var pointer_store := AtomicJsonStoreScript.new(_cache_root)
 	if pointer_store.save("active-manifest.json", active_manifest) != OK:
@@ -197,6 +201,114 @@ func _validate_installed_candidate(manifest: Dictionary, publication_id: String)
 	)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(candidate_path))
 	return validation is Object and bool(validation.get("ok"))
+
+func _persist_version_index(next_manifest: Dictionary) -> bool:
+	var entries_by_identity := {}
+	var index_path := "%s/%s" % [_cache_root, ContentRepositoryScript.VERSION_INDEX_FILE]
+	if FileAccess.file_exists(index_path):
+		var existing_repository := ContentRepositoryScript.new()
+		var existing: Variant = existing_repository.load_version_index(_cache_root)
+		if not existing is Object or not bool(existing.get("ok")) or not existing.get("value") is Dictionary:
+			return false
+		for entry_value in existing.value.get("entries", []):
+			if not entry_value is Dictionary or not _merge_index_entry(entries_by_identity, entry_value):
+				return false
+
+	var bundled_repository := ContentRepositoryScript.new()
+	var bundled: Variant = bundled_repository.call(
+		"_load_candidate", "res://content/active-manifest.json", "", "bundled"
+	)
+	if not bundled is Object or not bool(bundled.get("ok")) or not bundled.get("value") is Dictionary:
+		return false
+	if not _merge_manifest_entries(entries_by_identity, bundled.value.manifest, "bundled"):
+		return false
+
+	var current_manifest_path := "%s/active-manifest.json" % _cache_root
+	if FileAccess.file_exists(current_manifest_path):
+		var current_repository := ContentRepositoryScript.new()
+		var current: Variant = current_repository.call(
+			"_load_candidate", current_manifest_path, _cache_root, "cache"
+		)
+		if not current is Object or not bool(current.get("ok")) or not current.get("value") is Dictionary:
+			return false
+		if not _merge_manifest_entries(entries_by_identity, current.value.manifest, "cache"):
+			return false
+	if not _manifest_preserves_indexed_versions(entries_by_identity, next_manifest):
+		return false
+	var document := _version_index_document(entries_by_identity)
+	if document.is_empty():
+		return false
+	return AtomicJsonStoreScript.new(_cache_root).save(
+		ContentRepositoryScript.VERSION_INDEX_FILE,
+		document,
+	) == OK
+
+func _version_index_document(entries_by_identity: Dictionary) -> Dictionary:
+	if (
+		entries_by_identity.is_empty()
+		or entries_by_identity.size() > ContentRepositoryScript.MAX_VERSION_INDEX_ENTRIES
+	):
+		return {}
+	var identities: Array = entries_by_identity.keys()
+	identities.sort()
+	var entries: Array[Dictionary] = []
+	for identity in identities:
+		entries.append(entries_by_identity[identity].duplicate(true))
+	return {"schema_version": ContentRepositoryScript.VERSION_INDEX_SCHEMA, "entries": entries}
+
+func _merge_manifest_entries(target: Dictionary, manifest: Dictionary, source: String) -> bool:
+	var packages_value: Variant = manifest.get("packages")
+	if not packages_value is Array:
+		return false
+	for entry_value in packages_value:
+		if not entry_value is Dictionary:
+			return false
+		var entry: Dictionary = entry_value
+		if not _merge_index_entry(target, {
+			"activity_id": String(entry.get("activity_id", "")),
+			"content_version": String(entry.get("content_version", "")),
+			"checksum": String(entry.get("checksum", "")),
+			"path": String(entry.get("path", "")),
+			"source": source,
+		}):
+			return false
+	return true
+
+func _manifest_preserves_indexed_versions(target: Dictionary, manifest: Dictionary) -> bool:
+	var packages_value: Variant = manifest.get("packages")
+	if not packages_value is Array:
+		return false
+	for entry_value in packages_value:
+		if not entry_value is Dictionary:
+			return false
+		var entry: Dictionary = entry_value
+		var identity := "%s@%s" % [
+			String(entry.get("activity_id", "")), String(entry.get("content_version", ""))
+		]
+		if not target.has(identity):
+			continue
+		var indexed: Dictionary = target[identity]
+		if indexed.get("checksum") != entry.get("checksum") or indexed.get("path") != entry.get("path"):
+			return false
+	return true
+
+func _merge_index_entry(target: Dictionary, entry_value: Variant) -> bool:
+	if not entry_value is Dictionary:
+		return false
+	var entry: Dictionary = entry_value
+	var activity_id := String(entry.get("activity_id", ""))
+	var content_version := String(entry.get("content_version", ""))
+	var identity := "%s@%s" % [activity_id, content_version]
+	if activity_id.is_empty() or content_version.is_empty():
+		return false
+	if target.has(identity):
+		var existing: Dictionary = target[identity]
+		return (
+			existing.get("checksum") == entry.get("checksum")
+			and existing.get("path") == entry.get("path")
+		)
+	target[identity] = entry.duplicate(true)
+	return true
 
 func _promote_packages(stage_root: String, manifest: Dictionary) -> bool:
 	var entries_value: Variant = manifest.get("packages", null)

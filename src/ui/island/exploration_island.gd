@@ -9,7 +9,10 @@ var _apples := 0
 var _pending_review := 0
 var _online := false
 var _queued := 0
+var _sync_state := "offline"
+var _sync_diagnostic := ""
 var _sync_service: Variant
+var _sync_label: Label
 
 func _ready() -> void:
 	var snapshot := _snapshot()
@@ -18,11 +21,12 @@ func _ready() -> void:
 	_sync_service = _params.get("sync_service")
 	var sync_status: Variant = _sync_service.status() if _sync_service != null and _sync_service.has_method("status") else {}
 	if sync_status is Dictionary and sync_status.has("state"):
-		_online = sync_status.get("state") == "online"
-		_queued = maxi(0, int(sync_status.get("pending_count", 0)))
+		_apply_sync_status(sync_status)
 	else:
 		_online = bool(_params.get("online", false))
+		_sync_state = "online" if _online else "offline"
 		_queued = maxi(0, int(_params.get("sync_queue_count", 0)))
+	_connect_sync_status()
 	_objectives = DailyObjectiveServiceScript.new().objectives(_profile_id, _today())
 	var ui := MathlandUiScript.scaffold(self, "island.title", "island.subtitle")
 	_add_exploration_background()
@@ -63,6 +67,9 @@ func _ready() -> void:
 	_add_route_button(grid, "SettingsButton", "island.settings", func(): _route(AppRouteScript.SETTINGS))
 	_add_route_button(grid, "SwitchProfileButton", "island.switch_profile", switch_profile)
 
+func _exit_tree() -> void:
+	_disconnect_sync_status()
+
 func _offer_home_voice() -> void:
 	if _audio_service == null or not _audio_service.has_method("play_policy_voice"):
 		return
@@ -101,8 +108,12 @@ func switch_profile() -> void:
 	_reset_route(AppRouteScript.PROFILE_SELECT, {"profile_id": ""})
 
 func sync_status_text() -> String:
+	if _sync_diagnostic == "re_pair_required":
+		return TranslationServer.translate("sync.re_pair_required")
 	if _online:
 		return TranslationServer.translate("sync.online")
+	if _sync_state in ["connecting", "syncing"]:
+		return TranslationServer.translate("sync.connecting")
 	if _queued <= 0:
 		return TranslationServer.translate("sync.offline")
 	return TranslationServer.translate("sync.offline_queued") % _queued
@@ -148,10 +159,36 @@ func _add_status_row(body: VBoxContainer) -> void:
 	sync.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sync.custom_minimum_size = Vector2(0, 46)
 	var sync_text := sync_status_text()
-	var sync_label := MathlandUiScript.literal_label(sync_text, 13, MathlandUiScript.DEEP_TEAL)
-	sync_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sync.add_child(sync_label)
+	_sync_label = MathlandUiScript.literal_label(sync_text, 13, MathlandUiScript.DEEP_TEAL)
+	_sync_label.name = "SyncStateLabel"
+	_sync_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sync.add_child(_sync_label)
 	row.add_child(sync)
+
+func _connect_sync_status() -> void:
+	if _sync_service == null or not _sync_service is Object or not _sync_service.has_signal("status_changed"):
+		return
+	var callback := Callable(self, "_on_sync_status_changed")
+	if not _sync_service.is_connected("status_changed", callback):
+		_sync_service.connect("status_changed", callback)
+
+func _disconnect_sync_status() -> void:
+	if _sync_service == null or not _sync_service is Object or not _sync_service.has_signal("status_changed"):
+		return
+	var callback := Callable(self, "_on_sync_status_changed")
+	if _sync_service.is_connected("status_changed", callback):
+		_sync_service.disconnect("status_changed", callback)
+
+func _on_sync_status_changed(sync_status: Dictionary) -> void:
+	_apply_sync_status(sync_status)
+	if is_instance_valid(_sync_label):
+		_sync_label.text = sync_status_text()
+
+func _apply_sync_status(sync_status: Dictionary) -> void:
+	_sync_state = String(sync_status.get("state", "offline"))
+	_sync_diagnostic = String(sync_status.get("diagnostic", ""))
+	_online = _sync_state == "online"
+	_queued = maxi(0, int(sync_status.get("pending_count", 0)))
 
 func _add_route_button(grid: GridContainer, node_name: String, label_key: String, callback: Callable) -> void:
 	var button := MathlandUiScript.tactile_button(node_name, label_key, "", Vector2(0, 52), 16)

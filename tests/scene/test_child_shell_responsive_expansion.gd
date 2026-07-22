@@ -55,8 +55,8 @@ class ManyContent extends RefCounted:
 		for index in 8:
 			activities.append({
 				"activity_id": "activity_%02d" % index,
-				"title_key": "activity.foundation_ten_rods.title",
-				"description_key": "activity.foundation_ten_rods.description",
+				"title": "수학 탐험 %02d" % index,
+				"description": "재미있는 수학 활동 %02d" % index,
 				"content_version": "test-%02d" % index,
 			})
 		return activities

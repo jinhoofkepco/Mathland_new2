@@ -29,16 +29,20 @@ func _ready() -> void:
 		var column := VBoxContainer.new()
 		column.add_theme_constant_override("separation", 5)
 		card.add_child(column)
-		var title_key := String(activity.get("title_key", "activity.%s.title" % activity.get("activity_id", "unknown")))
-		column.add_child(MathlandUiScript.label(title_key, 21, MathlandUiScript.INK))
-		var description_key := String(activity.get("description_key", "activity.%s.description" % activity.get("activity_id", "unknown")))
-		var description := MathlandUiScript.label(description_key, 15, MathlandUiScript.MUTED_INK)
+		var title := String(activity.get("title", "")).strip_edges()
+		var title_label := MathlandUiScript.literal_label(title, 21, MathlandUiScript.INK)
+		title_label.name = "ActivityTitle_%d" % index
+		column.add_child(title_label)
+		var description_text := String(activity.get("description", "")).strip_edges()
+		var description := MathlandUiScript.literal_label(description_text, 15, MathlandUiScript.MUTED_INK)
+		description.name = "ActivityDescription_%d" % index
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		column.add_child(description)
 		var activity_id := StringName(activity.get("activity_id", ""))
 		var icon_id := AssetCatalogScript.activity_icon_id(activity_id)
 		var icon_name := String(icon_id) if not icon_id.is_empty() else "arrow_right"
-		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, title_key, icon_name, Vector2(0, 54), 17)
+		var button := MathlandUiScript.tactile_button("ActivityButton_%d" % index, "button.continue", icon_name, Vector2(0, 54), 17)
+		button.configure_display_text(title)
 		column.add_child(button)
 		_connect_tactile(button, _open_activity.bind(index))
 

@@ -20,7 +20,9 @@ var _updating_controls := false
 var _pairing_input: LineEdit
 var _pairing_status: Label
 var _pairing_button: Control
+var _re_pairing_button: Control
 var _pairing_in_flight := false
+var _pending_re_pair_code := ""
 
 func _ready() -> void:
 	_settings = _profile().get("settings", {}).duplicate(true)
@@ -61,6 +63,9 @@ func apply_setting(key: String, value: Variant) -> bool:
 func submit_pairing_code(code: String) -> Dictionary:
 	if _pairing_in_flight:
 		return {"ok": false, "error": "pairing_in_progress"}
+	_pending_re_pair_code = ""
+	if _re_pairing_button != null:
+		_re_pairing_button.visible = false
 	if _pairing_input != null:
 		_pairing_input.text = ""
 	if not _is_six_digit_code(code):
@@ -88,7 +93,47 @@ func submit_pairing_code(code: String) -> Dictionary:
 	if pairing_result.get("ok", false):
 		_set_pairing_status("settings.pairing.connected", false)
 	else:
-		_set_pairing_status(_pairing_error_key(String(pairing_result.get("error", ""))), true)
+		var error := String(pairing_result.get("error", ""))
+		if error == "re_pair_required":
+			_pending_re_pair_code = code
+			if _re_pairing_button != null:
+				_re_pairing_button.visible = true
+		_set_pairing_status(_pairing_error_key(error), true)
+	return pairing_result.duplicate(true)
+
+func confirm_re_pair() -> Dictionary:
+	if _pairing_in_flight:
+		return {"ok": false, "error": "pairing_in_progress"}
+	if _pending_re_pair_code.is_empty():
+		return {"ok": false, "error": "re_pair_not_required"}
+	var sync_service: Variant = _params.get("sync_service")
+	if sync_service == null or not sync_service.has_method("re_pair_device"):
+		_set_pairing_status("settings.pairing.unavailable", true)
+		return {"ok": false, "error": "pairing_unavailable"}
+	var display_name := String(_profile().get("nickname", "")).strip_edges()
+	if display_name.is_empty():
+		_set_pairing_status("settings.pairing.failed", true)
+		return {"ok": false, "error": "invalid_pairing_context"}
+	var code := _pending_re_pair_code
+	_pending_re_pair_code = ""
+	if _re_pairing_button != null:
+		_re_pairing_button.visible = false
+	_pairing_in_flight = true
+	_set_pairing_enabled(false)
+	_set_pairing_status("settings.pairing.connecting", false)
+	var result: Variant = await sync_service.re_pair_device(code, _profile_id, display_name)
+	_pairing_in_flight = false
+	_set_pairing_enabled(true)
+	if not result is Dictionary:
+		_set_pairing_status("settings.pairing.failed", true)
+		return {"ok": false, "error": "invalid_pairing_result"}
+	var pairing_result: Dictionary = result
+	_set_pairing_status(
+		"settings.pairing.connected"
+		if pairing_result.get("ok", false)
+		else _pairing_error_key(String(pairing_result.get("error", ""))),
+		not pairing_result.get("ok", false),
+	)
 	return pairing_result.duplicate(true)
 
 func _add_boolean(body: VBoxContainer, key: String) -> void:
@@ -169,6 +214,12 @@ func _add_pairing(body: VBoxContainer) -> void:
 	)
 	_connect_tactile(_pairing_button, _submit_pairing_input)
 	row.add_child(_pairing_button)
+	_re_pairing_button = MathlandUiScript.tactile_button(
+		"RePairDeviceButton", "settings.pairing.re_pair_action", "", Vector2(0, 56), 16
+	)
+	_re_pairing_button.visible = false
+	_connect_tactile(_re_pairing_button, _submit_re_pair)
+	body.add_child(_re_pairing_button)
 	_pairing_status = MathlandUiScript.label("settings.pairing.ready", 14, MathlandUiScript.MUTED_INK)
 	_pairing_status.name = "PairingStatus"
 	_pairing_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -180,11 +231,16 @@ func _submit_pairing_input() -> void:
 	var code := _pairing_input.text
 	await submit_pairing_code(code)
 
+func _submit_re_pair() -> void:
+	await confirm_re_pair()
+
 func _set_pairing_enabled(enabled: bool) -> void:
 	if _pairing_input != null:
 		_pairing_input.editable = enabled
 	if _pairing_button != null and _pairing_button.has_method("set_enabled"):
 		_pairing_button.set_enabled(enabled)
+	if _re_pairing_button != null and _re_pairing_button.has_method("set_enabled"):
+		_re_pairing_button.set_enabled(enabled)
 
 func _set_pairing_status(key: String, is_error: bool) -> void:
 	if _pairing_status == null:
@@ -195,6 +251,8 @@ func _set_pairing_status(key: String, is_error: bool) -> void:
 	)
 
 func _pairing_error_key(error: String) -> String:
+	if error == "re_pair_required":
+		return "settings.pairing.re_pair_required"
 	if error in ["permission", "pairing_code_unavailable", "invalid_pairing_request"]:
 		return "settings.pairing.code_failed"
 	if error in ["pairing_network", "network", "authentication_network"]:

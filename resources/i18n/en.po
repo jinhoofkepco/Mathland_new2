@@ -99,6 +99,12 @@ msgstr "Review %d"
 msgid "sync.online"
 msgstr "Connected to guardian"
 
+msgid "sync.connecting"
+msgstr "Checking guardian connection"
+
+msgid "sync.re_pair_required"
+msgstr "Reconnect this device to the guardian"
+
 msgid "sync.offline"
 msgstr "Offline · safely saved on this device"
 
@@ -284,6 +290,12 @@ msgstr "Connecting to the guardian screen…"
 
 msgid "settings.pairing.connected"
 msgstr "Connected to the guardian screen"
+
+msgid "settings.pairing.re_pair_required"
+msgstr "This connection expired. Tap below once more to replace its sign-in identity."
+
+msgid "settings.pairing.re_pair_action"
+msgstr "Reconnect with new sign-in"
 
 msgid "settings.pairing.code_failed"
 msgstr "The code is invalid or expired"

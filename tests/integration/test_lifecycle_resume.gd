@@ -15,7 +15,15 @@ const AtomicJsonStoreScript = preload("res://src/persistence/atomic_json_store.g
 const RunSessionScript = preload("res://src/game/run_session.gd")
 const VerticalSliceContentRepositoryScript = preload("res://src/content/vertical_slice_content_repository.gd")
 const VerticalSliceQuestionEngineScript = preload("res://src/content/vertical_slice_question_engine.gd")
+const CloudSyncScript = preload("res://src/sync/cloud_sync_service.gd")
+const SyncRetryPolicyScript = preload("res://src/sync/sync_retry_policy.gd")
+const FakeHttpTransportScript = preload("res://tests/support/fake_http_json_transport.gd")
 const AppShellScene = preload("res://scenes/app/app_shell.tscn")
+
+const CLOUD_CONFIG := {
+	"supabase_url": "https://mathland.example.supabase.co",
+	"publishable_key": "sb_publishable_test",
+}
 
 class FlushCountingJournal extends EventJournalScript:
 	var flush_calls := 0
@@ -46,6 +54,28 @@ class ReplayOverrideJournal extends RefCounted:
 
 	func append(_payload: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "read_only_test_journal"}
+
+class SyncAuth extends RefCounted:
+	func ensure_session(_force_refresh: bool = false) -> Dictionary:
+		return {"ok": true}
+
+	func authorization_header() -> String:
+		return "Bearer lifecycle-test"
+
+class InMemorySyncCursor extends RefCounted:
+	var acknowledged_sequence := 0
+	var server_cursor := ""
+
+	func load_cursor() -> Dictionary:
+		return {
+			"acknowledged_sequence": acknowledged_sequence,
+			"server_cursor": server_cursor,
+		}
+
+	func save_cursor(sequence: int, cursor: String) -> Error:
+		acknowledged_sequence = sequence
+		server_cursor = cursor
+		return OK
 
 class FailOnceCompletionProgress extends RefCounted:
 	var inner: Node
@@ -113,6 +143,8 @@ func run(tree: SceneTree) -> void:
 		return
 	_test_pause_and_back_restore_exactly_without_duplicate_events()
 	_cleanup()
+	await _test_sync_then_checkpoint_restart_restores_exact_active_run()
+	_cleanup()
 	_test_stale_checkpoint_replays_the_journal()
 	_cleanup()
 	_test_equal_sequence_tamper_is_replayed()
@@ -162,6 +194,64 @@ func _test_pause_and_back_restore_exactly_without_duplicate_events() -> void:
 	assert_eq(restored_fixture.journal.replay().events.size(), event_count_before + 1)
 	restored_lifecycle.free()
 	fixture.progress.free()
+	restored_fixture.progress.free()
+
+func _test_sync_then_checkpoint_restart_restores_exact_active_run() -> void:
+	var fixture := _fixture()
+	assert_true(fixture.session.start_run(fixture.activity, fixture.question).ok)
+	assert_true(fixture.session.submit_answer(fixture.question.correct_answer, 321, 0).ok)
+	var next_question: Dictionary = fixture.engine.generate_question(fixture.activity, &"count_to_10", 43)
+	assert_true(fixture.session.begin_question(next_question).ok)
+	var expected_state: Dictionary = fixture.session.snapshot()
+	var before_sync: Dictionary = fixture.journal.replay()
+	assert_eq(before_sync.events.size(), 2)
+	var transport := FakeHttpTransportScript.new()
+	transport.enqueue({
+		"ok": true,
+		"status": 200,
+		"body": {
+			"accepted_event_ids": before_sync.events.map(func(event): return event.event_id),
+			"already_present_event_ids": [],
+			"server_cursor": "lifecycle-2",
+			"request_id": "sync-before-checkpoint",
+		},
+	})
+	var cursor := InMemorySyncCursor.new()
+	var cloud_sync := CloudSyncScript.new(
+		fixture.journal,
+		fixture.progress,
+		SyncAuth.new(),
+		transport,
+		cursor,
+		SyncRetryPolicyScript.new(func(): return 0.0),
+		CLOUD_CONFIG,
+	)
+	var synced: Dictionary = await cloud_sync.sync_until_idle()
+	assert_true(synced.ok)
+	assert_eq(cursor.acknowledged_sequence, 2)
+	assert_eq(
+		fixture.journal.replay().events,
+		before_sync.events,
+		"cloud ACK removed the replay history required by the active run",
+	)
+
+	var lifecycle: Node = _new_lifecycle(fixture)
+	assert_true(lifecycle.bind_active_run(fixture.session, fixture.activity).ok)
+	var checkpointed: Dictionary = lifecycle.flush_and_checkpoint()
+	assert_true(checkpointed.ok)
+	assert_eq(checkpointed.checkpoint.last_event_sequence, 2)
+	lifecycle.free()
+	fixture.progress.free()
+
+	var restored_fixture := _reconstructed_fixture()
+	var restored_lifecycle: Node = _new_lifecycle(restored_fixture)
+	var restored: Dictionary = restored_lifecycle.restore_if_present()
+	assert_true(restored.ok)
+	assert_true(restored.restored)
+	assert_eq(restored.run_session.snapshot(), expected_state)
+	assert_eq(restored.current_question, next_question)
+	assert_eq(restored_fixture.journal.replay().events, before_sync.events)
+	restored_lifecycle.free()
 	restored_fixture.progress.free()
 
 func _test_stale_checkpoint_replays_the_journal() -> void:

@@ -63,13 +63,13 @@ class FakeContentRepository extends RefCounted:
 	func list_activities() -> Array[Dictionary]:
 		return [{
 			"activity_id": "foundation_ten_rods",
-			"title_key": "activity.foundation_ten_rods.title",
-			"description_key": "activity.foundation_ten_rods.description",
+			"title": "열 묶음 탐험",
+			"description": "열 막대를 움직여 수를 만들어요.",
 			"content_version": "test-1",
 		}, {
 			"activity_id": "future_unmapped_activity",
-			"title_key": "activity.foundation_ten_rods.title",
-			"description_key": "activity.foundation_ten_rods.description",
+			"title": "미래 탐험",
+			"description": "새로운 수학 보물을 찾아요.",
 			"content_version": "test-1",
 		}]
 
@@ -104,15 +104,28 @@ class FakeEffectsService extends RefCounted:
 		return true
 
 class FakePairingSyncService extends RefCounted:
+	signal status_changed(status: Dictionary)
+
 	var calls: Array[Dictionary] = []
+	var re_pair_calls: Array[Dictionary] = []
 	var next_result := {"ok": true, "family_id": "family-1"}
+	var next_re_pair_result := {"ok": true, "family_id": "family-1"}
+	var current_status := {"state": "offline", "pending_count": 3, "last_success_at": null}
 
 	func pair_device(code: String, profile_id: String, display_name: String) -> Dictionary:
 		calls.append({"code": code, "profile_id": profile_id, "display_name": display_name})
 		return next_result.duplicate(true)
 
 	func status() -> Dictionary:
-		return {"state": "offline", "pending_count": 3, "last_success_at": null}
+		return current_status.duplicate(true)
+
+	func publish_status(next_status: Dictionary) -> void:
+		current_status = next_status.duplicate(true)
+		status_changed.emit(current_status.duplicate(true))
+
+	func re_pair_device(code: String, profile_id: String, display_name: String) -> Dictionary:
+		re_pair_calls.append({"code": code, "profile_id": profile_id, "display_name": display_name})
+		return next_re_pair_result.duplicate(true)
 
 func run(tree: SceneTree) -> void:
 	_cleanup_profile_files()
@@ -145,6 +158,7 @@ func run(tree: SceneTree) -> void:
 	await _test_collection_release_art(tree, services)
 	await _test_free_play_release_activity_icon(tree, services)
 	await _test_offline_copy_is_explicit(tree, services)
+	await _test_island_sync_status_reacts_and_disconnects(tree, services)
 	await _test_settings_are_profile_scoped_and_live(tree, services)
 	await _test_reduced_motion_reaches_current_and_new_buttons(tree, services)
 	_test_daily_objectives_are_stable_and_distinct()
@@ -346,6 +360,7 @@ func _test_collection_release_art(tree: SceneTree, services: Dictionary) -> void
 	await tree.process_frame
 
 func _test_free_play_release_activity_icon(tree: SceneTree, services: Dictionary) -> void:
+	(services.router as FakeRouter).calls.clear()
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(360, 800)
 	tree.root.add_child(viewport)
@@ -362,8 +377,24 @@ func _test_free_play_release_activity_icon(tree: SceneTree, services: Dictionary
 		assert_true(icon.texture is Texture2D)
 		if icon.texture != null:
 			assert_eq(icon.texture.resource_path, "res://assets/ui/icons/activities/foundations_base_ten.svg")
-		assert_false(button.get_node("Visual/Content/TextLabel").text.strip_edges().is_empty())
+		assert_eq(button.get_node("Visual/Content/TextLabel").text, "열 묶음 탐험")
+		assert_false(button.get_node("Visual/Content/TextLabel").text.begins_with("activity."))
 		assert_false(button.accessibility_name.strip_edges().is_empty())
+		var card: Control = screen.find_child("ActivityCard_0", true, false)
+		assert_not_null(card)
+		if card != null:
+			for child in card.find_children("*", "Label", true, false):
+				assert_false(String(child.text).begins_with("activity."), "Free Play exposed a raw localization key")
+		_tap_tactile(button)
+		var routed: Dictionary = (services.router as FakeRouter).calls.back()
+		assert_eq(routed.get("route"), &"activity_run")
+		assert_eq(routed.get("params", {}).get("source"), "free_play")
+		assert_eq(routed.get("params", {}).get("activity_id"), "foundation_ten_rods")
+		assert_eq(
+			routed.get("params", {}).get("content_version"),
+			"test-1",
+			"Free Play must pin the active package version into its activity route",
+		)
 	var fallback_button: Control = screen.find_child("ActivityButton_1", true, false)
 	assert_not_null(fallback_button)
 	if fallback_button != null:
@@ -400,6 +431,51 @@ func _test_offline_copy_is_explicit(tree: SceneTree, services: Dictionary) -> vo
 	viewport.add_child(queued_screen)
 	await tree.process_frame
 	assert_eq(queued_screen.sync_status_text(), TranslationServer.translate("sync.offline_queued") % 3)
+	viewport.queue_free()
+	await tree.process_frame
+
+func _test_island_sync_status_reacts_and_disconnects(tree: SceneTree, services: Dictionary) -> void:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(360, 800)
+	tree.root.add_child(viewport)
+	var scene: PackedScene = load("res://scenes/island/exploration_island.tscn")
+	var reactive_sync := FakePairingSyncService.new()
+	reactive_sync.current_status = {"state": "connecting", "pending_count": 2, "last_success_at": null}
+	var params := services.duplicate(false)
+	params.sync_service = reactive_sync
+	var screen: Control = scene.instantiate()
+	screen.configure(params)
+	viewport.add_child(screen)
+	await tree.process_frame
+	var callback := Callable(screen, "_on_sync_status_changed")
+	assert_true(reactive_sync.status_changed.is_connected(callback), "island did not subscribe to live sync status")
+	assert_eq(screen.sync_status_text(), TranslationServer.translate("sync.connecting"))
+	assert_ne(screen.sync_status_text(), "sync.connecting", "connecting copy is missing from translations")
+	var sync_label: Label = screen.find_child("SyncStateLabel", true, false)
+	assert_not_null(sync_label)
+	if sync_label != null:
+		assert_eq(sync_label.text, screen.sync_status_text())
+	reactive_sync.publish_status({"state": "syncing", "pending_count": 2, "last_success_at": null})
+	await tree.process_frame
+	assert_eq(screen.sync_status_text(), TranslationServer.translate("sync.connecting"))
+	reactive_sync.publish_status({
+		"state": "suspended",
+		"pending_count": 2,
+		"last_success_at": null,
+		"diagnostic": "re_pair_required",
+	})
+	await tree.process_frame
+	assert_eq(screen.sync_status_text(), TranslationServer.translate("sync.re_pair_required"))
+	assert_ne(screen.sync_status_text(), "sync.re_pair_required")
+	reactive_sync.publish_status({"state": "online", "pending_count": 0, "last_success_at": "2026-07-22T01:02:03Z"})
+	await tree.process_frame
+	assert_eq(screen.sync_state(), {"online": true, "queued": 0})
+	assert_eq(screen.sync_status_text(), TranslationServer.translate("sync.online"))
+	if sync_label != null:
+		assert_eq(sync_label.text, TranslationServer.translate("sync.online"))
+	screen.queue_free()
+	await tree.process_frame
+	assert_false(reactive_sync.status_changed.is_connected(callback), "island retained a stale sync subscription")
 	viewport.queue_free()
 	await tree.process_frame
 
@@ -450,6 +526,27 @@ func _test_settings_are_profile_scoped_and_live(tree: SceneTree, services: Dicti
 		})
 		assert_eq(code_input.text, "", "one-use pairing code must not remain in the UI")
 		assert_false(pairing_status.text.strip_edges().is_empty())
+		var sync_service := services.sync_service as FakePairingSyncService
+		sync_service.next_result = {"ok": false, "error": "re_pair_required"}
+		var re_pair_required: Dictionary = await screen.submit_pairing_code("654321")
+		assert_eq(re_pair_required.get("error"), "re_pair_required")
+		assert_eq(pairing_status.text, TranslationServer.translate("settings.pairing.re_pair_required"))
+		var re_pair_button: Control = screen.find_child("RePairDeviceButton", true, false)
+		assert_not_null(re_pair_button)
+		if re_pair_button != null:
+			assert_true(re_pair_button.visible)
+		assert_true(screen.has_method("confirm_re_pair"))
+		if screen.has_method("confirm_re_pair"):
+			var re_paired: Dictionary = await screen.confirm_re_pair()
+			assert_true(re_paired.ok)
+			assert_eq(sync_service.re_pair_calls.back(), {
+				"code": "654321",
+				"profile_id": services.profile_id,
+				"display_name": "모아",
+			})
+			if re_pair_button != null:
+				assert_false(re_pair_button.visible)
+		sync_service.next_result = {"ok": true, "family_id": "family-1"}
 	viewport.queue_free()
 	await tree.process_frame
 

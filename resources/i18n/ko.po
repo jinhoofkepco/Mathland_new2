@@ -99,6 +99,12 @@ msgstr "다시 볼 문제 %d"
 msgid "sync.online"
 msgstr "보호자와 연결됨"
 
+msgid "sync.connecting"
+msgstr "보호자 연결 확인 중"
+
+msgid "sync.re_pair_required"
+msgstr "보호자 연결을 다시 확인해 주세요"
+
 msgid "sync.offline"
 msgstr "오프라인 · 기기에 안전하게 저장 중"
 
@@ -284,6 +290,12 @@ msgstr "보호자 화면과 연결 중…"
 
 msgid "settings.pairing.connected"
 msgstr "보호자 화면과 연결됐어요"
+
+msgid "settings.pairing.re_pair_required"
+msgstr "연결 인증이 만료됐어요. 새 인증으로 바꾸려면 아래 버튼을 한 번 더 눌러 주세요"
+
+msgid "settings.pairing.re_pair_action"
+msgstr "새 인증으로 다시 연결"
 
 msgid "settings.pairing.code_failed"
 msgstr "코드가 만료되었거나 맞지 않아요"

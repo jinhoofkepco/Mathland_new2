@@ -41,12 +41,9 @@ static func is_valid_public_config(config: Variant) -> bool:
 	)
 
 func ensure_session(force_refresh: bool = false) -> Dictionary:
-	if not is_valid_public_config(_config):
-		return {"ok": false, "error": "invalid_public_config"}
-	if _transport == null or not _transport.has_method("request_json"):
-		return {"ok": false, "error": "transport_unavailable"}
-	if _credential_store == null or not _credential_store.has_method("is_available") or not _credential_store.is_available():
-		return {"ok": false, "error": "secure_credentials_unavailable"}
+	var preflight := _auth_preflight()
+	if not preflight.is_empty():
+		return preflight
 	if not force_refresh and not _access_token.is_empty():
 		return {"ok": true}
 	var refresh_token := String(_credential_store.load_refresh_token())
@@ -59,12 +56,37 @@ func ensure_session(force_refresh: bool = false) -> Dictionary:
 		)
 		if refreshed.get("ok", false):
 			return _accept_tokens(refreshed.get("body", {}))
-		if force_refresh:
-			_access_token = ""
-			return {"ok": false, "error": "auth_refresh_failed", "status": int(refreshed.get("status", 0))}
-		if int(refreshed.get("status", 0)) not in [400, 401, 403]:
-			return {"ok": false, "error": "auth_refresh_failed", "status": int(refreshed.get("status", 0))}
-		_credential_store.clear_refresh_token()
+		_access_token = ""
+		var refresh_status := int(refreshed.get("status", 0))
+		if refresh_status in [400, 401, 403]:
+			return {"ok": false, "error": "re_pair_required", "status": refresh_status}
+		return {"ok": false, "error": "auth_refresh_failed", "status": refresh_status}
+	return await _create_anonymous_session()
+
+func pair(code: String, profile_id: String, display_name: String = "") -> Dictionary:
+	var context_error := _pairing_context_error(code, profile_id, display_name)
+	if not context_error.is_empty():
+		return context_error
+	var session: Dictionary = await ensure_session()
+	if not session.get("ok", false):
+		return session
+	return await _pair_with_current_session(code, profile_id, display_name)
+
+func re_pair(code: String, profile_id: String, display_name: String = "") -> Dictionary:
+	var context_error := _pairing_context_error(code, profile_id, display_name)
+	if not context_error.is_empty():
+		return context_error
+	var preflight := _auth_preflight()
+	if not preflight.is_empty():
+		return preflight
+	# Identity replacement is intentionally available only through this explicit action.
+	_access_token = ""
+	var signed_up := await _create_anonymous_session()
+	if not signed_up.get("ok", false):
+		return signed_up
+	return await _pair_with_current_session(code, profile_id, display_name)
+
+func _create_anonymous_session() -> Dictionary:
 	var signed_up: Dictionary = await _transport.request_json(
 		"POST",
 		"%s/auth/v1/signup" % _base_url(),
@@ -75,14 +97,7 @@ func ensure_session(force_refresh: bool = false) -> Dictionary:
 		return {"ok": false, "error": "anonymous_signup_failed", "status": int(signed_up.get("status", 0))}
 	return _accept_tokens(signed_up.get("body", {}))
 
-func pair(code: String, profile_id: String, display_name: String = "") -> Dictionary:
-	if not _is_pairing_code(code):
-		return {"ok": false, "error": "invalid_pairing_code"}
-	if profile_id.is_empty() or _device_id.is_empty() or display_name.strip_edges().is_empty():
-		return {"ok": false, "error": "invalid_pairing_context"}
-	var session: Dictionary = await ensure_session()
-	if not session.get("ok", false):
-		return session
+func _pair_with_current_session(code: String, profile_id: String, display_name: String) -> Dictionary:
 	var request_body := {
 		"code": code,
 		"deviceId": _device_id,
@@ -116,6 +131,22 @@ func pair(code: String, profile_id: String, display_name: String = "") -> Dictio
 		"cloud_profile_id": String(body.cloudProfileId),
 		"profile_local_id": String(body.profileLocalId),
 	}
+
+func _auth_preflight() -> Dictionary:
+	if not is_valid_public_config(_config):
+		return {"ok": false, "error": "invalid_public_config"}
+	if _transport == null or not _transport.has_method("request_json"):
+		return {"ok": false, "error": "transport_unavailable"}
+	if _credential_store == null or not _credential_store.has_method("is_available") or not _credential_store.is_available():
+		return {"ok": false, "error": "secure_credentials_unavailable"}
+	return {}
+
+func _pairing_context_error(code: String, profile_id: String, display_name: String) -> Dictionary:
+	if not _is_pairing_code(code):
+		return {"ok": false, "error": "invalid_pairing_code"}
+	if profile_id.is_empty() or _device_id.is_empty() or display_name.strip_edges().is_empty():
+		return {"ok": false, "error": "invalid_pairing_context"}
+	return {}
 
 func authorization_header() -> String:
 	return "" if _access_token.is_empty() else "Bearer %s" % _access_token

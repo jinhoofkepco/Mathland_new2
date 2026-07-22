@@ -13,6 +13,10 @@ func run(_tree: SceneTree) -> void:
 	_test_public_config_is_an_exact_https_origin()
 	await _test_anonymous_signup_persists_only_refresh_token()
 	await _test_stored_refresh_token_is_used_without_signup()
+	await _test_rejected_stored_refresh_never_rotates_identity()
+	await _test_forced_rejected_refresh_requires_explicit_re_pair()
+	await _test_regular_pair_never_rotates_a_rejected_identity()
+	await _test_explicit_re_pair_rotates_identity_once()
 	await _test_pairing_uses_exact_wire_shape_and_retries_one_401()
 	await _test_pairing_never_confuses_cloud_and_local_profile_ids()
 	await _test_pairing_rejects_invalid_codes_without_network()
@@ -57,6 +61,74 @@ func _test_stored_refresh_token_is_used_without_signup() -> void:
 	assert_true(transport.requests[0].url.ends_with("/auth/v1/token?grant_type=refresh_token"))
 	assert_eq(transport.requests[0].body, {"refresh_token": "refresh-old"})
 	assert_eq(credentials.refresh_token, "refresh-two")
+
+func _test_rejected_stored_refresh_never_rotates_identity() -> void:
+	for status_code in [400, 401, 403]:
+		var transport := FakeTransportScript.new()
+		transport.enqueue(_response(status_code, {"error": {"code": "REFRESH_REJECTED"}}))
+		# A queued signup response proves the auth client never falls through to identity rotation.
+		transport.enqueue(_response(200, {"access_token": "rotated", "refresh_token": "rotated"}))
+		var credentials := FakeCredentialsScript.new()
+		credentials.refresh_token = "refresh-bound-device"
+		var auth := AuthScript.new(transport, credentials, CONFIG, "device-bound")
+		var result: Dictionary = await auth.ensure_session()
+		assert_eq(result, {"ok": false, "error": "re_pair_required", "status": status_code})
+		assert_eq(transport.requests.size(), 1, "stored refresh rejection triggered anonymous signup")
+		assert_eq(credentials.refresh_token, "refresh-bound-device")
+		assert_eq(credentials.saved_tokens, [])
+		assert_eq(credentials.clear_calls, 0)
+		assert_eq(auth.authorization_header(), "")
+
+func _test_forced_rejected_refresh_requires_explicit_re_pair() -> void:
+	var transport := FakeTransportScript.new()
+	transport.enqueue(_response(200, {"access_token": "access-old", "refresh_token": "refresh-old"}))
+	transport.enqueue(_response(401, {"error": {"code": "REFRESH_REJECTED"}}))
+	var credentials := FakeCredentialsScript.new()
+	credentials.refresh_token = "refresh-start"
+	var auth := AuthScript.new(transport, credentials, CONFIG, "device-bound")
+	assert_true((await auth.ensure_session()).ok)
+	var result: Dictionary = await auth.ensure_session(true)
+	assert_eq(result, {"ok": false, "error": "re_pair_required", "status": 401})
+	assert_eq(auth.authorization_header(), "")
+	assert_eq(credentials.refresh_token, "refresh-old", "re-pair evidence must remain until an explicit reset")
+	assert_eq(credentials.clear_calls, 0)
+
+func _test_regular_pair_never_rotates_a_rejected_identity() -> void:
+	var transport := FakeTransportScript.new()
+	transport.enqueue(_response(401, {"error": {"code": "REFRESH_REJECTED"}}))
+	transport.enqueue(_response(200, {"access_token": "rotated", "refresh_token": "rotated"}))
+	var credentials := FakeCredentialsScript.new()
+	credentials.refresh_token = "refresh-bound-device"
+	var auth := AuthScript.new(transport, credentials, CONFIG, "device-bound")
+	var result: Dictionary = await auth.pair("123456", "profile-local", "모아")
+	assert_eq(result.get("error"), "re_pair_required")
+	assert_eq(transport.requests.size(), 1)
+	assert_eq(credentials.refresh_token, "refresh-bound-device")
+
+func _test_explicit_re_pair_rotates_identity_once() -> void:
+	var transport := FakeTransportScript.new()
+	transport.enqueue(_response(200, {"access_token": "access-new", "refresh_token": "refresh-new"}))
+	transport.enqueue(_response(200, {
+		"deviceBindingId": "11111111-1111-4111-8111-111111111111",
+		"familyId": "22222222-2222-4222-8222-222222222222",
+		"cloudProfileId": "33333333-3333-4333-8333-333333333333",
+		"profileLocalId": "profile-local",
+	}))
+	var credentials := FakeCredentialsScript.new()
+	credentials.refresh_token = "refresh-rejected"
+	var auth := AuthScript.new(transport, credentials, CONFIG, "device-bound")
+	assert_true(auth.has_method("re_pair"), "auth has no explicit user-authorized identity replacement path")
+	if not auth.has_method("re_pair"):
+		return
+	var result: Dictionary = await auth.re_pair("123456", "profile-local", "모아")
+	assert_true(result.ok)
+	assert_eq(transport.requests.size(), 2)
+	assert_true(transport.requests[0].url.ends_with("/auth/v1/signup"))
+	assert_true(transport.requests[1].url.ends_with("/functions/v1/pair-device"))
+	assert_eq(transport.requests[1].headers.get("Authorization"), "Bearer access-new")
+	assert_eq(credentials.refresh_token, "refresh-new")
+	assert_eq(credentials.saved_tokens, ["refresh-new"])
+	assert_eq(credentials.clear_calls, 0, "explicit replacement should atomically overwrite, not erase first")
 
 func _test_pairing_uses_exact_wire_shape_and_retries_one_401() -> void:
 	var transport := FakeTransportScript.new()
