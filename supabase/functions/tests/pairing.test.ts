@@ -310,6 +310,32 @@ Deno.test("pair device rejects a blank display name before repository access", a
   assertEquals(called, false);
 });
 
+Deno.test("pair device rejects the server-reserved pending profile namespace", async () => {
+  let called = false;
+  const response = await pairDevice(
+    bearerRequest("pair-device", {
+      code: "123456",
+      deviceId: "device-pairing",
+      profileLocalId: "pending:11111111-1111-4111-8111-111111111111",
+    }),
+    deviceDependencies({
+      repository: {
+        claimChallenge: () => {
+          called = true;
+          return Promise.reject(new Error("must not be called"));
+        },
+      },
+    }),
+  );
+
+  assertEquals(response.status, 400);
+  assertEquals(
+    ((await json(response)).error as Record<string, unknown>).code,
+    "invalid_pairing_request",
+  );
+  assertEquals(called, false);
+});
+
 Deno.test("pair device hashes the code and returns only non-sensitive binding identifiers", async () => {
   let captured:
     | {

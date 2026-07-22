@@ -161,10 +161,15 @@ export const CreatePairingCodeRequestSchema = z.strictObject({
 });
 export type CreatePairingCodeRequest = z.infer<typeof CreatePairingCodeRequestSchema>;
 
+export const DeviceProfileLocalIdSchema = z.string().trim().min(1).max(128).refine(
+  (value) => !value.toLowerCase().startsWith("pending:"),
+  { message: "pending is a server-reserved profile namespace" },
+);
+
 export const DevicePairingRequestSchema = z.strictObject({
   code: z.string().regex(/^[0-9]{6}$/),
   deviceId: z.string().trim().min(1).max(128),
-  profileLocalId: z.string().trim().min(1).max(128),
+  profileLocalId: DeviceProfileLocalIdSchema,
   displayName: z.string().trim().min(1).max(80).optional(),
 });
 export type DevicePairingRequest = z.infer<typeof DevicePairingRequestSchema>;
@@ -173,7 +178,7 @@ export const DevicePairingResultSchema = z.strictObject({
   deviceBindingId: CloudUuidSchema,
   familyId: CloudUuidSchema,
   cloudProfileId: CloudUuidSchema,
-  profileLocalId: z.string().min(1).max(128),
+  profileLocalId: DeviceProfileLocalIdSchema,
 });
 export type DevicePairingResult = z.infer<typeof DevicePairingResultSchema>;
 

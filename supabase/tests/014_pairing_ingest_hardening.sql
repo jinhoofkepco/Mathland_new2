@@ -24,6 +24,25 @@ select table_privs_are(
   array[]::text[],
   'authenticated clients cannot read or mutate private limiter buckets'
 );
+select has_table(
+  'public',
+  'pending_child_profile_bindings',
+  'first pairing requires a private server-provisioned pending binding fact'
+);
+select table_privs_are(
+  'public',
+  'pending_child_profile_bindings',
+  'service_role',
+  array[]::text[],
+  'the Edge service cannot forge pending child binding facts directly'
+);
+select table_privs_are(
+  'public',
+  'pending_child_profile_bindings',
+  'authenticated',
+  array[]::text[],
+  'guardian clients cannot forge pending child binding facts directly'
+);
 
 insert into auth.users (id, raw_app_meta_data, is_anonymous) values
   ('00000000-0000-4000-8000-000000000401', '{}', false),
@@ -33,7 +52,11 @@ insert into auth.users (id, raw_app_meta_data, is_anonymous) values
   ('00000000-0000-4000-8000-000000000405', '{}', true),
   ('00000000-0000-4000-8000-000000000406', '{}', true),
   ('00000000-0000-4000-8000-000000000407', '{}', true),
-  ('00000000-0000-4000-8000-000000000408', '{}', true);
+  ('00000000-0000-4000-8000-000000000408', '{}', true),
+  ('00000000-0000-4000-8000-000000000409', '{}', true),
+  ('00000000-0000-4000-8000-000000000410', '{}', true),
+  ('00000000-0000-4000-8000-000000000411', '{}', true),
+  ('00000000-0000-4000-8000-000000000412', '{}', true);
 
 insert into public.families (id, name, created_by) values (
   '10000000-0000-4000-8000-000000000401',
@@ -59,7 +82,46 @@ insert into public.child_profiles (
     '10000000-0000-4000-8000-000000000401',
     'local-profile-two', 'Child two',
     '00000000-0000-4000-8000-000000000401'
+  ),
+  (
+    '20000000-0000-4000-8000-000000000403',
+    '10000000-0000-4000-8000-000000000401',
+    'pending:11111111-1111-4111-8111-111111111111', 'Pending child',
+    '00000000-0000-4000-8000-000000000401'
+  ),
+  (
+    '20000000-0000-4000-8000-000000000404',
+    '10000000-0000-4000-8000-000000000401',
+    'server-known-unpaired', 'Non-pending child',
+    '00000000-0000-4000-8000-000000000401'
   );
+
+insert into public.pending_child_profile_bindings (
+  profile_id, family_id, pending_marker
+) values (
+  '20000000-0000-4000-8000-000000000403',
+  '10000000-0000-4000-8000-000000000401',
+  'pending:11111111-1111-4111-8111-111111111111'
+);
+
+insert into public.families (id, name, created_by) values (
+  '10000000-0000-4000-8000-000000000402',
+  'Other pairing family',
+  '00000000-0000-4000-8000-000000000401'
+);
+insert into public.family_memberships (family_id, user_id, role) values (
+  '10000000-0000-4000-8000-000000000402',
+  '00000000-0000-4000-8000-000000000401',
+  'guardian'
+);
+insert into public.child_profiles (
+  id, family_id, client_profile_id, nickname, created_by
+) values (
+  '20000000-0000-4000-8000-000000000405',
+  '10000000-0000-4000-8000-000000000402',
+  'local-profile-one', 'Other family child',
+  '00000000-0000-4000-8000-000000000401'
+);
 
 set local role service_role;
 select lives_ok(
@@ -270,6 +332,316 @@ select is(
   ),
   0::bigint,
   'the rejected gap event is not persisted'
+);
+
+-- A reinstalled app can receive a new anonymous Auth identity while retaining
+-- its installation identifier. A fresh guardian challenge may rotate only the
+-- Auth identity on that exact physical/profile binding.
+delete from public.pairing_rate_limit_buckets;
+select set_config(
+  'test.original_device_id',
+  (select id::text from public.devices where device_id = 'device-one'),
+  true
+);
+
+set local role service_role;
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000402',
+      decode(repeat('a3', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a challenge for a different cloud child'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a3', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000409',
+      'device-one', 'local-profile-two', 'Reinstalled phone',
+      decode(repeat('44', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'a new Auth identity cannot take an existing device into another cloud profile'
+);
+reset role;
+select is(
+  (select auth_user_id from public.devices where device_id = 'device-one'),
+  '00000000-0000-4000-8000-000000000402'::uuid,
+  'a rejected cross-profile refresh preserves the original Auth binding'
+);
+select ok(
+  (
+    select consumed_at is null and attempt_count = 1
+    from public.pairing_codes
+    where code_digest = decode(repeat('a3', 32), 'hex')
+  ),
+  'a rejected refresh counts the matched attempt without consuming its challenge'
+);
+
+set local role service_role;
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000405',
+      decode(repeat('a5', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a challenge for a child in another family'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a5', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000409',
+      'device-one', 'local-profile-one', 'Cross-family phone',
+      decode(repeat('52', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'Auth refresh cannot move an existing device across families'
+);
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000401',
+      decode(repeat('a6', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a challenge for collision regression checks'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a6', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000409',
+      'device-one', 'different-local-profile', 'Wrong local phone',
+      decode(repeat('53', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'Auth refresh cannot alter the existing local profile identity'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a6', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000402',
+      'different-device', 'local-profile-one', 'Wrong device',
+      decode(repeat('54', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'an already-bound Auth identity cannot move to a different device identifier'
+);
+reset role;
+select results_eq(
+  $$select auth_user_id,
+      (select count(*) from public.devices all_devices)
+    from public.devices
+    where device_id = 'device-one'$$,
+  $$values ('00000000-0000-4000-8000-000000000402'::uuid, 1::bigint)$$,
+  'cross-family, local-ID, and device-ID collisions preserve the sole original binding'
+);
+
+set local role service_role;
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000401',
+      decode(repeat('a4', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a fresh challenge for the existing device profile'
+);
+select results_eq(
+  $$select outcome, device_id, family_id, profile_id, profile_local_id
+    from public.claim_device_pairing_for_service(
+      decode(repeat('a4', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000409',
+      'device-one', 'local-profile-one', 'Reinstalled phone',
+      decode(repeat('45', 32), 'hex')
+    )$$,
+  $$select
+      'paired'::text,
+      current_setting('test.original_device_id')::uuid,
+      '10000000-0000-4000-8000-000000000401'::uuid,
+      '20000000-0000-4000-8000-000000000401'::uuid,
+      'local-profile-one'::text$$,
+  'a valid guardian challenge rotates Auth on the exact existing device/profile binding'
+);
+reset role;
+select results_eq(
+  $$select id, auth_user_id, family_id, profile_id, profile_local_id,
+      display_name, last_sequence
+    from public.devices
+    where device_id = 'device-one'$$,
+  $$select
+      current_setting('test.original_device_id')::uuid,
+      '00000000-0000-4000-8000-000000000409'::uuid,
+      '10000000-0000-4000-8000-000000000401'::uuid,
+      '20000000-0000-4000-8000-000000000401'::uuid,
+      'local-profile-one'::text,
+      'Reinstalled phone'::text,
+      2::bigint$$,
+  're-pair preserves the device row, profile identity, and sync cursor while rotating Auth'
+);
+select ok(
+  (
+    select consumed_at is not null
+      and consumed_by = '00000000-0000-4000-8000-000000000409'::uuid
+      and attempt_count = 1
+    from public.pairing_codes
+    where code_digest = decode(repeat('a4', 32), 'hex')
+  ),
+  'the successful re-pair consumes the guardian challenge atomically'
+);
+
+set local role service_role;
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a4', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000410',
+      'device-one', 'local-profile-one', 'Replay phone',
+      decode(repeat('46', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'a consumed guardian challenge cannot rotate the device Auth identity again'
+);
+reset role;
+select is(
+  (select auth_user_id from public.devices where device_id = 'device-one'),
+  '00000000-0000-4000-8000-000000000409'::uuid,
+  'a consumed-code replay leaves the refreshed Auth binding unchanged'
+);
+
+set local role service_role;
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000403',
+      decode(repeat('a8', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a challenge for a server-provisioned pending child'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a8', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000411',
+      'first-device',
+      'pending:22222222-2222-4222-8222-222222222222',
+      'First phone', decode(repeat('47', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'a device cannot submit a value from the server-reserved pending namespace'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a8', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000411',
+      'first-device', 'local-profile-one',
+      'First phone', decode(repeat('47', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'first bind cannot adopt a local ID already owned by another child in the family'
+);
+reset role;
+select results_eq(
+  $$select client_profile_id,
+      (select count(*) from public.devices device where device.profile_id = profile.id)
+    from public.child_profiles profile
+    where profile.id = '20000000-0000-4000-8000-000000000403'$$,
+  $$values (
+      'pending:11111111-1111-4111-8111-111111111111'::text,
+      0::bigint
+    )$$,
+  'rejected first-bind attempts preserve the pending marker and create no device'
+);
+
+set local role service_role;
+select results_eq(
+  $$select outcome, family_id, profile_id, profile_local_id
+    from public.claim_device_pairing_for_service(
+      decode(repeat('a8', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000411',
+      'first-device', 'fresh-local-profile',
+      'First phone', decode(repeat('47', 32), 'hex')
+    )$$,
+  $$values (
+      'paired'::text,
+      '10000000-0000-4000-8000-000000000401'::uuid,
+      '20000000-0000-4000-8000-000000000403'::uuid,
+      'fresh-local-profile'::text
+    )$$,
+  'valid guardian code atomically adopts the first device local profile ID'
+);
+reset role;
+select results_eq(
+  $$select profile.client_profile_id, device.profile_local_id, device.auth_user_id
+    from public.child_profiles profile
+    join public.devices device
+      on device.profile_id = profile.id and device.family_id = profile.family_id
+    where profile.id = '20000000-0000-4000-8000-000000000403'$$,
+  $$values (
+      'fresh-local-profile'::text,
+      'fresh-local-profile'::text,
+      '00000000-0000-4000-8000-000000000411'::uuid
+    )$$,
+  'first bind stores one consistent cloud/device/local profile identity'
+);
+select is(
+  (
+    select count(*)
+    from public.pending_child_profile_bindings
+    where profile_id = '20000000-0000-4000-8000-000000000403'
+  ),
+  0::bigint,
+  'successful first bind consumes the private pending fact'
+);
+select ok(
+  (
+    select consumed_at is not null
+      and consumed_by = '00000000-0000-4000-8000-000000000411'::uuid
+      and attempt_count = 3
+    from public.pairing_codes
+    where code_digest = decode(repeat('a8', 32), 'hex')
+  ),
+  'first bind counts matched attempts and consumes the guardian challenge only on success'
+);
+
+set local role service_role;
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a8', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000412',
+      'first-device', 'fresh-local-profile',
+      'Replay first phone', decode(repeat('50', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'a consumed first-bind challenge cannot transfer the device identity'
+);
+select lives_ok(
+  $$select public.create_pairing_challenge_for_service(
+      '20000000-0000-4000-8000-000000000404',
+      decode(repeat('a9', 32), 'hex'),
+      statement_timestamp() + interval '10 minutes',
+      '00000000-0000-4000-8000-000000000401'
+    )$$,
+  'guardian creates a challenge for an unpaired non-pending child'
+);
+select results_eq(
+  $$select outcome from public.claim_device_pairing_for_service(
+      decode(repeat('a9', 32), 'hex'),
+      '00000000-0000-4000-8000-000000000412',
+      'non-pending-device', 'different-local-profile',
+      'Other phone', decode(repeat('51', 32), 'hex')
+    )$$,
+  $$values ('pairing_code_invalid'::text)$$,
+  'an ordinary unpaired child cannot silently adopt a different local profile ID'
+);
+reset role;
+select results_eq(
+  $$select client_profile_id,
+      (select count(*) from public.devices device where device.profile_id = profile.id)
+    from public.child_profiles profile
+    where profile.id = '20000000-0000-4000-8000-000000000404'$$,
+  $$values ('server-known-unpaired'::text, 0::bigint)$$,
+  'failed non-pending first bind leaves the cloud child unchanged'
 );
 
 select function_privs_are(

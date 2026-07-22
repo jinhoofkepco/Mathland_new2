@@ -45,6 +45,20 @@ describe("cloud wire contracts", () => {
         profile_id: "local-child-1",
       })
     ).toThrow();
+    expect(() =>
+      DevicePairingRequestSchema.parse({
+        code: "123456",
+        deviceId: "android-installation-1",
+        profileLocalId: "pending:11111111-1111-4111-8111-111111111111",
+      })
+    ).toThrow();
+    expect(() =>
+      DevicePairingRequestSchema.parse({
+        code: "123456",
+        deviceId: "android-installation-1",
+        profileLocalId: "Pending:11111111-1111-4111-8111-111111111111",
+      })
+    ).toThrow();
   });
 
   it("accepts a strict family membership projection", () => {
