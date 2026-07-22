@@ -441,6 +441,39 @@ msgstr "Correct!"
 msgid "feedback.wrong"
 msgstr "One heart was lost"
 
+msgid "question.addition"
+msgstr "What is the sum of {expression}?"
+
+msgid "question.subtraction"
+msgstr "What is the difference in {expression}?"
+
+msgid "question.multiplication"
+msgstr "What is the product of {expression}?"
+
+msgid "question.common_multiple"
+msgstr "What is the least common multiple of {expression}?"
+
+msgid "question.prime_factorization"
+msgstr "Show {value} as prime factors."
+
+msgid "question.counting"
+msgstr "How many pieces are there?"
+
+msgid "question.number_bonds"
+msgstr "The whole is {whole} and one part is {shown_part}. What is missing?"
+
+msgid "question.ten_frame"
+msgstr "What number is shown in the ten-frame?"
+
+msgid "question.base_ten"
+msgstr "What number do the hundreds, tens, and ones show?"
+
+msgid "question.number_line"
+msgstr "Where do you land if you move {step} from {start}?"
+
+msgid "question.basic_operations"
+msgstr "Build the answer to {expression} with the pieces."
+
 msgid "result.title"
 msgstr "Adventure result"
 

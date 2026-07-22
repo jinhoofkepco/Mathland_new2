@@ -30,6 +30,7 @@ func run(_tree: SceneTree) -> void:
 
 	var band_count := 0
 	var sample_count := 0
+	var prompt_keys := {}
 	for activity_id in IDS:
 		assert_eq(repository.get_active_version(StringName(activity_id)), "1.0.0")
 		var activity: Dictionary = repository.get_activity(StringName(activity_id))
@@ -54,6 +55,23 @@ func run(_tree: SceneTree) -> void:
 			if question.is_empty():
 				continue
 			assert_eq(question.correct_answer, sample.expected_answer)
+			var prompt: Variant = question.get("prompt", {})
+			if prompt is Dictionary:
+				var prompt_key := String(prompt.get("key", ""))
+				if not prompt_key.is_empty():
+					prompt_keys[prompt_key] = true
 			sample_count += 1
 	assert_eq(band_count, 33)
 	assert_eq(sample_count, 132)
+	assert_eq(prompt_keys.size(), IDS.size())
+
+	var previous_locale := TranslationServer.get_locale()
+	for locale in ["ko", "en"]:
+		TranslationServer.set_locale(locale)
+		for prompt_key in prompt_keys:
+			assert_ne(
+				TranslationServer.translate(prompt_key),
+				prompt_key,
+				"%s exposed raw prompt key %s" % [locale, prompt_key]
+			)
+	TranslationServer.set_locale(previous_locale)

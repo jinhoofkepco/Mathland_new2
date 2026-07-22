@@ -441,6 +441,39 @@ msgstr "맞았어요!"
 msgid "feedback.wrong"
 msgstr "하트가 하나 줄었어요"
 
+msgid "question.addition"
+msgstr "{expression}의 합은 얼마일까요?"
+
+msgid "question.subtraction"
+msgstr "{expression}의 차는 얼마일까요?"
+
+msgid "question.multiplication"
+msgstr "{expression}의 곱은 얼마일까요?"
+
+msgid "question.common_multiple"
+msgstr "{expression}의 최소공배수는 얼마일까요?"
+
+msgid "question.prime_factorization"
+msgstr "{value}을 소인수로 나타내 보세요."
+
+msgid "question.counting"
+msgstr "조각은 모두 몇 개일까요?"
+
+msgid "question.number_bonds"
+msgstr "전체가 {whole}이고 보이는 부분이 {shown_part}일 때 빠진 수는 얼마일까요?"
+
+msgid "question.ten_frame"
+msgstr "10칸판에 표시된 수는 얼마일까요?"
+
+msgid "question.base_ten"
+msgstr "백·십·일 조각이 나타내는 수는 얼마일까요?"
+
+msgid "question.number_line"
+msgstr "{start}에서 {step}만큼 움직이면 어디일까요?"
+
+msgid "question.basic_operations"
+msgstr "{expression}의 답을 조각으로 만들어 보세요."
+
 msgid "result.title"
 msgstr "탐험 결과"
 
