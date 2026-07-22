@@ -17,6 +17,10 @@ export function RequireSession({ children }: PropsWithChildren) {
     const next = `${location.pathname}${location.search}`;
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
+  if (state.status === "onboarding") {
+    const next = `${location.pathname}${location.search}`;
+    return <Navigate to={`/onboarding?next=${encodeURIComponent(next)}`} replace />;
+  }
   if (state.status === "unauthorized") {
     return (
       <main className="state-page">

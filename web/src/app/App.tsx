@@ -3,12 +3,14 @@ import { Link, Route, Routes } from "react-router-dom";
 
 import { AuthCallbackPage } from "../auth/AuthCallbackPage";
 import { LoginPage } from "../auth/LoginPage";
+import { RequireFamily } from "../auth/require_family";
 import { RequireRole } from "../auth/require_role";
 import { RequireSession } from "../auth/require_session";
 import { DashboardPage } from "../dashboard/DashboardPage";
 import { DataControlsPage } from "../data/DataControlsPage";
 import { DevicesPage } from "../devices/DevicesPage";
 import { AppLayout } from "../layout/AppLayout";
+import { OnboardingPage } from "../onboarding/OnboardingPage";
 
 const DraftEditorPage = lazy(() => import("../studio/DraftEditorPage").then((module) => ({ default: module.DraftEditorPage })));
 const HistoryPage = lazy(() => import("../studio/HistoryPage").then((module) => ({ default: module.HistoryPage })));
@@ -51,10 +53,11 @@ function WelcomePage() {
   );
 }
 
-function ProtectedPage({ children }: { children: ReactNode }) {
+function ProtectedPage({ children, requireFamily = true }: { children: ReactNode; requireFamily?: boolean }) {
+  const content = <AppLayout>{children}</AppLayout>;
   return (
     <RequireSession>
-      <AppLayout>{children}</AppLayout>
+      {requireFamily ? <RequireFamily>{content}</RequireFamily> : content}
     </RequireSession>
   );
 }
@@ -70,6 +73,7 @@ export function App() {
         <Route path="/" element={<WelcomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/dashboard" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
         <Route path="/dashboard/:familyId/:profileId" element={<ProtectedPage><DashboardPage /></ProtectedPage>} />
         <Route path="/devices" element={<ProtectedPage><DevicesPage /></ProtectedPage>} />
@@ -77,7 +81,7 @@ export function App() {
         <Route
           path="/studio"
           element={
-            <ProtectedPage>
+            <ProtectedPage requireFamily={false}>
               <RequireRole allow={["editor", "owner"]}><StudioPage /></RequireRole>
             </ProtectedPage>
           }
@@ -85,7 +89,7 @@ export function App() {
         <Route
           path="/studio/drafts/:draftId"
           element={
-            <ProtectedPage>
+            <ProtectedPage requireFamily={false}>
               <RequireRole allow={["editor", "owner"]}><DraftEditorPage /></RequireRole>
             </ProtectedPage>
           }
@@ -93,7 +97,7 @@ export function App() {
         <Route
           path="/studio/history"
           element={
-            <ProtectedPage>
+            <ProtectedPage requireFamily={false}>
               <RequireRole allow={["owner"]}><HistoryPage /></RequireRole>
             </ProtectedPage>
           }

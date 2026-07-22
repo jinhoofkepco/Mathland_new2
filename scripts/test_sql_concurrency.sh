@@ -9,6 +9,8 @@ cleanup_concurrency_logs() {
   rm -f \
     "$MATHLAND_CONCURRENCY_TMP/pairing-a.log" \
     "$MATHLAND_CONCURRENCY_TMP/pairing-b.log" \
+    "$MATHLAND_CONCURRENCY_TMP/onboarding-a.log" \
+    "$MATHLAND_CONCURRENCY_TMP/onboarding-b.log" \
     "$MATHLAND_CONCURRENCY_TMP/publication.log" \
     "$MATHLAND_CONCURRENCY_TMP/activation.log"
   rmdir "$MATHLAND_CONCURRENCY_TMP"
@@ -34,6 +36,89 @@ wait_for_advisory_owner() {
   echo "FAIL: timed out waiting for concurrent session advisory marker ${advisory_key}." >&2
   return 1
 }
+
+MATHLAND_ONBOARDING_ID="$(sql_value 'select extensions.gen_random_uuid()')"
+
+"$MATHLAND_PSQL_BIN" "$MATHLAND_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+  -v onboarding_id="$MATHLAND_ONBOARDING_ID" <<'SQL' >/dev/null
+insert into auth.users (id, is_anonymous) values (:'onboarding_id', false);
+
+create function public.mathland_test_onboarding_insert_pause()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  perform pg_catalog.pg_sleep(0.5);
+  return new;
+end;
+$$;
+
+create trigger mathland_test_onboarding_insert_pause
+before insert on public.families
+for each row
+when (new.name = 'Concurrent onboarding family')
+execute function public.mathland_test_onboarding_insert_pause();
+SQL
+
+onboarding_worker() {
+  "$MATHLAND_PSQL_BIN" "$MATHLAND_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+    -v onboarding_id="$MATHLAND_ONBOARDING_ID" <<'SQL'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'onboarding_id', true);
+select set_config(
+  'request.jwt.claims',
+  pg_catalog.jsonb_build_object(
+    'sub', :'onboarding_id',
+    'is_anonymous', false,
+    'app_metadata', '{}'::jsonb
+  )::text,
+  true
+);
+select public.bootstrap_guardian_onboarding(
+  'Concurrent onboarding family',
+  'Concurrent child'
+);
+commit;
+SQL
+}
+
+onboarding_worker >"$MATHLAND_CONCURRENCY_TMP/onboarding-a.log" 2>&1 &
+MATHLAND_ONBOARDING_PID_A=$!
+onboarding_worker >"$MATHLAND_CONCURRENCY_TMP/onboarding-b.log" 2>&1 &
+MATHLAND_ONBOARDING_PID_B=$!
+
+set +e
+wait "$MATHLAND_ONBOARDING_PID_A"
+MATHLAND_ONBOARDING_STATUS_A=$?
+wait "$MATHLAND_ONBOARDING_PID_B"
+MATHLAND_ONBOARDING_STATUS_B=$?
+set -e
+
+if [[ "$MATHLAND_ONBOARDING_STATUS_A" -ne 0 || "$MATHLAND_ONBOARDING_STATUS_B" -ne 0 ]]; then
+  sed -n '1,120p' "$MATHLAND_CONCURRENCY_TMP/onboarding-a.log"
+  sed -n '1,120p' "$MATHLAND_CONCURRENCY_TMP/onboarding-b.log"
+  echo "FAIL: concurrent guardian onboarding requests must both commit." >&2
+  exit 1
+fi
+
+MATHLAND_ONBOARDING_FAMILIES="$(sql_value "select count(*) from public.families where created_by = '$MATHLAND_ONBOARDING_ID'")"
+MATHLAND_ONBOARDING_PROFILES="$(sql_value "select count(*) from public.child_profiles where created_by = '$MATHLAND_ONBOARDING_ID'")"
+MATHLAND_ONBOARDING_FACTS="$(sql_value "select count(*) from public.pending_child_profile_bindings pending join public.child_profiles profile on profile.id = pending.profile_id where profile.created_by = '$MATHLAND_ONBOARDING_ID'")"
+MATHLAND_ONBOARDING_AUDITS="$(sql_value "select count(*) from public.audit_log where actor_id = '$MATHLAND_ONBOARDING_ID' and action = 'guardian_onboarding_completed'")"
+if [[ "$MATHLAND_ONBOARDING_FAMILIES" != "1" \
+  || "$MATHLAND_ONBOARDING_PROFILES" != "1" \
+  || "$MATHLAND_ONBOARDING_FACTS" != "1" \
+  || "$MATHLAND_ONBOARDING_AUDITS" != "1" ]]; then
+  echo "FAIL: concurrent onboarding invariant families=$MATHLAND_ONBOARDING_FAMILIES profiles=$MATHLAND_ONBOARDING_PROFILES facts=$MATHLAND_ONBOARDING_FACTS audits=$MATHLAND_ONBOARDING_AUDITS." >&2
+  exit 1
+fi
+
+"$MATHLAND_PSQL_BIN" "$MATHLAND_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+drop trigger mathland_test_onboarding_insert_pause on public.families;
+drop function public.mathland_test_onboarding_insert_pause();
+SQL
 
 MATHLAND_GUARDIAN_ID="$(sql_value 'select extensions.gen_random_uuid()')"
 MATHLAND_FAMILY_ID="$(sql_value 'select extensions.gen_random_uuid()')"
@@ -272,5 +357,6 @@ if [[ "$MATHLAND_ACTIVE_VERSION" != "3.0.0" || "$MATHLAND_PENDING_STATUS" != "ca
   exit 1
 fi
 
+echo "PASS: concurrent guardian onboarding creates one family, child, private fact, and audit."
 echo "PASS: concurrent pairing leaves one active challenge and two audited creations."
 echo "PASS: a newer normal publication cancels a racing stale schedule without downgrade."

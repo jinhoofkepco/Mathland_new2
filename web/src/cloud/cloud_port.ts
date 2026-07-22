@@ -1,5 +1,7 @@
 import type {
   AiPatchResult,
+  BootstrapGuardianOnboardingInput,
+  BootstrapGuardianOnboardingResult,
   ChildSummary,
   ContentDraft,
   ContentDraftSummary,
@@ -9,6 +11,7 @@ import type {
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
+  GuardianFamilyStatus,
   PairingCodeResult,
   SaveDraftInput,
   SessionState,
@@ -17,6 +20,8 @@ import type {
 
 export type {
   AiPatchResult,
+  BootstrapGuardianOnboardingInput,
+  BootstrapGuardianOnboardingResult,
   ChildSummary,
   ContentDraft,
   ContentDraftSummary,
@@ -26,6 +31,7 @@ export type {
   DashboardQuery,
   DashboardSnapshot,
   FamilySummary,
+  GuardianFamilyStatus,
   GuardianRole,
   PairingCodeResult,
   SaveDraftInput,
@@ -36,6 +42,9 @@ export type {
 export interface CloudPort {
   session(): Promise<SessionState>;
   sendMagicLink(email: string, redirectTo: string): Promise<void>;
+  bootstrapGuardian(
+    input: BootstrapGuardianOnboardingInput,
+  ): Promise<BootstrapGuardianOnboardingResult>;
   signOut(): Promise<void>;
   listFamilies(): Promise<FamilySummary[]>;
   listChildren(familyId: string): Promise<ChildSummary[]>;

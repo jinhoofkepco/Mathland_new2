@@ -50,7 +50,7 @@ export function LoginPage() {
         <Link className="back-link" to="/">← 처음으로</Link>
         <p className="eyebrow">보호자 전용</p>
         <h1 id="login-title">보호자 로그인</h1>
-        <p>비밀번호 없이, 등록된 이메일로 받은 한 번만 쓰는 링크로 로그인합니다.</p>
+        <p>처음 오셨거나 다시 오신 보호자 모두, 이메일로 받은 한 번만 쓰는 링크로 시작합니다.</p>
         <form onSubmit={submit} noValidate>
           <label htmlFor="guardian-email">보호자 이메일</label>
           <input

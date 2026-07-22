@@ -21,5 +21,11 @@ if ! awk '
   exit 1
 fi
 
+if ! grep -Eq '^[[:space:]]*enable_signup[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$CONFIG_PATH"; then
+  echo "FAIL: Supabase guardian email sign-up must be enabled." >&2
+  exit 1
+fi
+
 echo "PASS: Supabase anonymous device sign-in is enabled."
 echo "PASS: scheduled activation uses its dedicated worker authentication boundary."
+echo "PASS: Supabase guardian email sign-up is enabled."

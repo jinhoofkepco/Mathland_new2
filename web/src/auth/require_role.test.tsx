@@ -13,6 +13,7 @@ function renderRole(role: "guardian" | "editor" | "owner", allow: Array<typeof r
       status: "authenticated",
       userId: "00000000-0000-4000-8000-000000000001",
       role,
+      familyStatus: role === "guardian" ? "ready" : "unauthorized",
     },
     families: [],
     children: [],

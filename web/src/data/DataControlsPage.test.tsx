@@ -20,7 +20,7 @@ class DataCloud extends FakeCloud {
 describe("DataControlsPage", () => {
   it("requires the exact nickname before destructive deletion", async () => {
     const cloud = new DataCloud({
-      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "guardian" },
+      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "guardian", familyStatus: "ready" },
       families: [{ id: FAMILY, name: "모아 가족", role: "guardian" }],
       children: [{ id: CHILD, familyId: FAMILY, nickname: "서아", lastSyncAt: null }],
       dashboards: {},

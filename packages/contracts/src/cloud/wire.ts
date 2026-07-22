@@ -6,17 +6,37 @@ export const CloudUuidSchema = z.uuid();
 export const CloudTimestampSchema = z.iso.datetime({ offset: true });
 export const GuardianRoleSchema = z.enum(["guardian", "editor", "owner"]);
 export type GuardianRole = z.infer<typeof GuardianRoleSchema>;
+export const GuardianFamilyStatusSchema = z.enum(["ready", "onboarding", "unauthorized"]);
+export type GuardianFamilyStatus = z.infer<typeof GuardianFamilyStatusSchema>;
 
 export const SessionStateSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("signed_out") }),
+  z.strictObject({ status: z.literal("onboarding"), userId: CloudUuidSchema }),
   z.strictObject({ status: z.literal("unauthorized"), userId: CloudUuidSchema }),
   z.strictObject({
     status: z.literal("authenticated"),
     userId: CloudUuidSchema,
     role: GuardianRoleSchema,
+    familyStatus: GuardianFamilyStatusSchema,
   }),
 ]);
 export type SessionState = z.infer<typeof SessionStateSchema>;
+
+export const BootstrapGuardianOnboardingInputSchema = z.strictObject({
+  familyName: z.string().trim().min(1).max(80),
+  childNickname: z.string().trim().min(1).max(32),
+});
+export type BootstrapGuardianOnboardingInput = z.infer<
+  typeof BootstrapGuardianOnboardingInputSchema
+>;
+
+export const BootstrapGuardianOnboardingResultSchema = z.strictObject({
+  familyId: CloudUuidSchema,
+  profileId: CloudUuidSchema,
+});
+export type BootstrapGuardianOnboardingResult = z.infer<
+  typeof BootstrapGuardianOnboardingResultSchema
+>;
 
 export const FamilySummarySchema = z.strictObject({
   id: CloudUuidSchema,

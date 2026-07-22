@@ -39,6 +39,7 @@ function clientFixture(options: {
         },
         error: null,
       })),
+      signInWithOtp: vi.fn(async () => ({ data: {}, error: null })),
     },
     from,
     rpc: vi.fn(async (name: string, input: { required_role?: string }) => ({
@@ -60,14 +61,15 @@ describe("SupabaseCloud", () => {
       status: "authenticated",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
       role: "guardian",
+      familyStatus: "ready",
     });
   });
 
-  it("fails closed when an authenticated user has no approved role", async () => {
+  it("offers onboarding when an authenticated user has no membership", async () => {
     const { client } = clientFixture({ appRole: "admin", membershipRows: [] });
 
     await expect(new SupabaseCloud(client).session()).resolves.toEqual({
-      status: "unauthorized",
+      status: "onboarding",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
     });
   });
@@ -79,6 +81,7 @@ describe("SupabaseCloud", () => {
       status: "authenticated",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
       role: "guardian",
+      familyStatus: "ready",
     });
   });
 
@@ -88,6 +91,57 @@ describe("SupabaseCloud", () => {
     await expect(new SupabaseCloud(client).session()).resolves.toEqual({
       status: "unauthorized",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+    });
+  });
+
+  it.each(["owner", "editor"] as const)(
+    "keeps global %s Studio access while offering guardian onboarding",
+    async (globalRole) => {
+      const { client } = clientFixture({ membershipRows: [], globalRole });
+
+      await expect(new SupabaseCloud(client).session()).resolves.toEqual({
+        status: "authenticated",
+        userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+        role: globalRole,
+        familyStatus: "onboarding",
+      });
+    },
+  );
+
+  it("allows a new guardian account and bootstraps only through the atomic RPC", async () => {
+    const { client } = clientFixture({ membershipRows: [] });
+    const typedClient = client as unknown as {
+      auth: { signInWithOtp: ReturnType<typeof vi.fn> };
+      rpc: ReturnType<typeof vi.fn>;
+    };
+    typedClient.rpc.mockImplementation(async (name: string, input: unknown) => {
+      if (name === "bootstrap_guardian_onboarding") {
+        expect(input).toEqual({ family_name: "모아네 가족", child_nickname: "모아" });
+        return {
+          data: {
+            familyId: "10000000-0000-4000-8000-000000000001",
+            profileId: "20000000-0000-4000-8000-000000000001",
+          },
+          error: null,
+        };
+      }
+      return { data: false, error: null };
+    });
+
+    const cloud = new SupabaseCloud(client);
+    await cloud.sendMagicLink("new@example.com", "https://example.com/#/auth/callback");
+    await expect(
+      cloud.bootstrapGuardian({ familyName: " 모아네 가족 ", childNickname: " 모아 " }),
+    ).resolves.toEqual({
+      familyId: "10000000-0000-4000-8000-000000000001",
+      profileId: "20000000-0000-4000-8000-000000000001",
+    });
+    expect(typedClient.auth.signInWithOtp).toHaveBeenCalledWith({
+      email: "new@example.com",
+      options: {
+        emailRedirectTo: "https://example.com/#/auth/callback",
+        shouldCreateUser: true,
+      },
     });
   });
 
@@ -101,6 +155,7 @@ describe("SupabaseCloud", () => {
       status: "authenticated",
       userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
       role: "owner",
+      familyStatus: "ready",
     });
   });
 

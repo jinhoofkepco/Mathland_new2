@@ -27,7 +27,7 @@ const validReport: ValidationReportWire = { valid: true, issues: [], samples: [{
 
 function fake(publications: ContentPublicationHistoryItem[] = []) {
   return new FakeCloud({
-    session: { status: "authenticated", userId: OWNER_ID, role: "owner" },
+    session: { status: "authenticated", userId: OWNER_ID, role: "owner", familyStatus: "ready" },
     families: [], children: [], dashboards: {}, drafts: [draft()], publications,
   });
 }

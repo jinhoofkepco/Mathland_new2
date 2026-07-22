@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BootstrapGuardianOnboardingInputSchema,
+  BootstrapGuardianOnboardingResultSchema,
   ChildProfileRowSchema,
   ContentPublicationSchema,
   ContentPublicationHistoryItemSchema,
@@ -18,6 +20,34 @@ import {
 import { makePublished } from "../content/package_fixture.js";
 
 describe("cloud wire contracts", () => {
+  it("keeps first-run guardian onboarding strict and bounded", () => {
+    expect(
+      SessionStateSchema.parse({
+        status: "onboarding",
+        userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+      }),
+    ).toHaveProperty("status", "onboarding");
+    expect(
+      BootstrapGuardianOnboardingInputSchema.parse({
+        familyName: "  모아네 가족  ",
+        childNickname: "  모아  ",
+      }),
+    ).toEqual({ familyName: "모아네 가족", childNickname: "모아" });
+    expect(
+      BootstrapGuardianOnboardingResultSchema.parse({
+        familyId: "10000000-0000-4000-8000-000000000001",
+        profileId: "20000000-0000-4000-8000-000000000001",
+      }),
+    ).toHaveProperty("profileId", "20000000-0000-4000-8000-000000000001");
+    expect(() =>
+      BootstrapGuardianOnboardingInputSchema.parse({
+        familyName: "",
+        childNickname: "모아",
+        role: "owner",
+      })
+    ).toThrow();
+  });
+
   it("keeps guardian and device pairing identities explicit and camelCase", () => {
     expect(
       CreatePairingCodeRequestSchema.parse({
@@ -92,6 +122,13 @@ describe("cloud wire contracts", () => {
         status: "authenticated",
         userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
         role: "admin",
+      })
+    ).toThrow();
+    expect(() =>
+      SessionStateSchema.parse({
+        status: "authenticated",
+        userId: "6f80625c-d4c0-4935-a213-2a164a37f27b",
+        role: "guardian",
       })
     ).toThrow();
   });

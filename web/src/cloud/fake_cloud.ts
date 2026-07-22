@@ -1,5 +1,7 @@
 import type {
   AiPatchResult,
+  BootstrapGuardianOnboardingInput,
+  BootstrapGuardianOnboardingResult,
   ChildSummary,
   CloudPort,
   ContentDraft,
@@ -40,7 +42,7 @@ const DEMO_SYNC_AT = "2026-07-21T09:20:00.000Z";
 const DEMO_ADDITION_PACKAGE = demoAdditionPackage as unknown as ContentDraft["package"];
 
 const DEMO_DATASET: FakeCloudDataset = {
-  session: { status: "authenticated", userId: DEMO_USER_ID, role: "owner" },
+  session: { status: "authenticated", userId: DEMO_USER_ID, role: "owner", familyStatus: "ready" },
   families: [{ id: DEMO_FAMILY_ID, name: "MathLand 데모 가족", role: "owner" }],
   children: [
     {
@@ -161,6 +163,31 @@ export class FakeCloud implements CloudPort {
     if (!/^https?:$/.test(url.protocol)) {
       throw new Error("A valid redirect URL is required");
     }
+  }
+
+  async bootstrapGuardian(
+    input: BootstrapGuardianOnboardingInput,
+  ): Promise<BootstrapGuardianOnboardingResult> {
+    const onboardingSession = this.#session;
+    if (
+      onboardingSession.status !== "onboarding"
+      && !(onboardingSession.status === "authenticated" && onboardingSession.familyStatus === "onboarding")
+    ) {
+      throw new Error("Guardian onboarding is not available");
+    }
+    const familyName = requireNonBlank(input.familyName, "familyName");
+    const childNickname = requireNonBlank(input.childNickname, "childNickname");
+    if (familyName.length > 80 || childNickname.length > 32) {
+      throw new Error("Onboarding names are too long");
+    }
+    const userId = onboardingSession.userId;
+    const role = onboardingSession.status === "authenticated" ? onboardingSession.role : "guardian";
+    const familyId = crypto.randomUUID();
+    const profileId = crypto.randomUUID();
+    this.#families.push({ id: familyId, name: familyName, role: "guardian" });
+    this.#children.push({ id: profileId, familyId, nickname: childNickname, lastSyncAt: null });
+    this.#session = { status: "authenticated", userId, role, familyStatus: "ready" };
+    return { familyId, profileId };
   }
 
   async signOut(): Promise<void> {

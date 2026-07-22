@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z, type ZodType } from "zod";
 import {
   AiPatchResultSchema,
+  BootstrapGuardianOnboardingInputSchema,
+  BootstrapGuardianOnboardingResultSchema,
   ChildProfileRowSchema,
   ChildSummarySchema,
   CloudUuidSchema,
@@ -27,6 +29,8 @@ import {
 
 import type {
   AiPatchResult,
+  BootstrapGuardianOnboardingInput,
+  BootstrapGuardianOnboardingResult,
   ChildSummary,
   CloudPort,
   ContentDraft,
@@ -92,31 +96,36 @@ export class SupabaseCloud implements CloudPort {
     ]);
     ensureNoError("owner role check", owner.error);
     ensureNoError("editor role check", editor.error);
-    let role: GuardianRole | null = owner.data === true
+    const globalRole: GuardianRole | null = owner.data === true
       ? "owner"
       : editor.data === true
       ? "editor"
       : null;
-
-    if (!role) {
-      const membershipResult = await this.client
-        .from("family_memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-      ensureNoError("session membership", membershipResult.error);
-      const memberships = parseWire(
-        z.array(SessionMembershipRowSchema),
-        membershipResult.data,
-        "session membership",
-      );
-      role = selectFamilyRole(memberships.map((membership) => membership.role));
-    }
+    const membershipResult = await this.client
+      .from("family_memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    ensureNoError("session membership", membershipResult.error);
+    const memberships = parseWire(
+      z.array(SessionMembershipRowSchema),
+      membershipResult.data,
+      "session membership",
+    );
+    const familyRole = selectFamilyRole(memberships.map((membership) => membership.role));
+    const role = globalRole ?? familyRole;
+    const familyStatus = familyRole
+      ? "ready"
+      : memberships.length === 0
+      ? "onboarding"
+      : "unauthorized";
 
     return parseWire(
       SessionStateSchema,
       role
-        ? { status: "authenticated", userId: user.id, role }
+        ? { status: "authenticated", userId: user.id, role, familyStatus }
+        : memberships.length === 0
+        ? { status: "onboarding", userId: user.id }
         : { status: "unauthorized", userId: user.id },
       "session",
     );
@@ -125,9 +134,29 @@ export class SupabaseCloud implements CloudPort {
   async sendMagicLink(email: string, redirectTo: string): Promise<void> {
     const { error } = await this.client.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
     });
     ensureNoError("send magic link", error);
+  }
+
+  async bootstrapGuardian(
+    rawInput: BootstrapGuardianOnboardingInput,
+  ): Promise<BootstrapGuardianOnboardingResult> {
+    const input = parseWire(
+      BootstrapGuardianOnboardingInputSchema,
+      rawInput,
+      "guardian onboarding input",
+    );
+    const { data, error } = await this.client.rpc("bootstrap_guardian_onboarding", {
+      family_name: input.familyName,
+      child_nickname: input.childNickname,
+    });
+    ensureNoError("guardian onboarding", error);
+    return parseWire(
+      BootstrapGuardianOnboardingResultSchema,
+      data,
+      "guardian onboarding",
+    );
   }
 
   async signOut(): Promise<void> {

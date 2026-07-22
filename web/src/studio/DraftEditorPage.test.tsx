@@ -14,7 +14,7 @@ const DRAFT_ID = "30000000-0000-4000-8000-000000000001";
 describe("DraftEditorPage", () => {
   it("edits difficulty/run values, validates, and saves with optimistic revision", async () => {
     const cloud = new FakeCloud({
-      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "editor" },
+      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "editor", familyStatus: "unauthorized" },
       families: [], children: [], dashboards: {},
       drafts: [{ id: DRAFT_ID, activityId: "addition_ones", title: "덧셈 탐험", revision: 3, updatedAt: "2030-01-01T00:00:00.000Z", package: studioPackageFixture() }],
     });
@@ -58,7 +58,7 @@ describe("DraftEditorPage", () => {
       }
     }
     const cloud = new ConflictCloud({
-      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "editor" },
+      session: { status: "authenticated", userId: "00000000-0000-4000-8000-000000000001", role: "editor", familyStatus: "unauthorized" },
       families: [], children: [], dashboards: {}, drafts: [],
     });
     render(
