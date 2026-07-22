@@ -2,6 +2,9 @@ import type { GeneratorId } from "../ids.js";
 import type { AnswerValueV1, ResolvedParametersV1 } from "../types.js";
 
 const SAFE_MAX = Number.MAX_SAFE_INTEGER;
+// Deterministic for every 64-bit integer, and therefore exact over the smaller
+// JavaScript safe-integer domain accepted by the content contracts.
+const MILLER_RABIN_BASES = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
 
 export function verifyGeneratedAnswer(
   generatorId: GeneratorId,
@@ -38,7 +41,7 @@ export function verifyGeneratedAnswer(
     case "prime_factorization_v1": {
       const factors = readAnswerList(answer, issues);
       const value = readInteger(resolved.value, issues, "value");
-      if (factors.some((factor) => !isPrimeByTrialDivision(factor))) {
+      if (factors.some((factor) => !isPrimeDeterministically(factor))) {
         issues.push("NON_PRIME_FACTOR");
       }
       if (factors.some((factor, index) => index > 0 && factors[index - 1]! > factor)) {
@@ -172,36 +175,66 @@ function independentLcm(values: readonly number[], issues: string[]): number | n
     issues.push("LCM_OPERANDS");
     return null;
   }
-  const maximumExponents = new Map<number, number>();
-  for (const value of values) {
-    for (const [prime, exponent] of primeExponentMap(value)) {
-      maximumExponents.set(prime, Math.max(maximumExponents.get(prime) ?? 0, exponent));
-    }
-  }
-  const factors: number[] = [];
-  for (const [prime, exponent] of maximumExponents) {
-    for (let count = 0; count < exponent; count += 1) factors.push(prime);
-  }
-  return safeProduct(factors, issues);
-}
 
-function primeExponentMap(value: number): Map<number, number> {
-  let remainder = value;
-  const result = new Map<number, number>();
-  for (let divisor = 2; divisor <= Math.floor(remainder / divisor); divisor += 1) {
-    while (remainder % divisor === 0) {
-      result.set(divisor, (result.get(divisor) ?? 0) + 1);
-      remainder /= divisor;
-    }
+  let result = 1;
+  for (const value of values) {
+    const quotient = result / greatestCommonDivisor(result, value);
+    const next = safeProduct([quotient, value], issues);
+    if (next === null) return null;
+    result = next;
   }
-  if (remainder > 1) result.set(remainder, (result.get(remainder) ?? 0) + 1);
   return result;
 }
 
-function isPrimeByTrialDivision(value: number): boolean {
+function greatestCommonDivisor(left: number, right: number): number {
+  let a = left;
+  let b = right;
+  while (b !== 0) {
+    [a, b] = [b, a % b];
+  }
+  return a;
+}
+
+function modularPower(base: bigint, exponent: bigint, modulus: bigint): bigint {
+  let factor = base % modulus;
+  let power = exponent;
+  let result = 1n;
+  while (power > 0n) {
+    if ((power & 1n) === 1n) result = (result * factor) % modulus;
+    power >>= 1n;
+    factor = (factor * factor) % modulus;
+  }
+  return result;
+}
+
+function isPrimeDeterministically(value: number): boolean {
   if (!Number.isSafeInteger(value) || value < 2) return false;
-  for (let divisor = 2; divisor <= Math.floor(value / divisor); divisor += 1) {
-    if (value % divisor === 0) return false;
+  if (value === 2 || value === 3) return true;
+  if (value % 2 === 0) return false;
+
+  const candidate = BigInt(value);
+  let oddPart = candidate - 1n;
+  let twos = 0;
+  while ((oddPart & 1n) === 0n) {
+    oddPart >>= 1n;
+    twos += 1;
+  }
+
+  for (const rawBase of MILLER_RABIN_BASES) {
+    const base = rawBase % candidate;
+    if (base === 0n) continue;
+    let witness = modularPower(base, oddPart, candidate);
+    if (witness === 1n || witness === candidate - 1n) continue;
+
+    let composite = true;
+    for (let round = 1; round < twos; round += 1) {
+      witness = (witness * witness) % candidate;
+      if (witness === candidate - 1n) {
+        composite = false;
+        break;
+      }
+    }
+    if (composite) return false;
   }
   return true;
 }
